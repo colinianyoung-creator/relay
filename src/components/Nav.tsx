@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Plus, CircleUserRound, LogOut, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from './AuthModal';
+import { Avatar } from './Avatar';
 
 export function Nav() {
   const { user, profile, signOut } = useAuth();
@@ -57,12 +58,8 @@ export function Nav() {
 
           {user ? (
             <div className="flex items-center gap-2">
-              <Link
-                to="/account"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-brand-soft)] font-display text-sm text-[var(--color-brand-dark)]"
-                aria-label="My activity"
-              >
-                {(profile?.name ?? user.email ?? '?').charAt(0).toUpperCase()}
+              <Link to="/account" aria-label="My activity">
+                <Avatar name={profile?.name ?? user.email ?? '?'} avatarUrl={profile?.avatar_url} className="h-9 w-9 text-sm" />
               </Link>
               <button
                 onClick={() => {

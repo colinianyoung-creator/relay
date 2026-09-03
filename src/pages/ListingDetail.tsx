@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasFitSignal, hasAnyProfileData } from '@/lib/fitMatch';
 import { ListingPhoto } from '@/components/ListingPhoto';
+import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
@@ -284,9 +285,7 @@ export function ListingDetail() {
               to={`/seller/${listing.seller.id}`}
               className="mt-5 flex items-center gap-3 border-t border-[var(--color-line)] pt-5 hover:opacity-80"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-brand-soft)] font-display text-[var(--color-brand-dark)]">
-                {listing.seller.name.charAt(0)}
-              </div>
+              <Avatar name={listing.seller.name} avatarUrl={listing.seller.avatarUrl} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1 text-sm font-medium">
                   {listing.seller.name}

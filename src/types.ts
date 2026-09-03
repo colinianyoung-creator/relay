@@ -26,6 +26,7 @@ export interface Seller {
   salesCount: number;
   memberSince: string;
   payoutsEnabled?: boolean;
+  avatarUrl?: string | null;
 }
 
 // Structured, numeric spec fields — additive to the freeform `measurements`

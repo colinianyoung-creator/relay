@@ -22,6 +22,7 @@ import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ListingPhoto } from '@/components/ListingPhoto';
+import { Avatar } from '@/components/Avatar';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { WantedPost, Listing } from '@/types';
 
@@ -158,9 +159,7 @@ export function WantedDetail() {
             </span>
 
             <div className="mt-5 flex items-center gap-3 border-t border-[var(--color-line)] pt-5">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-brand-soft)] font-display text-[var(--color-brand-dark)]">
-                {post.buyer.name.charAt(0)}
-              </div>
+              <Avatar name={post.buyer.name} avatarUrl={post.buyer.avatarUrl} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1 text-sm font-medium">
                   {post.buyer.name}

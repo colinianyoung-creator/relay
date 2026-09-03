@@ -12,6 +12,7 @@ export interface Profile {
   stripe_connect_account_id: string | null;
   stripe_connect_charges_enabled: boolean;
   is_admin: boolean;
+  avatar_url: string | null;
 }
 
 interface AuthContextValue {

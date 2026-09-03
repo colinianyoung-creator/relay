@@ -37,6 +37,7 @@ interface ListingRow {
     sales_count: number;
     created_at: string;
     stripe_connect_charges_enabled: boolean;
+    avatar_url: string | null;
   } | null;
 }
 
@@ -76,6 +77,7 @@ function mapListing(row: ListingRow): Listing {
       salesCount: seller?.sales_count ?? 0,
       memberSince: seller?.created_at ? seller.created_at.slice(0, 4) : '2026',
       payoutsEnabled: seller?.stripe_connect_charges_enabled ?? false,
+      avatarUrl: seller?.avatar_url ?? null,
     },
   };
 }
@@ -83,7 +85,7 @@ function mapListing(row: ListingRow): Listing {
 // Explicit FK name needed: listings->profiles is ambiguous to PostgREST
 // because saved_listings also links the two tables indirectly.
 const LISTING_SELECT =
-  '*, profiles:profiles!listings_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled)';
+  '*, profiles:profiles!listings_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled, avatar_url)';
 
 export async function fetchListings(): Promise<Listing[]> {
   const { data, error } = await supabase
@@ -258,6 +260,38 @@ export async function deleteListingPhoto(userId: string, url: string): Promise<v
   if (idx === -1) return;
   const path = url.slice(idx + '/listing-photos/'.length);
   await supabase.storage.from('listing-photos').remove([path]);
+}
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/** Uploads to a fixed per-user path (upsert) and writes profiles.avatar_url — one call does both. */
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Only image files can be uploaded.');
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    throw new Error('Profile pictures must be under 5MB.');
+  }
+  const ext = file.name.split('.').pop() ?? 'jpg';
+  const path = `${userId}/avatar.${ext}`;
+  const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
+    cacheControl: '3600',
+    upsert: true,
+  });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  // Cache-bust: the path is fixed per user, so without this the browser (and
+  // the API's own image cache) would keep showing the pre-upload picture.
+  const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', userId);
+  if (profileError) throw profileError;
+
+  return avatarUrl;
 }
 
 export async function isSaved(userId: string, listingId: string): Promise<boolean> {
@@ -435,6 +469,7 @@ interface WantedRow {
     rating: number;
     sales_count: number;
     created_at: string;
+    avatar_url: string | null;
   } | null;
 }
 
@@ -466,12 +501,13 @@ function mapWantedPost(row: WantedRow): WantedPost {
       rating: buyer?.rating ?? 5,
       salesCount: buyer?.sales_count ?? 0,
       memberSince: buyer?.created_at ? buyer.created_at.slice(0, 4) : '2026',
+      avatarUrl: buyer?.avatar_url ?? null,
     },
   };
 }
 
 const WANTED_SELECT =
-  '*, profiles:profiles!wanted_listings_buyer_id_fkey(id, name, club, verified, rating, sales_count, created_at)';
+  '*, profiles:profiles!wanted_listings_buyer_id_fkey(id, name, club, verified, rating, sales_count, created_at, avatar_url)';
 
 export async function fetchWantedPosts(): Promise<WantedPost[]> {
   const { data, error } = await supabase

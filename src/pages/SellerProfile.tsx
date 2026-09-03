@@ -4,6 +4,7 @@ import { ArrowLeft, BadgeCheck, Star, Loader2, MessageSquareText } from 'lucide-
 import { listings as demoListings } from '@/data/listings';
 import { fetchListingsBySeller, fetchReviewsForSeller, type Review } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
+import { Avatar } from '@/components/Avatar';
 import { timeAgo } from '@/lib/format';
 import type { Listing } from '@/types';
 
@@ -58,9 +59,7 @@ export function SellerProfile() {
       </Link>
 
       <div className="flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--color-brand-soft)] font-display text-2xl text-[var(--color-brand-dark)]">
-          {seller.name.charAt(0)}
-        </div>
+        <Avatar name={seller.name} avatarUrl={seller.avatarUrl} className="h-16 w-16 text-2xl" />
         <div>
           <div className="flex items-center gap-1.5 text-2xl">
             {seller.name}

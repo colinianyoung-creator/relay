@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
@@ -7,12 +7,14 @@ import {
   fetchSentMessages,
   fetchWantedPostsByBuyer,
   fetchSentWantedMessages,
+  uploadAvatar,
   type MessageThread,
   type WantedMessageThread,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
+import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, WantedPost } from '@/types';
@@ -25,7 +27,7 @@ type UnifiedMessage =
   | ({ kind: 'wanted' } & WantedMessageThread);
 
 export function Account() {
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<(typeof TABS)[number]>(
     searchParams.get('tab') === 'payouts' ? 'Payouts' : 'My listings',
@@ -34,6 +36,25 @@ export function Account() {
   const [saved, setSaved] = useState<Listing[] | null>(null);
   const [wantedPosts, setWantedPosts] = useState<WantedPost[] | null>(null);
   const [messages, setMessages] = useState<UnifiedMessage[] | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user) return;
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      await uploadAvatar(user.id, file);
+      await refreshProfile();
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Could not upload that picture.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -66,9 +87,24 @@ export function Account() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-brand-soft)] font-display text-xl text-[var(--color-brand-dark)]">
-          {(profile?.name ?? user.email ?? '?').charAt(0).toUpperCase()}
-        </div>
+        <button
+          onClick={() => avatarInputRef.current?.click()}
+          disabled={avatarUploading}
+          aria-label="Change profile picture"
+          className="group relative h-14 w-14 shrink-0 rounded-full disabled:opacity-70"
+        >
+          <Avatar name={profile?.name ?? user.email ?? '?'} avatarUrl={profile?.avatar_url} className="h-14 w-14 text-xl" />
+          <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 text-transparent transition group-hover:bg-black/40 group-hover:text-white">
+            {avatarUploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+          </span>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarChange}
+            className="hidden"
+          />
+        </button>
         <div>
           <div className="flex items-center gap-1.5 text-xl font-medium">
             {profile?.name ?? user.email}{' '}
@@ -77,6 +113,7 @@ export function Account() {
           <p className="text-sm text-[var(--color-ink-soft)]">
             {profile?.club ? `${profile.club}` : user.email}
           </p>
+          {avatarError && <p className="mt-1 text-xs text-[var(--color-brand-dark)]">{avatarError}</p>}
         </div>
       </div>
 
