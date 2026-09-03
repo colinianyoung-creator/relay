@@ -36,15 +36,25 @@ export function Browse() {
   const [condition, setCondition] = useState<Condition | 'all'>('all');
   const [country, setCountry] = useState<string | 'all'>('all');
   const [freeOnly, setFreeOnly] = useState(false);
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [sort, setSort] = useState<'newest' | 'price-asc' | 'price-desc'>('newest');
 
   const profileIsUsable = hasAnyProfileData(fitProfile);
 
   const filtered = useMemo(() => {
-    return listings.filter((l) => {
+    const min = minPrice.trim() ? Number(minPrice) : null;
+    const max = maxPrice.trim() ? Number(maxPrice) : null;
+
+    const result = listings.filter((l) => {
       if (sport !== 'all' && l.sport !== sport) return false;
       if (condition !== 'all' && l.condition !== condition) return false;
       if (country !== 'all' && l.country !== country && !l.shipsInternationally) return false;
       if (freeOnly && l.price !== null) return false;
+      // Raw numeric comparison, not currency-converted — mixed-currency
+      // listings aren't normalised anywhere else in the app either.
+      if (min !== null && (l.price ?? 0) < min) return false;
+      if (max !== null && (l.price ?? 0) > max) return false;
       if (fitsMeOnly && profileIsUsable && !isLikelyFit(l, fitProfile)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
@@ -54,7 +64,15 @@ export function Browse() {
       }
       return true;
     });
-  }, [listings, query, sport, condition, country, freeOnly, fitsMeOnly, profileIsUsable, fitProfile]);
+
+    result.sort((a, b) => {
+      if (sort === 'price-asc') return (a.price ?? 0) - (b.price ?? 0);
+      if (sort === 'price-desc') return (b.price ?? 0) - (a.price ?? 0);
+      return b.postedAt.localeCompare(a.postedAt);
+    });
+
+    return result;
+  }, [listings, query, sport, condition, country, freeOnly, minPrice, maxPrice, sort, fitsMeOnly, profileIsUsable, fitProfile]);
 
   return (
     <div>
@@ -129,6 +147,28 @@ export function Browse() {
             ))}
           </select>
 
+          <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-3.5 py-1.5 text-sm">
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              placeholder="Min"
+              className="w-14 bg-transparent outline-none placeholder:text-[var(--color-ink-soft)]/70"
+            />
+            <span className="text-[var(--color-ink-soft)]">–</span>
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              placeholder="Max"
+              className="w-14 bg-transparent outline-none placeholder:text-[var(--color-ink-soft)]/70"
+            />
+          </div>
+
           <button
             onClick={() => setFreeOnly((v) => !v)}
             className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
@@ -157,7 +197,17 @@ export function Browse() {
             </button>
           )}
 
-          <span className="ml-auto flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            className="ml-auto rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-3.5 py-1.5 text-sm"
+          >
+            <option value="newest">Newest first</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+          </select>
+
+          <span className="flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
             {loading && <Loader2 size={13} className="animate-spin" />}
             {filtered.length} listing{filtered.length === 1 ? '' : 's'}
           </span>
