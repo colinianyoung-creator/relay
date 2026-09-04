@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasAnyProfileData } from '@/lib/fitMatch';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Listing, type FitProfile } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
+import { HeroArt } from '@/components/HeroArt';
 
 export function Browse() {
   const { user } = useAuth();
@@ -77,28 +78,32 @@ export function Browse() {
   return (
     <div>
       <section className="border-b border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-        <div className="mx-auto max-w-6xl px-6 py-14 sm:py-20">
-          <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
-            Adaptive & para-sport equipment
-          </p>
-          <h1 className="max-w-2xl text-4xl leading-[1.08] sm:text-5xl">
-            Kit that's outgrown one athlete, ready for its next season.
-          </h1>
-          <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
-            Buy and sell sports wheelchairs, handcycles, running blades and adaptive kit
-            directly with clubs, families and athletes worldwide — matched by size, sport
-            and classification, not a Facebook wall.
-          </p>
+        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-14 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
+              Adaptive & para-sport equipment
+            </p>
+            <h1 className="max-w-2xl text-4xl leading-[1.08] sm:text-5xl">
+              Kit that's outgrown one athlete, ready for its next season.
+            </h1>
+            <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
+              Buy and sell sports wheelchairs, handcycles, running blades and adaptive kit
+              directly with clubs, families and athletes worldwide — matched by size, sport
+              and classification, not a Facebook wall.
+            </p>
 
-          <div className="mt-8 flex max-w-xl items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-4 py-2.5 shadow-sm">
-            <Search size={18} className="shrink-0 text-[var(--color-ink-soft)]" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search “racing chair”, “boccia ramp”, “handcycle”…"
-              className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--color-ink-soft)]/70"
-            />
+            <div className="mt-8 flex max-w-xl items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-4 py-2.5 shadow-sm">
+              <Search size={18} className="shrink-0 text-[var(--color-ink-soft)]" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search “racing chair”, “boccia ramp”, “handcycle”…"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--color-ink-soft)]/70"
+              />
+            </div>
           </div>
+
+          <HeroArt className="mx-auto hidden w-full max-w-sm sm:block" />
         </div>
       </section>
 
