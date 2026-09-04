@@ -84,12 +84,12 @@ export function Browse() {
               Adaptive & para-sport equipment
             </p>
             <h1 className="max-w-2xl text-4xl leading-[1.08] sm:text-5xl">
-              Kit that's outgrown one athlete, ready for its next season.
+              The direct marketplace for adaptive sports equipment.
             </h1>
             <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
               Buy and sell sports wheelchairs, handcycles, running blades and adaptive kit
               directly with clubs, families and athletes worldwide — matched by size, sport
-              and classification, not a Facebook wall.
+              and classification.
             </p>
 
             <div className="mt-8 flex max-w-xl items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-4 py-2.5 shadow-sm">
