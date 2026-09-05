@@ -31,7 +31,14 @@ export function Browse() {
     fetchFitProfile(user.id).then(setFitProfile);
   }, [user]);
 
-  const listings = useMemo(() => [...realListings, ...demoListings], [realListings]);
+  // Demo listings are there to keep Browse from looking empty before real
+  // sellers show up — once at least one real listing exists, they're no
+  // longer needed and would just look like clutter mixed in with genuine,
+  // buyable items.
+  const listings = useMemo(
+    () => (realListings.length > 0 ? realListings : demoListings),
+    [realListings],
+  );
   const [query, setQuery] = useState('');
   const [sport, setSport] = useState<Sport | 'all'>('all');
   const [condition, setCondition] = useState<Condition | 'all'>('all');
