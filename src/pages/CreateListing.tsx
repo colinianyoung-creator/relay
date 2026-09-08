@@ -12,41 +12,18 @@ import {
   uploadListingPhoto,
   LISTING_FEE_GBP,
 } from '@/lib/supabaseData';
+import {
+  CURRENCIES,
+  MEASUREMENT_FIELDS,
+  CATEGORY_LABEL,
+  SHOWS_SEAT_FIELDS,
+  SHOWS_WEIGHT_CAPACITY,
+  SHOWS_USER_RANGE,
+} from '@/lib/listingFields';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
 import { Badge } from '@/components/Badge';
 import { formatPrice, timeAgo } from '@/lib/format';
-
-const CURRENCIES: Currency[] = ['GBP', 'USD', 'EUR', 'AUD', 'CAD'];
-
-const MEASUREMENT_FIELDS: Record<Sport, string[]> = {
-  basketball: ['Seat width', 'Seat depth', 'Camber', 'Wheel size'],
-  rugby: ['Seat width', 'Camber', 'Bumper type'],
-  racing: ['Frame size / category', 'Wheel size', 'Build height'],
-  handcycling: ['Frame size', 'Gearing', 'Wheel size'],
-  boccia: ['Height range', 'Release mechanism'],
-  swimming: ['Dimensions', 'Fitting'],
-  tennis: ['Seat width', 'Camber', 'Wheel size'],
-  other: ['Key dimensions'],
-};
-
-const CATEGORY_LABEL: Record<Sport, string> = {
-  basketball: 'Sports wheelchair',
-  rugby: 'Sports wheelchair',
-  racing: 'Racing equipment',
-  handcycling: 'Handcycle',
-  boccia: 'Boccia equipment',
-  swimming: 'Pool equipment',
-  tennis: 'Sports wheelchair',
-  other: 'Adaptive equipment',
-};
-
-// Which structured, filterable fit fields make sense to ask for per sport —
-// a seat width doesn't mean anything for a boccia ramp, and a running blade
-// doesn't have one, but does have a recommended user weight/height range.
-const SHOWS_SEAT_FIELDS: Sport[] = ['basketball', 'rugby', 'tennis', 'racing'];
-const SHOWS_WEIGHT_CAPACITY: Sport[] = ['basketball', 'rugby', 'tennis', 'racing', 'handcycling'];
-const SHOWS_USER_RANGE: Sport[] = ['racing', 'handcycling', 'other'];
 
 export function CreateListing() {
   const { user } = useAuth();
@@ -93,6 +70,37 @@ export function CreateListing() {
       });
     });
   }, [searchParams, setSearchParams]);
+
+  // Pre-fills everything except title/price/photos from an existing listing
+  // — the "list 12 similar chairs" case is much faster as duplicate-and-tweak
+  // than 12 blank forms.
+  useEffect(() => {
+    const duplicateId = searchParams.get('duplicate');
+    if (!duplicateId) return;
+    fetchListing(duplicateId).then((source) => {
+      if (!source) return;
+      setSport(source.sport);
+      setCondition(source.condition);
+      setDescription(source.description);
+      setCurrency(source.currency);
+      setLocation(source.location);
+      setCountry(source.country);
+      setShipsInternationally(source.shipsInternationally);
+      setMeasurementValues(Object.fromEntries(source.measurements.map((m) => [m.label, m.value])));
+      setSeatWidthCm(source.seatWidthCm?.toString() ?? '');
+      setSeatDepthCm(source.seatDepthCm?.toString() ?? '');
+      setWeightCapacityKg(source.weightCapacityKg?.toString() ?? '');
+      setMinUserHeightCm(source.minUserHeightCm?.toString() ?? '');
+      setMaxUserHeightCm(source.maxUserHeightCm?.toString() ?? '');
+      setMinUserWeightKg(source.minUserWeightKg?.toString() ?? '');
+      setMaxUserWeightKg(source.maxUserWeightKg?.toString() ?? '');
+      setSearchParams((prev) => {
+        prev.delete('duplicate');
+        return prev;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function addPhotoFiles(files: FileList | null) {
     if (!files) return;

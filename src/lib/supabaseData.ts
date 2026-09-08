@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Listing, Currency, FitProfile, WantedPost } from '@/types';
+import type { Listing, Currency, FitProfile, WantedPost, FleetBundle, Seller } from '@/types';
 import { listingMatchesWanted } from '@/lib/fitMatch';
 
 interface ListingRow {
@@ -28,6 +28,8 @@ interface ListingRow {
   photos: string[] | null;
   fee_status: 'exempt' | 'pending' | 'paid';
   sold_at: string | null;
+  bundle_id: string | null;
+  sellable_individually: boolean;
   profiles: {
     id: string;
     name: string;
@@ -68,6 +70,8 @@ function mapListing(row: ListingRow): Listing {
     photos: row.photos ?? [],
     feeStatus: row.fee_status,
     soldAt: row.sold_at,
+    bundleId: row.bundle_id,
+    sellableIndividually: row.sellable_individually,
     seller: {
       id: seller?.id ?? row.seller_id,
       name: seller?.name ?? 'Relay member',
@@ -87,10 +91,15 @@ function mapListing(row: ListingRow): Listing {
 const LISTING_SELECT =
   '*, profiles:profiles!listings_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled, avatar_url)';
 
+// Fleet-only items (sellable_individually = false) are deliberately excluded
+// here — they're only reachable/purchasable via their fleet's own page, not
+// through general browse/search. See fetchListingsBySeller below, which a
+// seller uses to see everything they own, fleet-only included.
 export async function fetchListings(): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
     .select(LISTING_SELECT)
+    .eq('sellable_individually', true)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data as unknown as ListingRow[]).map(mapListing);
@@ -192,6 +201,90 @@ export async function createListingCheckout(
 /** Only ever called on a listing still in 'pending' — abandoning Checkout shouldn't leave a half-published listing behind. */
 export async function deletePendingListing(listingId: string): Promise<void> {
   await supabase.from('listings').delete().eq('id', listingId).eq('fee_status', 'pending');
+}
+
+// --- Fleet listing (create a whole fleet's listings + the bundle together) ---
+// Distinct from createFleetBundle below, which groups listings a seller
+// already has up. This creates the listings and the bundle in one step, for
+// a seller who's never listed any of it before.
+
+export interface FleetSharedFields {
+  title: string;
+  description: string;
+  sport: string;
+  category: string;
+  currency: Currency;
+  location: string;
+  country: string;
+  shipsInternationally: boolean;
+  photos?: string[];
+}
+
+export interface FleetItemInput {
+  title: string;
+  condition: string;
+  price: number;
+  sellableIndividually: boolean;
+  seatWidthCm?: number | null;
+  seatDepthCm?: number | null;
+}
+
+export async function createFleetListing(
+  sellerId: string,
+  shared: FleetSharedFields,
+  items: FleetItemInput[],
+): Promise<string> {
+  const { data: bundle, error: bundleError } = await supabase
+    .from('listing_bundles')
+    .insert({ seller_id: sellerId, title: shared.title, description: shared.description, status: 'draft' })
+    .select('id')
+    .single();
+  if (bundleError) throw bundleError;
+
+  const { error: listingsError } = await supabase.from('listings').insert(
+    items.map((item) => ({
+      seller_id: sellerId,
+      bundle_id: bundle.id,
+      title: item.title,
+      sport: shared.sport,
+      category: shared.category,
+      condition: item.condition,
+      price: item.price,
+      currency: shared.currency,
+      description: shared.description,
+      measurements: [],
+      location: shared.location,
+      country: shared.country,
+      ships_internationally: shared.shipsInternationally,
+      seat_width_cm: item.seatWidthCm ?? null,
+      seat_depth_cm: item.seatDepthCm ?? null,
+      photos: shared.photos ?? [],
+      fee_status: 'pending',
+      sellable_individually: item.sellableIndividually,
+    })),
+  );
+  if (listingsError) throw listingsError;
+
+  return bundle.id;
+}
+
+export async function createFleetCheckout(
+  bundleId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-fleet-checkout', {
+    body: { bundleId, successUrl, cancelUrl },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.url as string;
+}
+
+/** Only ever called on a bundle still 'draft' — abandoning Checkout shouldn't leave half-published listings or an orphaned bundle behind. */
+export async function deletePendingFleetListings(bundleId: string): Promise<void> {
+  await supabase.from('listings').delete().eq('bundle_id', bundleId).eq('fee_status', 'pending');
+  await supabase.from('listing_bundles').update({ status: 'cancelled' }).eq('id', bundleId).eq('status', 'draft');
 }
 
 export async function fetchListingFeeStatus(listingId: string): Promise<string | null> {
@@ -888,6 +981,7 @@ export interface AdminOrder {
   disputeStatus: string | null;
   listingId: string | null;
   listingTitle: string;
+  bundleId: string | null;
   buyerName: string;
   sellerName: string;
 }
@@ -903,7 +997,9 @@ interface AdminOrderRow {
   stripe_payment_intent_id: string | null;
   disputed_at: string | null;
   dispute_status: string | null;
+  bundle_listing_ids: string[] | null;
   listing: { id: string; title: string } | null;
+  bundle: { id: string; title: string } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
 }
@@ -912,7 +1008,7 @@ interface AdminOrderRow {
 // FKs to profiles (buyer_id, seller_id), same ambiguity as elsewhere in
 // this file.
 const ADMIN_ORDER_SELECT =
-  'id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, listing:listings(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
+  'id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
 
 export async function fetchAllOrders(): Promise<AdminOrder[]> {
   const { data, error } = await supabase
@@ -932,7 +1028,10 @@ export async function fetchAllOrders(): Promise<AdminOrder[]> {
     disputedAt: row.disputed_at,
     disputeStatus: row.dispute_status,
     listingId: row.listing?.id ?? null,
-    listingTitle: row.listing?.title ?? 'Listing removed',
+    listingTitle: row.bundle
+      ? `Fleet bundle: ${row.bundle.title} (${row.bundle_listing_ids?.length ?? 0} items)`
+      : (row.listing?.title ?? 'Listing removed'),
+    bundleId: row.bundle?.id ?? null,
     buyerName: row.buyer?.name ?? 'Relay member',
     sellerName: row.seller?.name ?? 'Relay member',
   }));
@@ -982,5 +1081,229 @@ export async function fetchAuditLog(): Promise<AdminAuditLogEntry[]> {
     targetId: row.target_id,
     details: row.details,
     createdAt: row.created_at,
+  }));
+}
+
+// --- Fleet bundles (club fleet liquidations) ---
+// A bundle groups several of a seller's own listings into one sellable lot,
+// bought in a single checkout. See supabase/migrations/20260906100000_fleet_bundles.sql.
+
+interface BundleRow {
+  id: string;
+  title: string;
+  description: string;
+  status: 'active' | 'sold' | 'cancelled';
+  created_at: string;
+  seller_id: string;
+  profiles: {
+    id: string;
+    name: string;
+    club: string | null;
+    verified: boolean;
+    rating: number;
+    sales_count: number;
+    created_at: string;
+    stripe_connect_charges_enabled: boolean;
+    avatar_url: string | null;
+  } | null;
+  listings: ListingRow[];
+}
+
+const BUNDLE_SELECT =
+  'id, title, description, status, created_at, seller_id, profiles:profiles!listing_bundles_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled, avatar_url), listings(*)';
+
+function mapBundle(row: BundleRow): FleetBundle {
+  const sellerProfile = row.profiles;
+  const seller: Seller = {
+    id: sellerProfile?.id ?? row.seller_id,
+    name: sellerProfile?.name ?? 'Relay member',
+    verified: sellerProfile?.verified ?? false,
+    club: sellerProfile?.club ?? undefined,
+    rating: sellerProfile?.rating ?? 5,
+    salesCount: sellerProfile?.sales_count ?? 0,
+    memberSince: sellerProfile?.created_at ? sellerProfile.created_at.slice(0, 4) : '2026',
+    payoutsEnabled: sellerProfile?.stripe_connect_charges_enabled ?? false,
+    avatarUrl: sellerProfile?.avatar_url ?? null,
+  };
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status,
+    createdAt: row.created_at,
+    seller,
+    // Every listing in a bundle belongs to the bundle's own seller, so the
+    // nested `listings(*)` select (member columns only, no per-row profile
+    // join needed) is paired back up with the seller profile fetched above.
+    listings: (row.listings ?? []).map((l) => mapListing({ ...l, profiles: sellerProfile })),
+  };
+}
+
+export async function fetchActiveBundles(): Promise<FleetBundle[]> {
+  const { data, error } = await supabase
+    .from('listing_bundles')
+    .select(BUNDLE_SELECT)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as unknown as BundleRow[]).map(mapBundle);
+}
+
+export async function fetchBundle(id: string): Promise<FleetBundle | null> {
+  const { data, error } = await supabase
+    .from('listing_bundles')
+    .select(BUNDLE_SELECT)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapBundle(data as unknown as BundleRow) : null;
+}
+
+export async function fetchBundlesBySeller(sellerId: string): Promise<FleetBundle[]> {
+  const { data, error } = await supabase
+    .from('listing_bundles')
+    .select(BUNDLE_SELECT)
+    .eq('seller_id', sellerId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as unknown as BundleRow[]).map(mapBundle);
+}
+
+export async function createFleetBundle(
+  sellerId: string,
+  title: string,
+  description: string,
+  listingIds: string[],
+): Promise<string> {
+  const { data: bundle, error: bundleError } = await supabase
+    .from('listing_bundles')
+    .insert({ seller_id: sellerId, title, description })
+    .select('id')
+    .single();
+  if (bundleError) throw bundleError;
+
+  // Extra `eq('seller_id', ...)` guard so this can never attach someone
+  // else's listing to your bundle even if a listingId were spoofed —
+  // belt-and-braces alongside the RLS policy that already enforces it.
+  const { error: updateError } = await supabase
+    .from('listings')
+    .update({ bundle_id: bundle.id })
+    .in('id', listingIds)
+    .eq('seller_id', sellerId);
+  if (updateError) throw updateError;
+
+  return bundle.id;
+}
+
+// --- Custom order invoices ---
+// A seller-initiated invoice: pick some of your own unsold listings, name a
+// negotiated total, send it to a buyer you've already been talking to. Kept
+// deliberately separate from the instant single-listing purchase flow above
+// — see supabase/migrations/20260907090000_custom_order_invoices.sql and
+// the create-custom-order / pay-custom-order / cancel-custom-order edge
+// functions for why (negotiate first, pay at the end, not the other way
+// round).
+
+export interface BuyerLookup {
+  id: string;
+  name: string;
+}
+
+export async function findBuyerByEmail(email: string): Promise<BuyerLookup> {
+  const { data, error } = await supabase.functions.invoke('find-buyer-by-email', {
+    body: { email },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data as BuyerLookup;
+}
+
+export async function createCustomOrder(
+  buyerId: string,
+  listingIds: string[],
+  amount: number,
+  currency: Currency,
+  bundleId?: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-custom-order', {
+    body: { buyerId, listingIds, amount, currency, bundleId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.id as string;
+}
+
+export async function payCustomOrder(
+  orderId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('pay-custom-order', {
+    body: { orderId, successUrl, cancelUrl },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.url as string;
+}
+
+export async function cancelCustomOrder(orderId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('cancel-custom-order', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export interface Invoice {
+  id: string;
+  role: 'buyer' | 'seller';
+  amount: number;
+  currency: Currency;
+  platformFeeAmount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  createdAt: string;
+  hasStripeSession: boolean;
+  itemCount: number;
+  counterpartyName: string;
+}
+
+interface InvoiceRow {
+  id: string;
+  buyer_id: string;
+  seller_id: string;
+  amount: number;
+  currency: string;
+  platform_fee_amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  created_at: string;
+  stripe_checkout_session_id: string | null;
+  bundle_listing_ids: string[] | null;
+  buyer: { name: string } | null;
+  seller: { name: string } | null;
+}
+
+const INVOICE_SELECT =
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
+
+/** Every custom-order invoice this user is either side of, most recent first. Single-listing instant purchases (bundle_listing_ids null) aren't invoices, so they're excluded. */
+export async function fetchMyInvoices(userId: string): Promise<Invoice[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select(INVOICE_SELECT)
+    .not('bundle_listing_ids', 'is', null)
+    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as unknown as InvoiceRow[]).map((row) => ({
+    id: row.id,
+    role: row.buyer_id === userId ? 'buyer' : 'seller',
+    amount: row.amount,
+    currency: row.currency as Currency,
+    platformFeeAmount: row.platform_fee_amount,
+    status: row.status,
+    createdAt: row.created_at,
+    hasStripeSession: !!row.stripe_checkout_session_id,
+    itemCount: row.bundle_listing_ids?.length ?? 0,
+    counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
   }));
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, Search, CreditCard } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, Search, CreditCard, Copy } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
@@ -100,8 +100,14 @@ export function ListingDetail() {
   const fitSignal = fitProfileUsable && hasFitSignal(listing, fitProfile);
   const fits = fitSignal && isLikelyFit(listing, fitProfile);
   const isSold = !!listing.soldAt;
+  const isFleetOnly = listing.sellableIndividually === false && !!listing.bundleId;
   const canBuyInApp =
-    !isDemo && !isSold && listing.price !== null && listing.seller.payoutsEnabled && user?.id !== listing.seller.id;
+    !isDemo &&
+    !isSold &&
+    !isFleetOnly &&
+    listing.price !== null &&
+    listing.seller.payoutsEnabled &&
+    user?.id !== listing.seller.id;
 
   async function handleBuyNow() {
     setBuyError(null);
@@ -322,6 +328,15 @@ export function ListingDetail() {
                   </p>
                 )}
 
+                {!isDemo && (
+                  <Link
+                    to={`/sell?duplicate=${listing.id}`}
+                    className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                  >
+                    <Copy size={12} /> Duplicate this listing
+                  </Link>
+                )}
+
                 {matches === null ? (
                   <p className="mt-3 flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
                     <Loader2 size={12} className="animate-spin" /> Checking the wanted board…
@@ -414,9 +429,19 @@ export function ListingDetail() {
 
             {!isSold && user?.id !== listing.seller.id && (
               <p className="mt-4 text-center text-xs text-[var(--color-ink-soft)]">
-                {canBuyInApp
-                  ? 'Pay securely in-app via Stripe — Relay never sees your card details.'
-                  : "This seller hasn't set up in-app payouts — buyers and sellers arrange payment directly."}
+                {isFleetOnly ? (
+                  <>
+                    Only sold as part of its fleet —{' '}
+                    <Link to={`/fleet/${listing.bundleId}`} className="underline">
+                      view the fleet
+                    </Link>
+                    .
+                  </>
+                ) : canBuyInApp ? (
+                  'Pay securely in-app via Stripe — Relay never sees your card details.'
+                ) : (
+                  "This seller hasn't set up in-app payouts — buyers and sellers arrange payment directly."
+                )}
               </p>
             )}
           </div>

@@ -134,6 +134,13 @@ export function AdminOrders() {
                         >
                           {o.listingTitle}
                         </Link>
+                      ) : o.bundleId ? (
+                        <Link
+                          to={`/fleet/${o.bundleId}`}
+                          className="text-sm font-medium hover:text-[var(--color-brand)]"
+                        >
+                          {o.listingTitle}
+                        </Link>
                       ) : (
                         <span className="text-sm font-medium text-[var(--color-ink-soft)]">{o.listingTitle}</span>
                       )}

@@ -61,6 +61,19 @@ export interface Listing extends StructuredSpec {
   photos?: string[];
   feeStatus?: 'exempt' | 'pending' | 'paid';
   soldAt?: string | null;
+  bundleId?: string | null;
+  /** Defaults true (treat missing as true) — demo listings don't set it. */
+  sellableIndividually?: boolean;
+}
+
+export interface FleetBundle {
+  id: string;
+  title: string;
+  description: string;
+  status: 'draft' | 'active' | 'sold' | 'cancelled';
+  createdAt: string;
+  seller: Seller;
+  listings: Listing[];
 }
 
 export interface WantedPost extends StructuredSpec {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera } from 'lucide-react';
+import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera, Boxes, Receipt, CreditCard, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
@@ -7,9 +7,13 @@ import {
   fetchSentMessages,
   fetchWantedPostsByBuyer,
   fetchSentWantedMessages,
+  fetchMyInvoices,
+  payCustomOrder,
+  cancelCustomOrder,
   uploadAvatar,
   type MessageThread,
   type WantedMessageThread,
+  type Invoice,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { FitProfileForm } from '@/components/FitProfileForm';
@@ -20,7 +24,7 @@ import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, WantedPost } from '@/types';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
-const TABS = ['My listings', 'Saved', 'Wanted posts', 'Messages', 'Payouts', 'Fit profile'] as const;
+const TABS = ['My listings', 'Saved', 'Wanted posts', 'Messages', 'Invoices', 'Payouts', 'Fit profile'] as const;
 
 type UnifiedMessage =
   | ({ kind: 'listing' } & MessageThread)
@@ -29,16 +33,52 @@ type UnifiedMessage =
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState<(typeof TABS)[number]>(
-    searchParams.get('tab') === 'payouts' ? 'Payouts' : 'My listings',
-  );
+  const [tab, setTab] = useState<(typeof TABS)[number]>(() => {
+    const t = searchParams.get('tab');
+    if (t === 'payouts') return 'Payouts';
+    if (t === 'invoices') return 'Invoices';
+    return 'My listings';
+  });
   const [myListings, setMyListings] = useState<Listing[] | null>(null);
   const [saved, setSaved] = useState<Listing[] | null>(null);
   const [wantedPosts, setWantedPosts] = useState<WantedPost[] | null>(null);
   const [messages, setMessages] = useState<UnifiedMessage[] | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
+  const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  function refreshInvoices() {
+    if (user) fetchMyInvoices(user.id).then(setInvoices);
+  }
+
+  async function handlePayInvoice(invoiceId: string) {
+    setInvoiceError(null);
+    setInvoiceBusyId(invoiceId);
+    try {
+      const origin = window.location.origin;
+      const url = await payCustomOrder(invoiceId, `${origin}/account?tab=invoices`, `${origin}/account?tab=invoices`);
+      window.location.href = url;
+    } catch (err) {
+      setInvoiceError(err instanceof Error ? err.message : 'Something went wrong starting payment.');
+      setInvoiceBusyId(null);
+    }
+  }
+
+  async function handleCancelInvoice(invoiceId: string) {
+    setInvoiceError(null);
+    setInvoiceBusyId(invoiceId);
+    try {
+      await cancelCustomOrder(invoiceId);
+      refreshInvoices();
+    } catch (err) {
+      setInvoiceError(err instanceof Error ? err.message : 'Could not cancel that invoice.');
+    } finally {
+      setInvoiceBusyId(null);
+    }
+  }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -61,6 +101,7 @@ export function Account() {
     fetchListingsBySeller(user.id).then(setMyListings);
     fetchSavedListings(user.id).then(setSaved);
     fetchWantedPostsByBuyer(user.id).then(setWantedPosts);
+    fetchMyInvoices(user.id).then(setInvoices);
     Promise.all([fetchSentMessages(user.id), fetchSentWantedMessages(user.id)]).then(
       ([listingMsgs, wantedMsgs]) => {
         const unified: UnifiedMessage[] = [
@@ -152,10 +193,20 @@ export function Account() {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {myListings.map((l) => (
-                <ListingCard key={l.id} listing={l} />
-              ))}
+            <div>
+              <div className="mb-5 flex justify-end">
+                <Link
+                  to="/sell/fleet/new"
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  <Boxes size={13} /> Create fleet bundle
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {myListings.map((l) => (
+                  <ListingCard key={l.id} listing={l} />
+                ))}
+              </div>
             </div>
           ))}
 
@@ -264,6 +315,129 @@ export function Account() {
                   </div>
                 </div>
               ))}
+            </div>
+          ))}
+
+        {tab === 'Invoices' &&
+          (invoices === null ? (
+            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+          ) : (
+            <div className="space-y-8">
+              {invoiceError && (
+                <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                  {invoiceError}
+                </p>
+              )}
+
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">To pay</h3>
+                {invoices.filter((i) => i.role === 'buyer' && i.status === 'pending').length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    No invoices waiting on you.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {invoices
+                      .filter((i) => i.role === 'buyer' && i.status === 'pending')
+                      .map((inv) => (
+                        <div key={inv.id} className="flex items-center gap-4 p-4">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
+                            <Receipt size={17} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">
+                                {formatPrice(inv.amount, inv.currency)} from {inv.counterpartyName}
+                              </span>
+                              <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                                {timeAgo(inv.createdAt.slice(0, 10))}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[var(--color-ink-soft)]">
+                              {inv.itemCount} item{inv.itemCount === 1 ? '' : 's'}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <button
+                              onClick={() => handlePayInvoice(inv.id)}
+                              disabled={invoiceBusyId === inv.id}
+                              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                            >
+                              {invoiceBusyId === inv.id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <CreditCard size={13} />
+                              )}
+                              Pay now
+                            </button>
+                            <button
+                              onClick={() => handleCancelInvoice(inv.id)}
+                              disabled={invoiceBusyId === inv.id}
+                              className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sent</h3>
+                {invoices.filter((i) => i.role === 'seller').length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    You haven't sent an invoice yet — send one from a fleet bundle you own.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {invoices
+                      .filter((i) => i.role === 'seller')
+                      .map((inv) => (
+                        <div key={inv.id} className="flex items-center gap-4 p-4">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
+                            <Receipt size={17} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium">
+                                {formatPrice(inv.amount, inv.currency)} to {inv.counterpartyName}
+                              </span>
+                              <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                                {timeAgo(inv.createdAt.slice(0, 10))}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[var(--color-ink-soft)]">
+                              {inv.itemCount} item{inv.itemCount === 1 ? '' : 's'} ·{' '}
+                              <Badge
+                                tone={
+                                  inv.status === 'paid' ? 'moss' : inv.status === 'cancelled' ? 'neutral' : 'brand'
+                                }
+                              >
+                                {inv.status === 'paid' ? 'Paid' : inv.status === 'cancelled' ? 'Cancelled' : 'Pending'}
+                              </Badge>
+                            </p>
+                          </div>
+                          {inv.status === 'pending' && (
+                            <button
+                              onClick={() => handleCancelInvoice(inv.id)}
+                              disabled={invoiceBusyId === inv.id}
+                              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                            >
+                              {invoiceBusyId === inv.id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <X size={13} />
+                              )}
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
 
