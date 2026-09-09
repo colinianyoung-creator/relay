@@ -298,13 +298,12 @@ export async function fetchListingFeeStatus(listingId: string): Promise<string |
 
 // --- In-platform payments (Stripe Connect) ---
 
-export async function createConnectOnboardingLink(returnUrl: string, refreshUrl: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('connect-onboarding', {
-    body: { returnUrl, refreshUrl },
-  });
+/** Client secret for Stripe's embedded Connect onboarding/management UI — rendered inline, no redirect to a Stripe-hosted page. */
+export async function createConnectAccountSession(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-connect-account-session');
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return data.url as string;
+  return data.clientSecret as string;
 }
 
 export async function refreshConnectStatus(): Promise<boolean> {

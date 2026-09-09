@@ -1,10 +1,9 @@
 // Creates (or reuses) a Stripe Connect Express account for the calling
-// seller and returns a fresh onboarding link. We don't try to track
-// "charges_enabled" via Connect webhooks here — that needs a second webhook
-// subscription configured in the Stripe dashboard for events on connected
-// accounts. Simpler and just as reliable for this: the seller is bounced
-// back to returnUrl after onboarding, and the client calls
-// refresh-connect-status there to pull the account's live status directly.
+// seller and returns an Account Session client secret, which the frontend
+// uses to mount Stripe's embedded onboarding/management UI directly inside
+// Relay's own page — no redirect to a Stripe-hosted domain. See
+// connect-onboarding/index.ts for the (now unused by the client, kept as a
+// harmless fallback) hosted-redirect equivalent this replaces.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -39,14 +38,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { returnUrl, refreshUrl } = await req.json();
-    if (!returnUrl || !refreshUrl) {
-      return new Response(JSON.stringify({ error: 'Missing returnUrl or refreshUrl' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_connect_account_id')
@@ -69,10 +60,9 @@ Deno.serve(async (req) => {
       const account = await stripe.accounts.create({
         type: 'express',
         email: user.email,
-        // Explicit rather than left to Stripe's own default — Relay sellers
-        // are private individuals selling their own secondhand kit, never a
-        // registered business, so this should never silently drift onto a
-        // company/sole-trader onboarding path.
+        // Relay sellers are private individuals selling their own
+        // secondhand kit, never a registered business — explicit rather
+        // than left to Stripe's own default.
         business_type: 'individual',
         capabilities: {
           card_payments: { requested: true },
@@ -90,14 +80,15 @@ Deno.serve(async (req) => {
         .eq('id', user.id);
     }
 
-    const link = await stripe.accountLinks.create({
+    const accountSession = await stripe.accountSessions.create({
       account: accountId,
-      return_url: returnUrl,
-      refresh_url: refreshUrl,
-      type: 'account_onboarding',
+      components: {
+        account_onboarding: { enabled: true },
+        account_management: { enabled: true },
+      },
     });
 
-    return new Response(JSON.stringify({ url: link.url }), {
+    return new Response(JSON.stringify({ clientSecret: accountSession.client_secret }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {

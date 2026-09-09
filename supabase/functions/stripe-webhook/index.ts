@@ -6,6 +6,104 @@
 // real payment, so this webhook is what actually flips state.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
+import { sendEmail, formatMoney, SITE_URL } from '../_shared/email.ts';
+
+// Fires once a sale has genuinely completed (order paid, listing(s) actually
+// transferred) — covers both an instant single-listing purchase and a paid
+// custom-order invoice, since both share this same completion path. Never
+// throws: an email problem must not turn an already-successful DB write
+// into a webhook failure Stripe would retry.
+async function sendOrderEmails(
+  supabase: ReturnType<typeof createClient>,
+  order: {
+    listing_id: string | null;
+    bundle_id: string | null;
+    bundle_listing_ids: string[] | null;
+    buyer_id: string;
+    seller_id: string;
+    amount: number;
+    currency: string;
+    platform_fee_amount: number;
+  },
+  orderId: string,
+) {
+  try {
+    const [{ data: profiles }, buyerAuth, sellerAuth] = await Promise.all([
+      supabase.from('profiles').select('id, name').in('id', [order.buyer_id, order.seller_id]),
+      supabase.auth.admin.getUserById(order.buyer_id),
+      supabase.auth.admin.getUserById(order.seller_id),
+    ]);
+
+    const buyerName = profiles?.find((p) => p.id === order.buyer_id)?.name ?? 'there';
+    const sellerName = profiles?.find((p) => p.id === order.seller_id)?.name ?? 'there';
+    const buyerEmail = buyerAuth.data.user?.email;
+    const sellerEmail = sellerAuth.data.user?.email;
+
+    const isMultiItem = !!order.bundle_listing_ids && order.bundle_listing_ids.length > 0;
+    let itemLabel: string;
+    let buyerLink: string;
+
+    if (isMultiItem) {
+      if (order.bundle_id) {
+        const { data: bundle } = await supabase
+          .from('listing_bundles')
+          .select('title')
+          .eq('id', order.bundle_id)
+          .single();
+        itemLabel = bundle?.title ?? `${order.bundle_listing_ids!.length} items`;
+      } else {
+        itemLabel = `${order.bundle_listing_ids!.length} items`;
+      }
+      buyerLink = order.bundle_id ? `${SITE_URL}/fleet/${order.bundle_id}` : `${SITE_URL}/account`;
+    } else {
+      const { data: listing } = await supabase
+        .from('listings')
+        .select('title')
+        .eq('id', order.listing_id)
+        .single();
+      itemLabel = listing?.title ?? 'your item';
+      buyerLink = `${SITE_URL}/listing/${order.listing_id}`;
+    }
+
+    const sellerLink = isMultiItem ? `${SITE_URL}/account?tab=invoices` : `${SITE_URL}/account`;
+    const amountStr = formatMoney(order.amount, order.currency);
+    const payoutStr = formatMoney(order.amount - order.platform_fee_amount, order.currency);
+
+    if (buyerEmail) {
+      await sendEmail({
+        to: buyerEmail,
+        subject: `Order confirmed — ${itemLabel}`,
+        html: `
+          <p>Hi ${buyerName},</p>
+          <p>Your payment of <strong>${amountStr}</strong> for "<strong>${itemLabel}</strong>" from ${sellerName} is confirmed.</p>
+          <p><a href="${buyerLink}">View it on Relay</a></p>
+          <p>Relay doesn't arrange shipping or collection — sort the details directly with ${sellerName} via Relay messages.</p>
+          <p>— Relay</p>
+        `,
+      });
+    } else {
+      console.error('No buyer email found for order', orderId);
+    }
+
+    if (sellerEmail) {
+      await sendEmail({
+        to: sellerEmail,
+        subject: `You've made a sale on Relay — ${itemLabel}`,
+        html: `
+          <p>Hi ${sellerName},</p>
+          <p>${buyerName} just bought "<strong>${itemLabel}</strong>" for ${amountStr}.</p>
+          <p>Your payout, after Relay's platform fee, is <strong>${payoutStr}</strong> — it'll follow automatically once Stripe settles the transfer to your connected account.</p>
+          <p><a href="${sellerLink}">View in your account</a></p>
+          <p>— Relay</p>
+        `,
+      });
+    } else {
+      console.error('No seller email found for order', orderId);
+    }
+  } catch (err) {
+    console.error('Failed to send order confirmation emails for order', orderId, err);
+  }
+}
 
 Deno.serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
@@ -86,7 +184,7 @@ Deno.serve(async (req) => {
 
       const { data: order, error: orderFetchError } = await supabase
         .from('orders')
-        .select('listing_id, bundle_id, bundle_listing_ids, buyer_id, seller_id')
+        .select('listing_id, bundle_id, bundle_listing_ids, buyer_id, seller_id, amount, currency, platform_fee_amount')
         .eq('id', orderId)
         .eq('stripe_checkout_session_id', session.id)
         .single();
@@ -102,6 +200,8 @@ Deno.serve(async (req) => {
           .update({ status: 'paid', stripe_payment_intent_id: paymentIntentId ?? null })
           .eq('id', orderId);
         if (orderUpdateError) console.error('Failed to mark order paid', orderUpdateError);
+
+        let soldCount = 0;
 
         if (order.bundle_listing_ids && order.bundle_listing_ids.length > 0) {
           // Multi-item order (fleet bundle purchase or a one-off negotiated
@@ -134,6 +234,7 @@ Deno.serve(async (req) => {
           }
 
           if (updatedListings && updatedListings.length > 0) {
+            soldCount = updatedListings.length;
             const { error: salesCountError } = await supabase.rpc('increment_sales_count', {
               p_seller_id: order.seller_id,
               p_count: updatedListings.length,
@@ -154,11 +255,19 @@ Deno.serve(async (req) => {
           else if (!updatedListings || updatedListings.length === 0) {
             console.error('Listing was already sold when order', orderId, 'completed — needs manual refund review');
           } else {
+            soldCount = updatedListings.length;
             const { error: salesCountError } = await supabase.rpc('increment_sales_count', {
               p_seller_id: order.seller_id,
             });
             if (salesCountError) console.error('Failed to increment seller sales_count', salesCountError);
           }
+        }
+
+        // Only notify once we know the listing(s) actually transferred —
+        // not on the race-guard "already sold" path, which leaves this
+        // payment needing manual refund review rather than a normal sale.
+        if (soldCount > 0) {
+          await sendOrderEmails(supabase, order, orderId);
         }
       }
     }
