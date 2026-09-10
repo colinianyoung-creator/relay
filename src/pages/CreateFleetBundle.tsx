@@ -83,16 +83,16 @@ export function CreateFleetBundle() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex items-center gap-2">
         <Boxes size={22} className="text-[var(--color-brand)]" />
-        <h1 className="text-2xl sm:text-3xl">Create a fleet bundle</h1>
+        <h1 className="text-2xl sm:text-3xl">Group your club gear</h1>
       </div>
       <p className="mt-2 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
-        Group several listings you've already posted into one lot for a fleet buyer to consider
+        Group several listings you've already posted into one lot for a buyer to consider
         together.
       </p>
       <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
         Starting from scratch?{' '}
         <Link to="/sell/fleet/new" className="text-[var(--color-brand)] underline">
-          List a whole fleet at once
+          List a whole set of gear at once
         </Link>{' '}
         instead — no need to create each listing separately first.
       </p>
@@ -107,7 +107,7 @@ export function CreateFleetBundle() {
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. 2022 fleet clearance — 12 basketball chairs, mixed sizes"
+            placeholder="e.g. 2022 gear clearance — 12 basketball chairs, mixed sizes"
             className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
           />
         </div>
@@ -122,14 +122,14 @@ export function CreateFleetBundle() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Why the fleet's being replaced, general condition, whether it can be viewed as a whole before buying."
+            placeholder="Why the gear's being replaced, general condition, whether it can be viewed as a whole before buying."
             className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
           />
         </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium">
-            Which listings are in this fleet?
+            Which listings are in this lot?
             <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
               — pick at least 2
             </span>
@@ -194,7 +194,7 @@ export function CreateFleetBundle() {
           className="flex items-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-50"
         >
           {submitting && <Loader2 size={15} className="animate-spin" />}
-          Publish fleet bundle
+          Publish gear lot
         </button>
       </form>
     </div>

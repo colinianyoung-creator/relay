@@ -108,7 +108,7 @@ export function CreateFleetListing() {
   if (!user) {
     return (
       <div className="mx-auto max-w-md px-6 py-24 text-center">
-        <h1 className="text-3xl">Sign in to list a fleet</h1>
+        <h1 className="text-3xl">Sign in to list club gear</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Listings are tied to your account so buyers can message you and see your other kit.
         </p>
@@ -127,7 +127,7 @@ export function CreateFleetListing() {
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center gap-2">
         <Boxes size={22} className="text-[var(--color-brand)]" />
-        <h1 className="text-2xl sm:text-3xl">List a whole fleet</h1>
+        <h1 className="text-2xl sm:text-3xl">List your club's gear</h1>
       </div>
       <p className="mt-2 max-w-lg text-[15px] text-[var(--color-ink-soft)]">
         Group details once — sport, location, photos — then give each item its own title,
@@ -154,7 +154,7 @@ export function CreateFleetListing() {
           setSubmitError(null);
 
           if (items.length < 2) {
-            setSubmitError('A fleet needs at least 2 items.');
+            setSubmitError('A gear lot needs at least 2 items.');
             return;
           }
           for (const it of items) {
@@ -214,7 +214,7 @@ export function CreateFleetListing() {
           <label className="mb-2 block text-sm font-medium">
             Photos
             <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
-              — optional, shown across every item in this fleet
+              — optional, shown across every item in this lot
             </span>
           </label>
           <div className="flex flex-wrap gap-3">
@@ -261,14 +261,14 @@ export function CreateFleetListing() {
 
         <div>
           <label htmlFor="fleet-title" className="mb-2 block text-sm font-medium">
-            Fleet title
+            Gear lot title
           </label>
           <input
             id="fleet-title"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. 2022 fleet clearance — 12 basketball chairs, mixed sizes"
+            placeholder="e.g. 2022 gear clearance — 12 basketball chairs, mixed sizes"
             className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
           />
         </div>
@@ -283,7 +283,7 @@ export function CreateFleetListing() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Why the fleet's being replaced, general condition, whether it can be viewed as a whole before buying."
+            placeholder="Why the gear's being replaced, general condition, whether it can be viewed as a whole before buying."
             className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
           />
         </div>
@@ -371,7 +371,7 @@ export function CreateFleetListing() {
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="block text-sm font-medium">
-              Items in this fleet
+              Items in this lot
               <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
                 — at least 2
               </span>
@@ -461,7 +461,7 @@ export function CreateFleetListing() {
                   />
                   Also sell this separately
                   <span className="text-[var(--color-ink-soft)]/70">
-                    — off means it's only buyable as part of the fleet
+                    — off means it's only buyable as part of this lot
                   </span>
                 </label>
               </div>

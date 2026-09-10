@@ -449,9 +449,9 @@ export function ListingDetail() {
               <p className="mt-4 text-center text-xs text-[var(--color-ink-soft)]">
                 {isFleetOnly ? (
                   <>
-                    Only sold as part of its fleet —{' '}
+                    Only sold as part of its club gear lot —{' '}
                     <Link to={`/fleet/${listing.bundleId}`} className="underline">
-                      view the fleet
+                      view the lot
                     </Link>
                     .
                   </>

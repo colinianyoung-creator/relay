@@ -275,7 +275,7 @@ export function Account() {
                   to="/sell/fleet/new"
                   className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                 >
-                  <Boxes size={13} /> Create fleet bundle
+                  <Boxes size={13} /> List club gear
                 </Link>
               </div>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -621,7 +621,7 @@ export function Account() {
                 <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sent</h3>
                 {invoices.filter((i) => i.role === 'seller').length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                    You haven't sent an invoice yet — send one from a fleet bundle you own.
+                    You haven't sent an invoice yet — send one from a club gear lot you own.
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">

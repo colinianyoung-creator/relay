@@ -56,7 +56,7 @@ export function FleetCheckoutConfirm() {
         <h1 className="text-3xl">Still confirming payment</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Stripe took longer than expected to confirm this one. If you completed checkout, your
-          fleet will appear shortly — check your account in a minute or two.
+          listing will appear shortly — check your account in a minute or two.
         </p>
         <Link
           to="/account"
@@ -83,7 +83,7 @@ export function FleetCheckoutConfirm() {
   return (
     <div className="mx-auto max-w-lg px-6 py-24 text-center">
       <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
-      <h1 className="text-3xl">Payment received — fleet published</h1>
+      <h1 className="text-3xl">Payment received — club gear published</h1>
       <p className="mt-3 text-[var(--color-ink-soft)]">
         "{bundle.title}" and all {bundle.listings.length} items are now live on Relay. We'll email
         you when someone gets in touch.
@@ -93,7 +93,7 @@ export function FleetCheckoutConfirm() {
           to={`/fleet/${bundle.id}`}
           className="inline-flex rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
         >
-          View your fleet
+          View your listing
         </Link>
         <Link
           to="/"

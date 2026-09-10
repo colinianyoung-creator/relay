@@ -19,21 +19,21 @@ export function FleetBoard() {
       <section className="border-b border-[var(--color-line)] bg-[var(--color-paper-raised)]">
         <div className="mx-auto max-w-6xl px-6 py-14 sm:py-16">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
-            Fleet bundles
+            Club Gear
           </p>
           <h1 className="max-w-2xl text-4xl leading-[1.08] sm:text-5xl">
-            Whole fleets, liquidated in one lot.
+            A club's whole kit, listed in one go.
           </h1>
           <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
-            Clubs replacing their fleet every few years group the outgoing chairs into one
-            bundle — a newer or smaller club can buy the lot in a single checkout instead of
+            Clubs replacing their equipment every few years group the outgoing chairs into one
+            lot — a newer or smaller club can buy the lot in a single checkout instead of
             sourcing kit one chair at a time.
           </p>
           <Link
             to="/sell/fleet/new"
             className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
           >
-            <Boxes size={16} /> List your fleet
+            <Boxes size={16} /> List your gear
           </Link>
         </div>
       </section>
@@ -48,7 +48,7 @@ export function FleetBoard() {
 
         {bundles !== null && bundles.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
-            No fleet bundles listed yet — clubs replacing their equipment will show up here.
+            No club gear listed yet — clubs replacing their equipment will show up here.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

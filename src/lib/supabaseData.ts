@@ -1028,7 +1028,7 @@ export async function fetchAllOrders(): Promise<AdminOrder[]> {
     disputeStatus: row.dispute_status,
     listingId: row.listing?.id ?? null,
     listingTitle: row.bundle
-      ? `Fleet bundle: ${row.bundle.title} (${row.bundle_listing_ids?.length ?? 0} items)`
+      ? `Club gear lot: ${row.bundle.title} (${row.bundle_listing_ids?.length ?? 0} items)`
       : (row.listing?.title ?? 'Listing removed'),
     bundleId: row.bundle?.id ?? null,
     buyerName: row.buyer?.name ?? 'Relay member',

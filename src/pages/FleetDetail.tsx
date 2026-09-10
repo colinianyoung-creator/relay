@@ -74,7 +74,7 @@ function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
       <p className="text-sm font-medium">Send an invoice</p>
       <p className="text-xs text-[var(--color-ink-soft)]">
         Already agreed a deal with a buyer? Invoice them for exactly what you agreed — doesn't have
-        to be all of the fleet, or the listed price.
+        to be everything in the lot, or the listed price.
       </p>
 
       <div>
@@ -184,9 +184,9 @@ export function FleetDetail() {
   if (!bundle) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <p className="text-[var(--color-ink-soft)]">Fleet bundle not found.</p>
+        <p className="text-[var(--color-ink-soft)]">Listing not found.</p>
         <Link to="/fleets" className="mt-4 inline-block text-[var(--color-brand)] underline">
-          Back to fleet bundles
+          Back to Club Gear
         </Link>
       </div>
     );
@@ -212,7 +212,7 @@ export function FleetDetail() {
         to="/fleets"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
       >
-        <ArrowLeft size={15} /> Back to fleet bundles
+        <ArrowLeft size={15} /> Back to Club Gear
       </Link>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.4fr_1fr]">
@@ -229,7 +229,7 @@ export function FleetDetail() {
             {bundle.description}
           </p>
 
-          <h2 className="mb-4 mt-10 text-lg">What's in this fleet</h2>
+          <h2 className="mb-4 mt-10 text-lg">What's in this lot</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {bundle.listings.map((l) => (
               <ListingCard key={l.id} listing={l} />
@@ -272,7 +272,7 @@ export function FleetDetail() {
               <InvoicePanel bundle={bundle} />
             ) : isSold ? (
               <div className="mt-5 rounded-xl bg-[var(--color-line)]/40 p-4 text-sm text-[var(--color-ink-soft)]">
-                This fleet has sold.
+                This lot has sold.
               </div>
             ) : messageSent ? (
               <div className="mt-5 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
@@ -283,7 +283,7 @@ export function FleetDetail() {
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Hi ${bundle.seller.name.split(' ')[0]}, we're interested in the whole fleet — is it still available?`}
+                  placeholder={`Hi ${bundle.seller.name.split(' ')[0]}, we're interested in the whole lot — is it still available?`}
                   rows={3}
                   className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm outline-none focus:border-[var(--color-ink-soft)]"
                 />
