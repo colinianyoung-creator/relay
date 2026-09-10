@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, Search, CreditCard, Copy } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
@@ -36,11 +36,27 @@ const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string 
 export function ListingDetail() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Mirrors `user` so a resumed post-login action (see requireAuth) always
+  // reads the current session, not the stale one captured when it was queued.
+  const userRef = useRef(user);
+  userRef.current = user;
   const [listing, setListing] = useState<Listing | null | undefined>(undefined);
   const [messageSent, setMessageSent] = useState(false);
   const [message, setMessage] = useState('');
   const [saved, setSaved] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+
+  // Runs a queued requireAuth() action once `user` actually reflects the new
+  // session — not from AuthModal's success callback directly, since that can
+  // fire before React has committed the updated auth state.
+  useEffect(() => {
+    if (!user || !pendingActionRef.current) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action();
+  }, [user]);
+
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
   const [matches, setMatches] = useState<WantedPost[] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -63,9 +79,13 @@ export function ListingDetail() {
 
   useEffect(() => {
     if (!id || !user) return;
+    fetchFitProfile(user.id).then(setFitProfile);
+    // Demo listings aren't backed by real rows — saved/messaged state for them
+    // is purely client-side (see the isDemo branches below), so a real fetch
+    // here would always resolve false and clobber that fake state.
+    if (demoListings.some((l) => l.id === id)) return;
     isSaved(user.id, id).then(setSaved);
     hasMessaged(id, user.id).then(setMessageSent);
-    fetchFitProfile(user.id).then(setFitProfile);
   }, [id, user]);
 
   useEffect(() => {
@@ -134,6 +154,7 @@ export function ListingDetail() {
 
   function requireAuth(action: () => void) {
     if (!user) {
+      pendingActionRef.current = action;
       setShowAuth(true);
       return;
     }
@@ -282,7 +303,8 @@ export function ListingDetail() {
                       setSaved((v) => !v);
                       return;
                     }
-                    const next = await toggleSaved(user!.id, listing.id);
+                    if (!userRef.current) return;
+                    const next = await toggleSaved(userRef.current.id, listing.id);
                     setSaved(next);
                   })
                 }
@@ -428,7 +450,8 @@ export function ListingDetail() {
                         setMessageSent(true);
                         return;
                       }
-                      await sendMessage(listing.id, user!.id, message);
+                      if (!userRef.current) return;
+                      await sendMessage(listing.id, userRef.current.id, message);
                       setMessageSent(true);
                     })
                   }
@@ -475,7 +498,15 @@ export function ListingDetail() {
         </aside>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && (
+        <AuthModal
+          onClose={() => {
+            pendingActionRef.current = null;
+            setShowAuth(false);
+          }}
+          onAuthenticated={() => setShowAuth(false)}
+        />
+      )}
       {showReport && user && (
         <ReportListingModal
           listingId={listing.id}

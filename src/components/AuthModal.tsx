@@ -3,7 +3,16 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
-export function AuthModal({ onClose }: { onClose: () => void }) {
+export function AuthModal({
+  onClose,
+  onAuthenticated,
+}: {
+  onClose: () => void;
+  /** Called instead of onClose once a session actually exists — lets the
+   * caller resume whatever action prompted the sign-in, rather than just
+   * closing the modal and leaving the user to click it again. */
+  onAuthenticated?: () => void;
+}) {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -28,7 +37,7 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
         setError(errorMessage);
         return;
       }
-      onClose();
+      (onAuthenticated ?? onClose)();
       return;
     }
 
@@ -45,7 +54,7 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
       return;
     }
     if (signedIn) {
-      onClose();
+      (onAuthenticated ?? onClose)();
     } else {
       setCheckEmail(true);
     }

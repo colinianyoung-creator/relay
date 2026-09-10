@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Boxes, Loader2, MessageCircle, Send, Star, CheckCircle2 } from 'lucide-react';
 import { fetchBundle, findBuyerByEmail, createCustomOrder, hasMessaged, sendMessage, type BuyerLookup } from '@/lib/supabaseData';
@@ -155,10 +155,25 @@ function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
 export function FleetDetail() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Mirrors `user` so a resumed post-login action (see requireAuth) always
+  // reads the current session, not the stale one captured when it was queued.
+  const userRef = useRef(user);
+  userRef.current = user;
   const [bundle, setBundle] = useState<FleetBundle | null | undefined>(undefined);
   const [showAuth, setShowAuth] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
   const [message, setMessage] = useState('');
   const [messageSent, setMessageSent] = useState(false);
+
+  // Runs a queued requireAuth() action once `user` actually reflects the new
+  // session — not from AuthModal's success callback directly, since that can
+  // fire before React has committed the updated auth state.
+  useEffect(() => {
+    if (!user || !pendingActionRef.current) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action();
+  }, [user]);
 
   useEffect(() => {
     if (!id) return;
@@ -200,6 +215,7 @@ export function FleetDetail() {
 
   function requireAuth(action: () => void) {
     if (!user) {
+      pendingActionRef.current = action;
       setShowAuth(true);
       return;
     }
@@ -290,8 +306,8 @@ export function FleetDetail() {
                 <button
                   onClick={() =>
                     requireAuth(async () => {
-                      if (!firstListingId || !user) return;
-                      await sendMessage(firstListingId, user.id, message);
+                      if (!firstListingId || !userRef.current) return;
+                      await sendMessage(firstListingId, userRef.current.id, message);
                       setMessageSent(true);
                     })
                   }
@@ -309,7 +325,15 @@ export function FleetDetail() {
         </aside>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && (
+        <AuthModal
+          onClose={() => {
+            pendingActionRef.current = null;
+            setShowAuth(false);
+          }}
+          onAuthenticated={() => setShowAuth(false)}
+        />
+      )}
     </div>
   );
 }

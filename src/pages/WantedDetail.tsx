@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -38,11 +38,26 @@ const STRUCTURED_SPEC_LABELS: { key: keyof WantedPost; label: string; unit: stri
 export function WantedDetail() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Mirrors `user` so a resumed post-login action (see requireAuth) always
+  // reads the current session, not the stale one captured when it was queued.
+  const userRef = useRef(user);
+  userRef.current = user;
   const [post, setPost] = useState<WantedPost | null | undefined>(undefined);
   const [messageSent, setMessageSent] = useState(false);
   const [message, setMessage] = useState('');
   const [showAuth, setShowAuth] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
   const [matches, setMatches] = useState<Listing[] | null>(null);
+
+  // Runs a queued requireAuth() action once `user` actually reflects the new
+  // session — not from AuthModal's success callback directly, since that can
+  // fire before React has committed the updated auth state.
+  useEffect(() => {
+    if (!user || !pendingActionRef.current) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action();
+  }, [user]);
 
   useEffect(() => {
     if (!id) return;
@@ -87,6 +102,7 @@ export function WantedDetail() {
 
   function requireAuth(action: () => void) {
     if (!user) {
+      pendingActionRef.current = action;
       setShowAuth(true);
       return;
     }
@@ -255,7 +271,8 @@ export function WantedDetail() {
                 <button
                   onClick={() =>
                     requireAuth(async () => {
-                      await sendMessageToWanted(post.id, user!.id, message);
+                      if (!userRef.current) return;
+                      await sendMessageToWanted(post.id, userRef.current.id, message);
                       setMessageSent(true);
                     })
                   }
@@ -273,7 +290,15 @@ export function WantedDetail() {
         </aside>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && (
+        <AuthModal
+          onClose={() => {
+            pendingActionRef.current = null;
+            setShowAuth(false);
+          }}
+          onAuthenticated={() => setShowAuth(false)}
+        />
+      )}
     </div>
   );
 }
