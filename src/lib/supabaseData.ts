@@ -206,7 +206,10 @@ export async function deletePendingListing(listingId: string): Promise<void> {
 // --- Fleet listing (create a whole fleet's listings + the bundle together) ---
 // Distinct from createFleetBundle below, which groups listings a seller
 // already has up. This creates the listings and the bundle in one step, for
-// a seller who's never listed any of it before.
+// a seller who's never listed any of it before. No posting fee for club
+// gear lots (unlike a single listing) — Relay's commission on a fleet-sized
+// sale already far exceeds what a flat £9 fee would add, so charging both
+// would be pointless double-dipping. Everything publishes immediately.
 
 export interface FleetSharedFields {
   title: string;
@@ -236,7 +239,7 @@ export async function createFleetListing(
 ): Promise<string> {
   const { data: bundle, error: bundleError } = await supabase
     .from('listing_bundles')
-    .insert({ seller_id: sellerId, title: shared.title, description: shared.description, status: 'draft' })
+    .insert({ seller_id: sellerId, title: shared.title, description: shared.description, status: 'active' })
     .select('id')
     .single();
   if (bundleError) throw bundleError;
@@ -259,32 +262,13 @@ export async function createFleetListing(
       seat_width_cm: item.seatWidthCm ?? null,
       seat_depth_cm: item.seatDepthCm ?? null,
       photos: shared.photos ?? [],
-      fee_status: 'pending',
+      fee_status: 'exempt',
       sellable_individually: item.sellableIndividually,
     })),
   );
   if (listingsError) throw listingsError;
 
   return bundle.id;
-}
-
-export async function createFleetCheckout(
-  bundleId: string,
-  successUrl: string,
-  cancelUrl: string,
-): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('create-fleet-checkout', {
-    body: { bundleId, successUrl, cancelUrl },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data.url as string;
-}
-
-/** Only ever called on a bundle still 'draft' — abandoning Checkout shouldn't leave half-published listings or an orphaned bundle behind. */
-export async function deletePendingFleetListings(bundleId: string): Promise<void> {
-  await supabase.from('listings').delete().eq('bundle_id', bundleId).eq('fee_status', 'pending');
-  await supabase.from('listing_bundles').update({ status: 'cancelled' }).eq('id', bundleId).eq('status', 'draft');
 }
 
 export async function fetchListingFeeStatus(listingId: string): Promise<string | null> {

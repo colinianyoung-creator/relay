@@ -65,7 +65,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         <p>
           Publishing a for-sale listing (i.e. anything with a price, not marked free/donation)
           costs a flat <strong>£{LISTING_FEE_GBP}</strong>, charged once via Stripe Checkout when
-          you create the listing. Free/donation listings and Wanted posts are not charged.
+          you create the listing. Free/donation listings, Wanted posts, and club gear lots are not
+          charged.
         </p>
         <p className="mt-3">
           If a seller has payouts enabled and a buyer pays through Relay's in-app checkout, Relay

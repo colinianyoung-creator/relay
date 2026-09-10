@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Boxes, ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition } from '@/types';
 import { ListingPhoto } from '@/components/ListingPhoto';
 import {
   createFleetListing,
-  createFleetCheckout,
-  deletePendingFleetListings,
   uploadListingPhoto,
-  LISTING_FEE_GBP,
   type FleetItemInput,
 } from '@/lib/supabaseData';
 import { CURRENCIES, CATEGORY_LABEL, SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
@@ -41,8 +38,7 @@ function newItem(): ItemDraft {
 
 export function CreateFleetListing() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [checkoutCancelled, setCheckoutCancelled] = useState(false);
+  const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -63,18 +59,6 @@ export function CreateFleetListing() {
 
   const MAX_PHOTOS = 6;
   const showsSeatFields = SHOWS_SEAT_FIELDS.includes(sport);
-
-  useEffect(() => {
-    const cancelledId = searchParams.get('cancelled');
-    if (!cancelledId) return;
-    deletePendingFleetListings(cancelledId).finally(() => {
-      setCheckoutCancelled(true);
-      setSearchParams((prev) => {
-        prev.delete('cancelled');
-        return prev;
-      });
-    });
-  }, [searchParams, setSearchParams]);
 
   function addPhotoFiles(files: FileList | null) {
     if (!files) return;
@@ -131,7 +115,8 @@ export function CreateFleetListing() {
       </div>
       <p className="mt-2 max-w-lg text-[15px] text-[var(--color-ink-soft)]">
         Group details once — sport, location, photos — then give each item its own title,
-        condition, price and sizing. One combined checkout at the end instead of one per item.
+        condition, price and sizing. No listing fee for club gear lots — Relay only takes its
+        commission once something actually sells.
       </p>
       <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
         Already listed these separately?{' '}
@@ -140,13 +125,6 @@ export function CreateFleetListing() {
         </Link>
         .
       </p>
-
-      {checkoutCancelled && (
-        <p className="mt-4 rounded-xl bg-[var(--color-line)]/40 p-3 text-sm text-[var(--color-ink-soft)]">
-          Checkout cancelled — nothing was published or charged. Fill in the form again whenever
-          you're ready.
-        </p>
-      )}
 
       <form
         onSubmit={async (e) => {
@@ -196,13 +174,7 @@ export function CreateFleetListing() {
               itemInputs,
             );
 
-            const origin = window.location.origin;
-            const url = await createFleetCheckout(
-              bundleId,
-              `${origin}/sell/fleet/confirm?bundle_id=${bundleId}`,
-              `${origin}/sell/fleet/new?cancelled=${bundleId}`,
-            );
-            window.location.href = url;
+            navigate(`/fleet/${bundleId}`);
           } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Something went wrong.');
             setSubmitting(false);
@@ -483,7 +455,7 @@ export function CreateFleetListing() {
           className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60 sm:w-auto"
         >
           {submitting && <Loader2 size={15} className="animate-spin" />}
-          Continue to payment (£{LISTING_FEE_GBP} × {items.length} = £{LISTING_FEE_GBP * items.length})
+          Publish gear lot
         </button>
       </form>
     </div>
