@@ -1,4 +1,4 @@
-import type { FitProfile, Listing, WantedPost } from '@/types';
+import type { FitProfile, Listing } from '@/types';
 
 // Tolerances are deliberately generous: a seller's seat measurement and a
 // buyer's self-reported height/weight are both estimates, not lab figures,
@@ -47,73 +47,6 @@ export function hasFitSignal(listing: Listing, profile: FitProfile): boolean {
     (profile.weightKg && (listing.weightCapacityKg || listing.minUserWeightKg || listing.maxUserWeightKg)) ||
     (profile.heightCm && (listing.minUserHeightCm || listing.maxUserHeightCm))
   );
-}
-
-function rangesOverlap(
-  aMin: number | undefined,
-  aMax: number | undefined,
-  bMin: number | undefined,
-  bMax: number | undefined,
-  leeway = 0,
-): boolean {
-  if (aMin != null && bMax != null && aMin > bMax + leeway) return false;
-  if (aMax != null && bMin != null && aMax < bMin - leeway) return false;
-  return true;
-}
-
-/**
- * Whether a for-sale listing plausibly satisfies a wanted post — same
- * permissive philosophy as fit-profile matching: only rules something out
- * on a real numeric or logistical conflict, never on missing data.
- */
-export function listingMatchesWanted(listing: Listing, wanted: WantedPost): boolean {
-  if (listing.sport !== wanted.sport) return false;
-  if (wanted.status === 'fulfilled') return false;
-
-  if (wanted.maxPrice != null && listing.price != null && listing.price > wanted.maxPrice) {
-    return false;
-  }
-
-  const canReachEachOther =
-    listing.country === wanted.country || listing.shipsInternationally || wanted.openToInternational;
-  if (!canReachEachOther) return false;
-
-  if (listing.seatWidthCm != null && wanted.seatWidthCm != null) {
-    if (Math.abs(listing.seatWidthCm - wanted.seatWidthCm) > SEAT_WIDTH_TOLERANCE_CM) return false;
-  }
-  if (listing.seatDepthCm != null && wanted.seatDepthCm != null) {
-    if (Math.abs(listing.seatDepthCm - wanted.seatDepthCm) > SEAT_DEPTH_TOLERANCE_CM) return false;
-  }
-
-  if (
-    !rangesOverlap(
-      listing.minUserHeightCm,
-      listing.maxUserHeightCm,
-      wanted.minUserHeightCm,
-      wanted.maxUserHeightCm,
-      HEIGHT_RANGE_LEEWAY_CM,
-    )
-  ) {
-    return false;
-  }
-  if (
-    !rangesOverlap(
-      listing.minUserWeightKg,
-      listing.maxUserWeightKg,
-      wanted.minUserWeightKg,
-      wanted.maxUserWeightKg,
-      WEIGHT_RANGE_LEEWAY_KG,
-    )
-  ) {
-    return false;
-  }
-  // A wanted post's weight range also needs to fit under the listing's hard
-  // capacity ceiling, if the listing has one (e.g. a wheelchair's rated load).
-  if (listing.weightCapacityKg != null && wanted.minUserWeightKg != null) {
-    if (wanted.minUserWeightKg > listing.weightCapacityKg) return false;
-  }
-
-  return true;
 }
 
 export function hasAnyProfileData(profile: FitProfile | null): profile is FitProfile {

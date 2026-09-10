@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ImagePlus, CheckCircle2, Loader2, Search, X } from 'lucide-react';
-import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Currency, type WantedPost } from '@/types';
+import { ImagePlus, CheckCircle2, Loader2, X } from 'lucide-react';
+import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Currency } from '@/types';
 import { ListingPhoto } from '@/components/ListingPhoto';
 import {
   createListing,
   createListingCheckout,
   deletePendingListing,
   fetchListing,
-  fetchMatchingWantedPosts,
   uploadListingPhoto,
   LISTING_FEE_GBP,
 } from '@/lib/supabaseData';
@@ -22,8 +21,6 @@ import {
 } from '@/lib/listingFields';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
-import { Badge } from '@/components/Badge';
-import { formatPrice, timeAgo } from '@/lib/format';
 
 export function CreateListing() {
   const { user } = useAuth();
@@ -33,7 +30,6 @@ export function CreateListing() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
-  const [matches, setMatches] = useState<WantedPost[] | null>(null);
   const [sport, setSport] = useState<Sport>('basketball');
   const [condition, setCondition] = useState<Condition>('good');
   const [isFree, setIsFree] = useState(false);
@@ -144,43 +140,6 @@ export function CreateListing() {
           </Link>
         </div>
 
-        {matches === null ? (
-          <p className="mt-10 flex items-center justify-center gap-2 text-sm text-[var(--color-ink-soft)]">
-            <Loader2 size={14} className="animate-spin" /> Checking the wanted board for matches…
-          </p>
-        ) : matches.length > 0 ? (
-          <div className="mt-10 text-left">
-            <h2 className="mb-3 flex items-center gap-2 text-center text-lg justify-center">
-              <Search size={17} /> {matches.length} buyer{matches.length === 1 ? '' : 's'} on the
-              wanted board might want this
-            </h2>
-            <div className="space-y-3">
-              {matches.map((m) => (
-                <Link
-                  key={m.id}
-                  to={`/wanted/${m.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4 hover:border-[var(--color-brand)]"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{m.title}</span>
-                      <Badge>{m.category}</Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
-                      {m.maxPrice ? `Up to ${formatPrice(m.maxPrice, m.currency)}` : 'Any budget'} ·
-                      posted {timeAgo(m.createdAt.slice(0, 10))}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="mt-10 text-sm text-[var(--color-ink-soft)]">
-            Nobody's posted a matching want yet — your listing's own page will show it if that
-            changes.
-          </p>
-        )}
       </div>
     );
   }
@@ -254,9 +213,6 @@ export function CreateListing() {
 
             if (isFree) {
               setSubmittedId(id);
-              fetchListing(id).then((created) => {
-                if (created) fetchMatchingWantedPosts(created).then(setMatches);
-              });
               setSubmitting(false);
               return;
             }

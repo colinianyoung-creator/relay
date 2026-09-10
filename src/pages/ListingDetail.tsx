@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, Search, CreditCard, Copy } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, CreditCard, Copy } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
@@ -9,7 +9,6 @@ import {
   hasMessaged,
   sendMessage,
   fetchFitProfile,
-  fetchMatchingWantedPosts,
   createPurchaseCheckout,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
@@ -21,7 +20,7 @@ import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
 import { MakeOfferModal } from '@/components/MakeOfferModal';
 import { formatPrice, timeAgo } from '@/lib/format';
-import type { Listing, FitProfile, WantedPost } from '@/types';
+import type { Listing, FitProfile } from '@/types';
 
 const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string }[] = [
   { key: 'seatWidthCm', label: 'Seat width', unit: 'cm' },
@@ -58,7 +57,6 @@ export function ListingDetail() {
   }, [user]);
 
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
-  const [matches, setMatches] = useState<WantedPost[] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -87,13 +85,6 @@ export function ListingDetail() {
     isSaved(user.id, id).then(setSaved);
     hasMessaged(id, user.id).then(setMessageSent);
   }, [id, user]);
-
-  useEffect(() => {
-    if (!listing || !user || user.id !== listing.seller.id) return;
-    if (demoListings.some((l) => l.id === listing.id)) return;
-    if (listing.feeStatus === 'pending') return;
-    fetchMatchingWantedPosts(listing).then(setMatches);
-  }, [listing, user]);
 
   if (listing === undefined) {
     return (
@@ -365,36 +356,6 @@ export function ListingDetail() {
                   </Link>
                 )}
 
-                {matches === null ? (
-                  <p className="mt-3 flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
-                    <Loader2 size={12} className="animate-spin" /> Checking the wanted board…
-                  </p>
-                ) : matches.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[var(--color-brand-dark)]">
-                      <Search size={14} /> {matches.length} buyer{matches.length === 1 ? '' : 's'}{' '}
-                      on the wanted board might want this
-                    </p>
-                    <div className="space-y-2">
-                      {matches.map((m) => (
-                        <Link
-                          key={m.id}
-                          to={`/wanted/${m.id}`}
-                          className="block rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm hover:border-[var(--color-brand)]"
-                        >
-                          <span className="font-medium">{m.title}</span>
-                          <span className="ml-2 text-xs text-[var(--color-ink-soft)]">
-                            {m.maxPrice ? `up to ${formatPrice(m.maxPrice, m.currency)}` : 'any budget'}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-[var(--color-ink-soft)]">
-                    No matching wants on the board right now.
-                  </p>
-                )}
               </div>
             ) : isSold ? (
               <div className="mt-5 rounded-xl bg-[var(--color-line)]/40 p-4 text-sm text-[var(--color-ink-soft)]">

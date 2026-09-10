@@ -76,21 +76,6 @@ export interface FleetBundle {
   listings: Listing[];
 }
 
-export interface WantedPost extends StructuredSpec {
-  id: string;
-  title: string;
-  sport: Sport;
-  category: string;
-  description: string;
-  maxPrice: number | null;
-  currency: Currency;
-  country: string;
-  openToInternational: boolean;
-  status: 'open' | 'fulfilled';
-  buyer: Seller;
-  createdAt: string;
-}
-
 export interface FitProfile {
   primarySport: Sport | null;
   disabilityNotes: string;

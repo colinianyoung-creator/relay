@@ -20,7 +20,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             provider), optional club affiliation.
           </li>
           <li>
-            <strong>Listing and Wanted-post content:</strong> whatever you choose to publish —
+            <strong>Listing content:</strong> whatever you choose to publish —
             title, description, photos, price, location, measurements.
           </li>
           <li>

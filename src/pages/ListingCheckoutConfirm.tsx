@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Loader2, Search, AlertTriangle } from 'lucide-react';
-import { fetchListing, fetchMatchingWantedPosts } from '@/lib/supabaseData';
-import { Badge } from '@/components/Badge';
-import { formatPrice, timeAgo } from '@/lib/format';
-import type { WantedPost, Listing } from '@/types';
+import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { fetchListing } from '@/lib/supabaseData';
+import type { Listing } from '@/types';
 
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 30_000;
@@ -14,7 +12,6 @@ export function ListingCheckoutConfirm() {
   const listingId = searchParams.get('listing_id');
   const [listing, setListing] = useState<Listing | null>(null);
   const [timedOut, setTimedOut] = useState(false);
-  const [matches, setMatches] = useState<WantedPost[] | null>(null);
 
   useEffect(() => {
     if (!listingId) return;
@@ -26,7 +23,6 @@ export function ListingCheckoutConfirm() {
       if (cancelled) return;
       if (current?.feeStatus === 'paid') {
         setListing(current);
-        fetchMatchingWantedPosts(current).then(setMatches);
         return;
       }
       if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
@@ -105,44 +101,6 @@ export function ListingCheckoutConfirm() {
           Back to browse
         </Link>
       </div>
-
-      {matches === null ? (
-        <p className="mt-10 flex items-center justify-center gap-2 text-sm text-[var(--color-ink-soft)]">
-          <Loader2 size={14} className="animate-spin" /> Checking the wanted board for matches…
-        </p>
-      ) : matches.length > 0 ? (
-        <div className="mt-10 text-left">
-          <h2 className="mb-3 flex items-center justify-center gap-2 text-center text-lg">
-            <Search size={17} /> {matches.length} buyer{matches.length === 1 ? '' : 's'} on the
-            wanted board might want this
-          </h2>
-          <div className="space-y-3">
-            {matches.map((m) => (
-              <Link
-                key={m.id}
-                to={`/wanted/${m.id}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4 hover:border-[var(--color-brand)]"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{m.title}</span>
-                    <Badge>{m.category}</Badge>
-                  </div>
-                  <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
-                    {m.maxPrice ? `Up to ${formatPrice(m.maxPrice, m.currency)}` : 'Any budget'} ·
-                    posted {timeAgo(m.createdAt.slice(0, 10))}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-10 text-sm text-[var(--color-ink-soft)]">
-          Nobody's posted a matching want yet — your listing's own page will show it if that
-          changes.
-        </p>
-      )}
     </div>
   );
 }

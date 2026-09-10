@@ -7,9 +7,6 @@ import { CreateListing } from '@/pages/CreateListing';
 import { Account } from '@/pages/Account';
 import { HowItWorks } from '@/pages/HowItWorks';
 import { SellerProfile } from '@/pages/SellerProfile';
-import { WantedBoard } from '@/pages/WantedBoard';
-import { CreateWanted } from '@/pages/CreateWanted';
-import { WantedDetail } from '@/pages/WantedDetail';
 import { ListingCheckoutConfirm } from '@/pages/ListingCheckoutConfirm';
 import { PurchaseCheckoutConfirm } from '@/pages/PurchaseCheckoutConfirm';
 import { Terms } from '@/pages/Terms';
@@ -40,9 +37,6 @@ function App() {
           <Route path="/purchase/confirm" element={<PurchaseCheckoutConfirm />} />
           <Route path="/fleets" element={<FleetBoard />} />
           <Route path="/fleet/:id" element={<FleetDetail />} />
-          <Route path="/wanted" element={<WantedBoard />} />
-          <Route path="/wanted/new" element={<CreateWanted />} />
-          <Route path="/wanted/:id" element={<WantedDetail />} />
           <Route path="/account" element={<Account />} />
           <Route path="/seller/:id" element={<SellerProfile />} />
           <Route path="/how-it-works" element={<HowItWorks />} />

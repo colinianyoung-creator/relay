@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
+import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
   fetchSavedListings,
   fetchSentMessages,
-  fetchWantedPostsByBuyer,
-  fetchSentWantedMessages,
   fetchMyInvoices,
   payCustomOrder,
   cancelCustomOrder,
@@ -17,7 +15,6 @@ import {
   withdrawOffer,
   uploadAvatar,
   type MessageThread,
-  type WantedMessageThread,
   type Invoice,
   type Offer,
 } from '@/lib/supabaseData';
@@ -27,14 +24,10 @@ import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { formatPrice, timeAgo } from '@/lib/format';
-import type { Listing, WantedPost } from '@/types';
+import type { Listing } from '@/types';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
-const TABS = ['My listings', 'Saved', 'Wanted posts', 'Messages', 'Offers', 'Invoices', 'Payouts', 'Fit profile'] as const;
-
-type UnifiedMessage =
-  | ({ kind: 'listing' } & MessageThread)
-  | ({ kind: 'wanted' } & WantedMessageThread);
+const TABS = ['My listings', 'Saved', 'Messages', 'Offers', 'Invoices', 'Payouts', 'Fit profile'] as const;
 
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -48,8 +41,7 @@ export function Account() {
   });
   const [myListings, setMyListings] = useState<Listing[] | null>(null);
   const [saved, setSaved] = useState<Listing[] | null>(null);
-  const [wantedPosts, setWantedPosts] = useState<WantedPost[] | null>(null);
-  const [messages, setMessages] = useState<UnifiedMessage[] | null>(null);
+  const [messages, setMessages] = useState<MessageThread[] | null>(null);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -175,18 +167,9 @@ export function Account() {
     if (!user) return;
     fetchListingsBySeller(user.id).then(setMyListings);
     fetchSavedListings(user.id).then(setSaved);
-    fetchWantedPostsByBuyer(user.id).then(setWantedPosts);
     fetchMyInvoices(user.id).then(setInvoices);
     fetchMyOffers(user.id).then(setOffers);
-    Promise.all([fetchSentMessages(user.id), fetchSentWantedMessages(user.id)]).then(
-      ([listingMsgs, wantedMsgs]) => {
-        const unified: UnifiedMessage[] = [
-          ...listingMsgs.map((m) => ({ kind: 'listing' as const, ...m })),
-          ...wantedMsgs.map((m) => ({ kind: 'wanted' as const, ...m })),
-        ].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
-        setMessages(unified);
-      },
-    );
+    fetchSentMessages(user.id).then(setMessages);
   }, [user]);
 
   if (authLoading) {
@@ -301,47 +284,6 @@ export function Account() {
             </div>
           ))}
 
-        {tab === 'Wanted posts' &&
-          (wantedPosts === null ? (
-            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-          ) : wantedPosts.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
-              <Search size={28} />
-              <p>You haven't posted a want yet.</p>
-              <Link
-                to="/wanted/new"
-                className="rounded-full bg-[var(--color-ink)] px-4 py-2 text-sm font-medium text-white hover:bg-black"
-              >
-                Post what you need
-              </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-              {wantedPosts.map((post) => (
-                <Link
-                  key={post.id}
-                  to={`/wanted/${post.id}`}
-                  className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{post.title}</span>
-                      <Badge tone={post.status === 'fulfilled' ? 'moss' : 'brand'}>
-                        {post.status === 'fulfilled' ? 'Found' : 'Open'}
-                      </Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]">
-                      {post.maxPrice
-                        ? `Up to ${formatPrice(post.maxPrice, post.currency)}`
-                        : 'Any budget'}{' '}
-                      · posted {timeAgo(post.createdAt.slice(0, 10))}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ))}
-
         {tab === 'Messages' &&
           (messages === null ? (
             <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
@@ -352,20 +294,13 @@ export function Account() {
           ) : (
             <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
               {messages.map((msg) => (
-                <div
-                  key={(msg.kind === 'listing' ? msg.listingId : msg.wantedId) + msg.sentAt}
-                  className="flex items-center gap-4 p-4"
-                >
+                <div key={msg.listingId + msg.sentAt} className="flex items-center gap-4 p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
                     <MessageCircle size={17} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">
-                        {msg.kind === 'listing'
-                          ? 'You messaged about this listing'
-                          : "You offered kit for this wanted post"}
-                      </span>
+                      <span className="text-sm font-medium">You messaged about this listing</span>
                       <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
                         {timeAgo(msg.sentAt.slice(0, 10))}
                       </span>
@@ -374,19 +309,7 @@ export function Account() {
                       {msg.body || '(no message text)'}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]/80">
-                      Re:{' '}
-                      {msg.kind === 'listing' ? (
-                        <>
-                          {msg.listingTitle} · {formatPrice(msg.listingPrice, msg.listingCurrency)}
-                        </>
-                      ) : (
-                        <>
-                          {msg.wantedTitle}
-                          {msg.wantedMaxPrice
-                            ? ` · up to ${formatPrice(msg.wantedMaxPrice, msg.wantedCurrency)}`
-                            : ''}
-                        </>
-                      )}
+                      Re: {msg.listingTitle} · {formatPrice(msg.listingPrice, msg.listingCurrency)}
                     </p>
                   </div>
                 </div>

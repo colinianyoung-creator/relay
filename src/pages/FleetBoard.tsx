@@ -45,7 +45,7 @@ export function FleetBoard() {
 
         {bundles !== null && bundles.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
-            No club gear listed yet — clubs replacing their equipment will show up here.
+            No club gear listed yet — equipment being sold by clubs will show up here.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
