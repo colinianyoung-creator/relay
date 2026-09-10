@@ -1306,3 +1306,115 @@ export async function fetchMyInvoices(userId: string): Promise<Invoice[]> {
     counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
   }));
 }
+
+// --- Offers ---
+// A buyer proposes a price on a listing; the seller (or buyer again, after a
+// counter) accepts, declines, or counters. Accepting creates a normal
+// custom-order invoice under the hood — see accept-offer/index.ts — so once
+// an offer is accepted it shows up in fetchMyInvoices like any other invoice.
+
+export async function createOffer(
+  listingId: string,
+  amount: number,
+  currency: Currency,
+  message?: string,
+): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-offer', {
+    body: { listingId, amount, currency, message },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.id as string;
+}
+
+export async function acceptOffer(offerId: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('accept-offer', {
+    body: { offerId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.orderId as string;
+}
+
+export async function declineOffer(offerId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('decline-offer', {
+    body: { offerId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function counterOffer(offerId: string, amount: number): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('counter-offer', {
+    body: { offerId, amount },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function withdrawOffer(offerId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('withdraw-offer', {
+    body: { offerId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export interface Offer {
+  id: string;
+  role: 'buyer' | 'seller';
+  listingId: string;
+  listingTitle: string;
+  amount: number;
+  currency: Currency;
+  message: string | null;
+  proposedBy: 'buyer' | 'seller';
+  status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
+  counterpartyName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface OfferRow {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  amount: number;
+  currency: string;
+  message: string | null;
+  proposed_by: 'buyer' | 'seller';
+  status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
+  created_at: string;
+  updated_at: string;
+  listing: { title: string } | null;
+  buyer: { name: string } | null;
+  seller: { name: string } | null;
+}
+
+const OFFER_SELECT =
+  'id, listing_id, buyer_id, seller_id, amount, currency, message, proposed_by, status, created_at, updated_at, listing:listings(title), buyer:profiles!offers_buyer_id_fkey(name), seller:profiles!offers_seller_id_fkey(name)';
+
+/** Every offer this user is either side of, most recent activity first. */
+export async function fetchMyOffers(userId: string): Promise<Offer[]> {
+  const { data, error } = await supabase
+    .from('offers')
+    .select(OFFER_SELECT)
+    .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data as unknown as OfferRow[]).map((row) => ({
+    id: row.id,
+    role: row.buyer_id === userId ? 'buyer' : 'seller',
+    listingId: row.listing_id,
+    listingTitle: row.listing?.title ?? 'a listing',
+    amount: row.amount,
+    currency: row.currency as Currency,
+    message: row.message,
+    proposedBy: row.proposed_by,
+    status: row.status,
+    counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}

@@ -19,6 +19,7 @@ import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
+import { MakeOfferModal } from '@/components/MakeOfferModal';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, FitProfile, WantedPost } from '@/types';
 
@@ -46,6 +47,7 @@ export function ListingDetail() {
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [showOfferModal, setShowOfferModal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -108,6 +110,10 @@ export function ListingDetail() {
     listing.price !== null &&
     listing.seller.payoutsEnabled &&
     user?.id !== listing.seller.id;
+  // Doesn't need the seller's payouts set up yet — only accepting and
+  // paying an offer does (same reasoning as the custom-invoice flow).
+  const canOffer =
+    !isDemo && !isSold && !isFleetOnly && listing.price !== null && user?.id !== listing.seller.id;
 
   async function handleBuyNow() {
     setBuyError(null);
@@ -390,11 +396,23 @@ export function ListingDetail() {
                       Buy now — pay securely
                     </button>
                     {buyError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{buyError}</p>}
-                    <div className="my-4 flex items-center gap-3 text-xs text-[var(--color-ink-soft)]">
-                      <span className="h-px flex-1 bg-[var(--color-line)]" /> or
-                      <span className="h-px flex-1 bg-[var(--color-line)]" />
-                    </div>
                   </>
+                )}
+                {canOffer && (
+                  <button
+                    onClick={() => requireAuth(() => setShowOfferModal(true))}
+                    className={`flex w-full items-center justify-center gap-2 rounded-full border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] hover:border-[var(--color-ink)] ${
+                      canBuyInApp ? 'mt-2.5' : ''
+                    }`}
+                  >
+                    Make an offer
+                  </button>
+                )}
+                {(canBuyInApp || canOffer) && (
+                  <div className="my-4 flex items-center gap-3 text-xs text-[var(--color-ink-soft)]">
+                    <span className="h-px flex-1 bg-[var(--color-line)]" /> or
+                    <span className="h-px flex-1 bg-[var(--color-line)]" />
+                  </div>
                 )}
                 <textarea
                   value={message}
@@ -464,6 +482,15 @@ export function ListingDetail() {
           listingTitle={listing.title}
           reporterId={user.id}
           onClose={() => setShowReport(false)}
+        />
+      )}
+      {showOfferModal && listing.price !== null && (
+        <MakeOfferModal
+          listingId={listing.id}
+          listingPrice={listing.price}
+          currency={listing.currency}
+          sellerName={listing.seller.name}
+          onClose={() => setShowOfferModal(false)}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera, Boxes, Receipt, CreditCard, X } from 'lucide-react';
+import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Search, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
@@ -10,10 +10,16 @@ import {
   fetchMyInvoices,
   payCustomOrder,
   cancelCustomOrder,
+  fetchMyOffers,
+  acceptOffer,
+  declineOffer,
+  counterOffer,
+  withdrawOffer,
   uploadAvatar,
   type MessageThread,
   type WantedMessageThread,
   type Invoice,
+  type Offer,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { FitProfileForm } from '@/components/FitProfileForm';
@@ -24,7 +30,7 @@ import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, WantedPost } from '@/types';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
-const TABS = ['My listings', 'Saved', 'Wanted posts', 'Messages', 'Invoices', 'Payouts', 'Fit profile'] as const;
+const TABS = ['My listings', 'Saved', 'Wanted posts', 'Messages', 'Offers', 'Invoices', 'Payouts', 'Fit profile'] as const;
 
 type UnifiedMessage =
   | ({ kind: 'listing' } & MessageThread)
@@ -37,6 +43,7 @@ export function Account() {
     const t = searchParams.get('tab');
     if (t === 'payouts') return 'Payouts';
     if (t === 'invoices') return 'Invoices';
+    if (t === 'offers') return 'Offers';
     return 'My listings';
   });
   const [myListings, setMyListings] = useState<Listing[] | null>(null);
@@ -46,6 +53,11 @@ export function Account() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [offers, setOffers] = useState<Offer[] | null>(null);
+  const [offerBusyId, setOfferBusyId] = useState<string | null>(null);
+  const [offerError, setOfferError] = useState<string | null>(null);
+  const [counterOpenId, setCounterOpenId] = useState<string | null>(null);
+  const [counterAmount, setCounterAmount] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +92,69 @@ export function Account() {
     }
   }
 
+  function refreshOffers() {
+    if (user) fetchMyOffers(user.id).then(setOffers);
+  }
+
+  async function handleAcceptOffer(offerId: string) {
+    setOfferError(null);
+    setOfferBusyId(offerId);
+    try {
+      await acceptOffer(offerId);
+      refreshOffers();
+      refreshInvoices();
+    } catch (err) {
+      setOfferError(err instanceof Error ? err.message : 'Could not accept that offer.');
+    } finally {
+      setOfferBusyId(null);
+    }
+  }
+
+  async function handleDeclineOffer(offerId: string) {
+    setOfferError(null);
+    setOfferBusyId(offerId);
+    try {
+      await declineOffer(offerId);
+      refreshOffers();
+    } catch (err) {
+      setOfferError(err instanceof Error ? err.message : 'Could not decline that offer.');
+    } finally {
+      setOfferBusyId(null);
+    }
+  }
+
+  async function handleWithdrawOffer(offerId: string) {
+    setOfferError(null);
+    setOfferBusyId(offerId);
+    try {
+      await withdrawOffer(offerId);
+      refreshOffers();
+    } catch (err) {
+      setOfferError(err instanceof Error ? err.message : 'Could not withdraw that offer.');
+    } finally {
+      setOfferBusyId(null);
+    }
+  }
+
+  async function handleSendCounter(offerId: string) {
+    setOfferError(null);
+    if (!(Number(counterAmount) > 0)) {
+      setOfferError('Enter a counter amount greater than zero.');
+      return;
+    }
+    setOfferBusyId(offerId);
+    try {
+      await counterOffer(offerId, Number(counterAmount));
+      setCounterOpenId(null);
+      setCounterAmount('');
+      refreshOffers();
+    } catch (err) {
+      setOfferError(err instanceof Error ? err.message : 'Could not send that counter-offer.');
+    } finally {
+      setOfferBusyId(null);
+    }
+  }
+
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -102,6 +177,7 @@ export function Account() {
     fetchSavedListings(user.id).then(setSaved);
     fetchWantedPostsByBuyer(user.id).then(setWantedPosts);
     fetchMyInvoices(user.id).then(setInvoices);
+    fetchMyOffers(user.id).then(setOffers);
     Promise.all([fetchSentMessages(user.id), fetchSentWantedMessages(user.id)]).then(
       ([listingMsgs, wantedMsgs]) => {
         const unified: UnifiedMessage[] = [
@@ -315,6 +391,163 @@ export function Account() {
                   </div>
                 </div>
               ))}
+            </div>
+          ))}
+
+        {tab === 'Offers' &&
+          (offers === null ? (
+            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+          ) : offers.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
+              <Tag size={28} />
+              <p>No offers yet — make one from a listing, or wait for one on yours.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {offerError && (
+                <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                  {offerError}
+                </p>
+              )}
+              <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                {offers.map((offer) => {
+                  const myTurn = offer.status === 'pending' && offer.proposedBy !== offer.role;
+                  const myOwnProposal = offer.status === 'pending' && offer.proposedBy === offer.role;
+                  return (
+                    <div key={offer.id} className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
+                          <Tag size={17} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium">
+                              {formatPrice(offer.amount, offer.currency)}{' '}
+                              {offer.role === 'buyer' ? 'to' : 'from'} {offer.counterpartyName}
+                            </span>
+                            <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                              {timeAgo(offer.updatedAt.slice(0, 10))}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--color-ink-soft)]">
+                            {offer.listingTitle}
+                            {offer.status === 'pending' && (
+                              <>
+                                {' · '}
+                                <Badge tone={myTurn ? 'brand' : 'neutral'}>
+                                  {myTurn ? 'Your turn' : `Waiting on ${offer.counterpartyName.split(' ')[0]}`}
+                                </Badge>
+                              </>
+                            )}
+                            {offer.status !== 'pending' && (
+                              <>
+                                {' · '}
+                                <Badge tone={offer.status === 'accepted' ? 'moss' : 'neutral'}>
+                                  {offer.status === 'accepted'
+                                    ? 'Accepted'
+                                    : offer.status === 'declined'
+                                      ? 'Declined'
+                                      : 'Withdrawn'}
+                                </Badge>
+                              </>
+                            )}
+                          </p>
+                          {offer.message && (
+                            <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">"{offer.message}"</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          {myTurn && (
+                            <>
+                              <button
+                                onClick={() => handleAcceptOffer(offer.id)}
+                                disabled={offerBusyId === offer.id}
+                                className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                              >
+                                {offerBusyId === offer.id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <Check size={13} />
+                                )}
+                                Accept
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setCounterOpenId(counterOpenId === offer.id ? null : offer.id)
+                                }
+                                disabled={offerBusyId === offer.id}
+                                className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                              >
+                                Counter
+                              </button>
+                              <button
+                                onClick={() => handleDeclineOffer(offer.id)}
+                                disabled={offerBusyId === offer.id}
+                                className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                              >
+                                Decline
+                              </button>
+                            </>
+                          )}
+                          {myOwnProposal && (
+                            <button
+                              onClick={() => handleWithdrawOffer(offer.id)}
+                              disabled={offerBusyId === offer.id}
+                              className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                            >
+                              {offerBusyId === offer.id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <X size={13} />
+                              )}
+                              Withdraw
+                            </button>
+                          )}
+                          {offer.status === 'accepted' && (
+                            <button
+                              onClick={() => setTab('Invoices')}
+                              className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                            >
+                              View invoice
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {counterOpenId === offer.id && (
+                        <div className="ml-14 mt-3 flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            autoFocus
+                            value={counterAmount}
+                            onChange={(e) => setCounterAmount(e.target.value)}
+                            placeholder={`Counter (${offer.currency})`}
+                            className="w-40 rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
+                          />
+                          <button
+                            onClick={() => handleSendCounter(offer.id)}
+                            disabled={offerBusyId === offer.id}
+                            className="rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                          >
+                            Send counter
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCounterOpenId(null);
+                              setCounterAmount('');
+                            }}
+                            className="text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
 
