@@ -20,12 +20,11 @@ export function FleetBoard() {
             Club Gear
           </p>
           <h1 className="max-w-2xl text-4xl leading-[1.08] sm:text-5xl">
-            A club's whole kit, listed in one go.
+            Buy or sell complete gear bundles from adaptive sports teams.
           </h1>
           <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
-            Clubs replacing their equipment every few years group the outgoing chairs into one
-            lot — a newer or smaller club can buy the lot in a single checkout instead of
-            sourcing kit one chair at a time.
+            Clubs replacing their equipment every few years group the outgoing stock into one
+            lot — buy bundles into a single checkout instead of sourcing kit one at a time.
           </p>
           <Link
             to="/sell/fleet/new"
