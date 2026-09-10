@@ -26,6 +26,7 @@ interface AuthContextValue {
     club: string,
   ) => Promise<{ error: string | null; signedIn: boolean }>;
   signIn: (email: string, password: string) => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -81,6 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   }
 
+  async function signInWithGoogle() {
+    // Full-page redirect flow, not a popup — the browser leaves the app and
+    // comes back to `redirectTo` with the session already established, so
+    // there's no local state to update here beyond surfacing an error if
+    // Supabase rejects the request before the redirect even happens.
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.href },
+    });
+    return error?.message ?? null;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -90,7 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, profile, loading, signUp, signIn, signInWithGoogle, signOut, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );
