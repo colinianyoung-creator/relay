@@ -1,12 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, SlidersHorizontal, Loader2, Ruler } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
-import { fetchListings, fetchFitProfile } from '@/lib/supabaseData';
+import { fetchListings, fetchFitProfile, saveFitProfile } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasAnyProfileData } from '@/lib/fitMatch';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Listing, type FitProfile } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { HeroArt } from '@/components/HeroArt';
+import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
+
+const EMPTY_FIT_PROFILE: FitProfile = {
+  primarySport: null,
+  disabilityNotes: '',
+  classification: '',
+  heightCm: null,
+  weightKg: null,
+  seatWidthCm: null,
+  seatDepthCm: null,
+  inseamCm: null,
+  notes: '',
+};
 
 export function Browse() {
   const { user } = useAuth();
@@ -15,6 +28,8 @@ export function Browse() {
   const [loadError, setLoadError] = useState(false);
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
   const [fitsMeOnly, setFitsMeOnly] = useState(false);
+  const [quickFit, setQuickFit] = useState<QuickFitValues | null>(null);
+  const [showSizeModal, setShowSizeModal] = useState(false);
 
   useEffect(() => {
     fetchListings()
@@ -49,6 +64,14 @@ export function Browse() {
   const [sort, setSort] = useState<'newest' | 'price-asc' | 'price-desc'>('newest');
 
   const profileIsUsable = hasAnyProfileData(fitProfile);
+  // Saved account profile wins if it has anything usable; otherwise fall back to
+  // whatever was entered ad hoc in the "Your size" modal for this session only.
+  const activeFitProfile: FitProfile | null = profileIsUsable
+    ? fitProfile
+    : quickFit
+      ? { ...EMPTY_FIT_PROFILE, ...quickFit }
+      : null;
+  const activeProfileUsable = hasAnyProfileData(activeFitProfile);
 
   const filtered = useMemo(() => {
     const min = minPrice.trim() ? Number(minPrice) : null;
@@ -63,7 +86,7 @@ export function Browse() {
       // listings aren't normalised anywhere else in the app either.
       if (min !== null && (l.price ?? 0) < min) return false;
       if (max !== null && (l.price ?? 0) > max) return false;
-      if (fitsMeOnly && profileIsUsable && !isLikelyFit(l, fitProfile)) return false;
+      if (fitsMeOnly && activeFitProfile && !isLikelyFit(l, activeFitProfile)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
         if (!l.title.toLowerCase().includes(q) && !l.category.toLowerCase().includes(q)) {
@@ -80,7 +103,7 @@ export function Browse() {
     });
 
     return result;
-  }, [listings, query, sport, condition, country, freeOnly, minPrice, maxPrice, sort, fitsMeOnly, profileIsUsable, fitProfile]);
+  }, [listings, query, sport, condition, country, freeOnly, minPrice, maxPrice, sort, fitsMeOnly, activeFitProfile]);
 
   return (
     <div>
@@ -192,22 +215,22 @@ export function Browse() {
             Free & donations only
           </button>
 
-          {user && (
-            <button
-              onClick={() => setFitsMeOnly((v) => !v)}
-              disabled={!profileIsUsable}
-              title={
-                profileIsUsable ? undefined : 'Add your measurements in Account → Fit profile first'
+          <button
+            onClick={() => {
+              if (activeProfileUsable) {
+                setFitsMeOnly((v) => !v);
+              } else {
+                setShowSizeModal(true);
               }
-              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                fitsMeOnly
-                  ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]'
-                  : 'border-[var(--color-line)] bg-[var(--color-paper-raised)] text-[var(--color-ink-soft)]'
-              }`}
-            >
-              <Ruler size={13} /> Fits me
-            </button>
-          )}
+            }}
+            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition ${
+              fitsMeOnly && activeProfileUsable
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]'
+                : 'border-[var(--color-line)] bg-[var(--color-paper-raised)] text-[var(--color-ink-soft)]'
+            }`}
+          >
+            <Ruler size={13} /> {activeProfileUsable ? 'Fits me' : 'Set my size'}
+          </button>
 
           <select
             value={sort}
@@ -238,15 +261,34 @@ export function Browse() {
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                fitProfile={profileIsUsable ? fitProfile : null}
-              />
+              <ListingCard key={listing.id} listing={listing} fitProfile={activeFitProfile} />
             ))}
           </div>
         )}
       </section>
+
+      {showSizeModal && (
+        <MySizeModal
+          initial={{
+            heightCm: activeFitProfile?.heightCm ?? null,
+            weightKg: activeFitProfile?.weightKg ?? null,
+            seatWidthCm: activeFitProfile?.seatWidthCm ?? null,
+            seatDepthCm: activeFitProfile?.seatDepthCm ?? null,
+          }}
+          canSave={!!user}
+          onApply={async (values, save) => {
+            setQuickFit(values);
+            setFitsMeOnly(true);
+            if (save && user) {
+              const merged: FitProfile = { ...(fitProfile ?? EMPTY_FIT_PROFILE), ...values };
+              await saveFitProfile(user.id, merged);
+              setFitProfile(merged);
+              setQuickFit(null);
+            }
+          }}
+          onClose={() => setShowSizeModal(false)}
+        />
+      )}
     </div>
   );
 }
