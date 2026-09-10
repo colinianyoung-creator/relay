@@ -1,13 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, SlidersHorizontal, Loader2, Ruler } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
-import { fetchListings, fetchFitProfile, saveFitProfile } from '@/lib/supabaseData';
+import { fetchListings, fetchActiveBundles, fetchFitProfile, saveFitProfile } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasAnyProfileData } from '@/lib/fitMatch';
-import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Listing, type FitProfile } from '@/types';
+import {
+  SPORTS,
+  CONDITIONS,
+  COUNTRIES,
+  type Sport,
+  type Condition,
+  type Listing,
+  type FitProfile,
+  type FleetBundle,
+} from '@/types';
 import { ListingCard } from '@/components/ListingCard';
+import { BundleCard } from '@/components/BundleCard';
 import { HeroArt } from '@/components/HeroArt';
 import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
+
+type BrowseEntry =
+  | { kind: 'listing'; date: string; listing: Listing }
+  | { kind: 'bundle'; date: string; bundle: FleetBundle };
 
 const EMPTY_FIT_PROFILE: FitProfile = {
   primarySport: null,
@@ -24,6 +38,7 @@ const EMPTY_FIT_PROFILE: FitProfile = {
 export function Browse() {
   const { user } = useAuth();
   const [realListings, setRealListings] = useState<Listing[]>([]);
+  const [bundles, setBundles] = useState<FleetBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
@@ -36,6 +51,11 @@ export function Browse() {
       .then(setRealListings)
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
+    // Club gear lots aren't tied to the demo-listing fallback below — they're
+    // real or they don't show, regardless of whether individual listings do.
+    fetchActiveBundles()
+      .then(setBundles)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -53,6 +73,13 @@ export function Browse() {
   const listings = useMemo(
     () => (realListings.length > 0 ? realListings : demoListings),
     [realListings],
+  );
+  const entries = useMemo<BrowseEntry[]>(
+    () => [
+      ...listings.map((listing): BrowseEntry => ({ kind: 'listing', date: listing.postedAt, listing })),
+      ...bundles.map((bundle): BrowseEntry => ({ kind: 'bundle', date: bundle.createdAt, bundle })),
+    ],
+    [listings, bundles],
   );
   const [query, setQuery] = useState('');
   const [sport, setSport] = useState<Sport | 'all'>('all');
@@ -77,33 +104,68 @@ export function Browse() {
     const min = minPrice.trim() ? Number(minPrice) : null;
     const max = maxPrice.trim() ? Number(maxPrice) : null;
 
-    const result = listings.filter((l) => {
-      if (sport !== 'all' && l.sport !== sport) return false;
-      if (condition !== 'all' && l.condition !== condition) return false;
-      if (country !== 'all' && l.country !== country && !l.shipsInternationally) return false;
-      if (freeOnly && l.price !== null) return false;
+    // A club gear lot has no single sport/condition/price of its own — it's
+    // matched against each filter by "does any item in the lot qualify",
+    // same as how a buyer would actually judge whether it's worth opening.
+    const result = entries.filter((entry) => {
+      const items = entry.kind === 'bundle' ? entry.bundle.listings : [entry.listing];
+      const price =
+        entry.kind === 'bundle'
+          ? entry.bundle.listings.reduce((sum, l) => sum + (l.price ?? 0), 0)
+          : entry.listing.price;
+
+      if (sport !== 'all' && !items.some((l) => l.sport === sport)) return false;
+      if (condition !== 'all' && !items.some((l) => l.condition === condition)) return false;
+      if (
+        country !== 'all' &&
+        !items.some((l) => l.country === country || l.shipsInternationally)
+      ) {
+        return false;
+      }
+      // A club gear lot is always a paid sale, never a free/donation listing.
+      if (freeOnly && (entry.kind === 'bundle' || entry.listing.price !== null)) return false;
       // Raw numeric comparison, not currency-converted — mixed-currency
       // listings aren't normalised anywhere else in the app either.
-      if (min !== null && (l.price ?? 0) < min) return false;
-      if (max !== null && (l.price ?? 0) > max) return false;
-      if (fitsMeOnly && activeFitProfile && !isLikelyFit(l, activeFitProfile)) return false;
+      if (min !== null && (price ?? 0) < min) return false;
+      if (max !== null && (price ?? 0) > max) return false;
+      if (fitsMeOnly && activeFitProfile && !items.some((l) => isLikelyFit(l, activeFitProfile))) {
+        return false;
+      }
       if (query.trim()) {
         const q = query.toLowerCase();
-        if (!l.title.toLowerCase().includes(q) && !l.category.toLowerCase().includes(q)) {
-          return false;
-        }
+        const title = entry.kind === 'bundle' ? entry.bundle.title : entry.listing.title;
+        const haystack = [title, ...items.map((l) => l.title), ...items.map((l) => l.category)]
+          .join(' ')
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
       }
       return true;
     });
 
     result.sort((a, b) => {
-      if (sort === 'price-asc') return (a.price ?? 0) - (b.price ?? 0);
-      if (sort === 'price-desc') return (b.price ?? 0) - (a.price ?? 0);
-      return b.postedAt.localeCompare(a.postedAt);
+      const priceOf = (entry: BrowseEntry) =>
+        entry.kind === 'bundle'
+          ? entry.bundle.listings.reduce((sum, l) => sum + (l.price ?? 0), 0)
+          : (entry.listing.price ?? 0);
+      if (sort === 'price-asc') return priceOf(a) - priceOf(b);
+      if (sort === 'price-desc') return priceOf(b) - priceOf(a);
+      return b.date.localeCompare(a.date);
     });
 
     return result;
-  }, [listings, query, sport, condition, country, freeOnly, minPrice, maxPrice, sort, fitsMeOnly, activeFitProfile]);
+  }, [
+    entries,
+    query,
+    sport,
+    condition,
+    country,
+    freeOnly,
+    minPrice,
+    maxPrice,
+    sort,
+    fitsMeOnly,
+    activeFitProfile,
+  ]);
 
   return (
     <div>
@@ -244,7 +306,7 @@ export function Browse() {
 
           <span className="flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
             {loading && <Loader2 size={13} className="animate-spin" />}
-            {filtered.length} listing{filtered.length === 1 ? '' : 's'}
+            {filtered.length} result{filtered.length === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -260,9 +322,13 @@ export function Browse() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} fitProfile={activeFitProfile} />
-            ))}
+            {filtered.map((entry) =>
+              entry.kind === 'bundle' ? (
+                <BundleCard key={entry.bundle.id} bundle={entry.bundle} />
+              ) : (
+                <ListingCard key={entry.listing.id} listing={entry.listing} fitProfile={activeFitProfile} />
+              ),
+            )}
           </div>
         )}
       </section>

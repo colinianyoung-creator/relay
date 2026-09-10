@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Boxes } from 'lucide-react';
 import { fetchActiveBundles } from '@/lib/supabaseData';
-import { ListingCover } from '@/components/ListingCover';
-import { Badge } from '@/components/Badge';
-import { formatPrice } from '@/lib/format';
+import { BundleCard } from '@/components/BundleCard';
 import type { FleetBundle } from '@/types';
 
 export function FleetBoard() {
@@ -52,35 +50,9 @@ export function FleetBoard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {bundles?.map((bundle) => {
-              const total = bundle.listings.reduce((sum, l) => sum + (l.price ?? 0), 0);
-              return (
-                <Link
-                  key={bundle.id}
-                  to={`/fleet/${bundle.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-12px_rgba(27,26,23,0.18)]"
-                >
-                  <div className="grid grid-cols-3 gap-0.5 bg-[var(--color-line)]">
-                    {bundle.listings.slice(0, 3).map((l) => (
-                      <ListingCover key={l.id} sport={l.sport} photos={l.photos} className="h-24 w-full" />
-                    ))}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2.5 p-4">
-                    <h3 className="font-display text-base leading-snug text-[var(--color-ink)]">
-                      {bundle.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Badge tone="brand">{bundle.listings.length} items</Badge>
-                      <Badge>{formatPrice(total, bundle.listings[0]?.currency ?? 'GBP')}</Badge>
-                    </div>
-                    <div className="mt-auto pt-2 text-xs font-medium text-[var(--color-ink-soft)]">
-                      {bundle.seller.name}
-                      {bundle.seller.club && <span className="text-[var(--color-ink-soft)]/70"> · {bundle.seller.club}</span>}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+            {bundles?.map((bundle) => (
+              <BundleCard key={bundle.id} bundle={bundle} />
+            ))}
           </div>
         )}
       </section>
