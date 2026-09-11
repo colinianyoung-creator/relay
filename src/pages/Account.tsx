@@ -632,14 +632,14 @@ export function Account() {
 
               <div>
                 <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Invoices sent</h3>
-                {orders.filter((o) => o.role === 'seller' && o.status !== 'paid').length === 0 ? (
+                {orders.filter((o) => o.role === 'seller' && o.status === 'pending').length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
                     You haven't sent an invoice yet — send one from a club gear lot you own.
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
                     {orders
-                      .filter((o) => o.role === 'seller' && o.status !== 'paid')
+                      .filter((o) => o.role === 'seller' && o.status === 'pending')
                       .map((inv) => (
                         <div key={inv.id} className="flex items-center gap-4 p-4">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
@@ -657,25 +657,21 @@ export function Account() {
                             <p className="text-xs text-[var(--color-ink-soft)]">
                               {inv.title}
                               {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''} ·{' '}
-                              <Badge tone={inv.status === 'cancelled' ? 'neutral' : 'brand'}>
-                                {inv.status === 'cancelled' ? 'Cancelled' : 'Pending'}
-                              </Badge>
+                              <Badge tone="brand">Pending</Badge>
                             </p>
                           </div>
-                          {inv.status === 'pending' && (
-                            <button
-                              onClick={() => handleCancelInvoice(inv.id)}
-                              disabled={invoiceBusyId === inv.id}
-                              className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                            >
-                              {invoiceBusyId === inv.id ? (
-                                <Loader2 size={13} className="animate-spin" />
-                              ) : (
-                                <X size={13} />
-                              )}
-                              Cancel
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleCancelInvoice(inv.id)}
+                            disabled={invoiceBusyId === inv.id}
+                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                          >
+                            {invoiceBusyId === inv.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <X size={13} />
+                            )}
+                            Cancel
+                          </button>
                         </div>
                       ))}
                   </div>
