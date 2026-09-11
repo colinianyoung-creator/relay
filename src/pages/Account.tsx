@@ -31,6 +31,35 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
 const TABS = ['My listings', 'Saved', 'Messages', 'Offers', 'Orders', 'Payouts', 'Fit profile'] as const;
 
+// A buyer and a seller side both live under Offers and Orders — this toggle
+// (shared across both tabs, rather than one each) lets someone flip between
+// "what am I buying" and "what am I selling" without losing their place.
+function RoleToggle({
+  value,
+  onChange,
+}: {
+  value: 'buyer' | 'seller';
+  onChange: (v: 'buyer' | 'seller') => void;
+}) {
+  return (
+    <div className="mb-5 inline-flex rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-1">
+      {(['buyer', 'seller'] as const).map((r) => (
+        <button
+          key={r}
+          onClick={() => onChange(r)}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+            value === r
+              ? 'bg-[var(--color-ink)] text-white'
+              : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
+          }`}
+        >
+          {r === 'buyer' ? 'Buying' : 'Selling'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [searchParams] = useSearchParams();
@@ -41,6 +70,7 @@ export function Account() {
     if (t === 'offers') return 'Offers';
     return 'My listings';
   });
+  const [viewRole, setViewRole] = useState<'buyer' | 'seller'>('buyer');
   const [myListings, setMyListings] = useState<Listing[] | null>(null);
   const [saved, setSaved] = useState<Listing[] | null>(null);
   const [messages, setMessages] = useState<MessageThread[] | null>(null);
@@ -299,23 +329,119 @@ export function Account() {
           <MessagesInbox userId={user.id} threads={messages} onSent={refreshMessages} />
         )}
 
-        {tab === 'Offers' &&
-          (visibleOffers === null ? (
-            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-          ) : visibleOffers.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
-              <Tag size={28} />
-              <p>No offers yet — make one from a listing, or wait for one on yours.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {offerError && (
-                <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
-                  {offerError}
-                </p>
+        {tab === 'Offers' && (
+          <div>
+            <RoleToggle value={viewRole} onChange={setViewRole} />
+
+            <div className="mb-8">
+              <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">
+                {viewRole === 'buyer' ? 'To pay' : 'Invoices sent'}
+              </h3>
+              {orders === null ? (
+                <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+              ) : (
+                <>
+                  {invoiceError && (
+                    <p className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                      {invoiceError}
+                    </p>
+                  )}
+                  {orders.filter((o) => o.role === viewRole && o.status === 'pending').length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                      {viewRole === 'buyer'
+                        ? 'No invoices waiting on you.'
+                        : "You haven't sent an invoice yet — send one from a club gear lot you own."}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                      {orders
+                        .filter((o) => o.role === viewRole && o.status === 'pending')
+                        .map((inv) => (
+                          <div key={inv.id} className="flex items-center gap-4 p-4">
+                            <div className="min-w-0 flex-1">
+                              <ListingRefRow
+                                title={inv.title}
+                                photos={inv.photos}
+                                sport={inv.sport}
+                                location={inv.location}
+                                country={inv.country}
+                              />
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                              <p className="text-xs text-[var(--color-ink-soft)]">
+                                {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                                {timeAgo(inv.createdAt.slice(0, 10))}
+                              </p>
+                            </div>
+                            {viewRole === 'buyer' ? (
+                              <div className="flex shrink-0 gap-2">
+                                <button
+                                  onClick={() => handlePayInvoice(inv.id)}
+                                  disabled={invoiceBusyId === inv.id}
+                                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                                >
+                                  {invoiceBusyId === inv.id ? (
+                                    <Loader2 size={13} className="animate-spin" />
+                                  ) : (
+                                    <CreditCard size={13} />
+                                  )}
+                                  Pay now
+                                </button>
+                                <button
+                                  onClick={() => handleCancelInvoice(inv.id)}
+                                  disabled={invoiceBusyId === inv.id}
+                                  className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleCancelInvoice(inv.id)}
+                                disabled={invoiceBusyId === inv.id}
+                                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                              >
+                                {invoiceBusyId === inv.id ? (
+                                  <Loader2 size={13} className="animate-spin" />
+                                ) : (
+                                  <X size={13} />
+                                )}
+                                Cancel
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </>
               )}
-              <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                {visibleOffers.map((offer) => {
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Offers</h3>
+              {visibleOffers === null ? (
+                <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+              ) : visibleOffers.filter((o) => o.role === viewRole).length === 0 ? (
+                <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
+                  <Tag size={28} />
+                  <p>
+                    {viewRole === 'buyer'
+                      ? 'No offers yet — make one from a listing.'
+                      : 'No offers yet — wait for one on your listings.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {offerError && (
+                    <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                      {offerError}
+                    </p>
+                  )}
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {visibleOffers
+                      .filter((o) => o.role === viewRole)
+                      .map((offer) => {
                   const myTurn = offer.status === 'pending' && offer.proposedBy !== offer.role;
                   const myOwnProposal = offer.status === 'pending' && offer.proposedBy === offer.role;
                   return (
@@ -446,234 +572,80 @@ export function Account() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          ))}
-
-        {tab === 'Orders' &&
-          (orders === null ? (
-            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-          ) : (
-            <div className="space-y-8">
-              {invoiceError && (
-                <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
-                  {invoiceError}
-                </p>
+                  </div>
+                </div>
               )}
-
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">To pay</h3>
-                {orders.filter((o) => o.role === 'buyer' && o.status === 'pending').length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                    No invoices waiting on you.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {orders
-                      .filter((o) => o.role === 'buyer' && o.status === 'pending')
-                      .map((inv) => (
-                        <div key={inv.id} className="flex items-center gap-4 p-4">
-                          <div className="min-w-0 flex-1">
-                            <ListingRefRow
-                              title={inv.title}
-                              photos={inv.photos}
-                              sport={inv.sport}
-                              location={inv.location}
-                              country={inv.country}
-                            />
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                            <p className="text-xs text-[var(--color-ink-soft)]">
-                              from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 gap-2">
-                            <button
-                              onClick={() => handlePayInvoice(inv.id)}
-                              disabled={invoiceBusyId === inv.id}
-                              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
-                            >
-                              {invoiceBusyId === inv.id ? (
-                                <Loader2 size={13} className="animate-spin" />
-                              ) : (
-                                <CreditCard size={13} />
-                              )}
-                              Pay now
-                            </button>
-                            <button
-                              onClick={() => handleCancelInvoice(inv.id)}
-                              disabled={invoiceBusyId === inv.id}
-                              className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                            >
-                              Decline
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Purchases</h3>
-                {orders.filter((o) => o.role === 'buyer' && o.status === 'paid').length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                    Nothing bought yet.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {orders
-                      .filter((o) => o.role === 'buyer' && o.status === 'paid')
-                      .map((inv) => {
-                        const link = inv.listingId
-                          ? `/listing/${inv.listingId}`
-                          : inv.bundleId
-                            ? `/fleet/${inv.bundleId}`
-                            : null;
-                        const content = (
-                          <>
-                            <div className="min-w-0 flex-1">
-                              <ListingRefRow
-                                title={inv.title}
-                                photos={inv.photos}
-                                sport={inv.sport}
-                                location={inv.location}
-                                country={inv.country}
-                              />
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                              <p className="text-xs text-[var(--color-ink-soft)]">
-                                from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
-                              </p>
-                            </div>
-                          </>
-                        );
-                        return link ? (
-                          <Link
-                            key={inv.id}
-                            to={link}
-                            className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
-                          >
-                            {content}
-                          </Link>
-                        ) : (
-                          <div key={inv.id} className="flex items-center gap-4 p-4">
-                            {content}
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sales</h3>
-                {orders.filter((o) => o.role === 'seller' && o.status === 'paid').length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                    Nothing sold yet.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {orders
-                      .filter((o) => o.role === 'seller' && o.status === 'paid')
-                      .map((inv) => {
-                        const link = inv.listingId
-                          ? `/listing/${inv.listingId}`
-                          : inv.bundleId
-                            ? `/fleet/${inv.bundleId}`
-                            : null;
-                        const payout = inv.amount - inv.platformFeeAmount;
-                        const content = (
-                          <>
-                            <div className="min-w-0 flex-1">
-                              <ListingRefRow
-                                title={inv.title}
-                                photos={inv.photos}
-                                sport={inv.sport}
-                                location={inv.location}
-                                country={inv.country}
-                              />
-                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
-                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
-                                <span className="font-medium text-[var(--color-moss)]">
-                                  {formatPrice(payout, inv.currency)} payout
-                                </span>
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                              <p className="text-xs text-[var(--color-ink-soft)]">
-                                to {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
-                              </p>
-                            </div>
-                          </>
-                        );
-                        return link ? (
-                          <Link
-                            key={inv.id}
-                            to={link}
-                            className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
-                          >
-                            {content}
-                          </Link>
-                        ) : (
-                          <div key={inv.id} className="flex items-center gap-4 p-4">
-                            {content}
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Invoices sent</h3>
-                {orders.filter((o) => o.role === 'seller' && o.status === 'pending').length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                    You haven't sent an invoice yet — send one from a club gear lot you own.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {orders
-                      .filter((o) => o.role === 'seller' && o.status === 'pending')
-                      .map((inv) => (
-                        <div key={inv.id} className="flex items-center gap-4 p-4">
-                          <div className="min-w-0 flex-1">
-                            <ListingRefRow
-                              title={inv.title}
-                              photos={inv.photos}
-                              sport={inv.sport}
-                              location={inv.location}
-                              country={inv.country}
-                            />
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                            <p className="text-xs text-[var(--color-ink-soft)]">
-                              to {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleCancelInvoice(inv.id)}
-                            disabled={invoiceBusyId === inv.id}
-                            className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                          >
-                            {invoiceBusyId === inv.id ? (
-                              <Loader2 size={13} className="animate-spin" />
-                            ) : (
-                              <X size={13} />
-                            )}
-                            Cancel
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
             </div>
-          ))}
+          </div>
+        )}
+
+        {tab === 'Orders' && (
+          <div>
+            <RoleToggle value={viewRole} onChange={setViewRole} />
+
+            {orders === null ? (
+              <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+            ) : orders.filter((o) => o.role === viewRole && o.status === 'paid').length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                {viewRole === 'buyer' ? 'Nothing bought yet.' : 'Nothing sold yet.'}
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                {orders
+                  .filter((o) => o.role === viewRole && o.status === 'paid')
+                  .map((inv) => {
+                    const link = inv.listingId
+                      ? `/listing/${inv.listingId}`
+                      : inv.bundleId
+                        ? `/fleet/${inv.bundleId}`
+                        : null;
+                    const payout = inv.amount - inv.platformFeeAmount;
+                    const content = (
+                      <>
+                        <div className="min-w-0 flex-1">
+                          <ListingRefRow
+                            title={inv.title}
+                            photos={inv.photos}
+                            sport={inv.sport}
+                            location={inv.location}
+                            country={inv.country}
+                          />
+                          {viewRole === 'seller' && (
+                            <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
+                              −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
+                              <span className="font-medium text-[var(--color-moss)]">
+                                {formatPrice(payout, inv.currency)} payout
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                          <p className="text-xs text-[var(--color-ink-soft)]">
+                            {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                            {timeAgo(inv.createdAt.slice(0, 10))}
+                          </p>
+                        </div>
+                      </>
+                    );
+                    return link ? (
+                      <Link
+                        key={inv.id}
+                        to={link}
+                        className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <div key={inv.id} className="flex items-center gap-4 p-4">
+                        {content}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === 'Payouts' && <PayoutsPanel />}
 
