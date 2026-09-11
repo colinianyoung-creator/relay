@@ -307,7 +307,7 @@ export function FleetDetail() {
                   onClick={() =>
                     requireAuth(async () => {
                       if (!firstListingId || !userRef.current) return;
-                      await sendMessage(firstListingId, userRef.current.id, message);
+                      await sendMessage(firstListingId, userRef.current.id, bundle.seller.id, message);
                       setMessageSent(true);
                     })
                   }

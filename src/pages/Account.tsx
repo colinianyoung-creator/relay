@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, MessageCircle, PackagePlus, Loader2, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
+import { BadgeCheck, PackagePlus, Loader2, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
   fetchSavedListings,
-  fetchSentMessages,
+  fetchMessageThreads,
   fetchMyInvoices,
   payCustomOrder,
   cancelCustomOrder,
@@ -21,6 +21,7 @@ import {
 import { ListingCard } from '@/components/ListingCard';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
+import { MessagesInbox } from '@/components/MessagesInbox';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { formatPrice, timeAgo } from '@/lib/format';
@@ -163,13 +164,17 @@ export function Account() {
     }
   }
 
+  function refreshMessages() {
+    if (user) fetchMessageThreads(user.id).then(setMessages);
+  }
+
   useEffect(() => {
     if (!user) return;
     fetchListingsBySeller(user.id).then(setMyListings);
     fetchSavedListings(user.id).then(setSaved);
     fetchMyInvoices(user.id).then(setInvoices);
     fetchMyOffers(user.id).then(setOffers);
-    fetchSentMessages(user.id).then(setMessages);
+    fetchMessageThreads(user.id).then(setMessages);
   }, [user]);
 
   if (authLoading) {
@@ -284,38 +289,9 @@ export function Account() {
             </div>
           ))}
 
-        {tab === 'Messages' &&
-          (messages === null ? (
-            <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-          ) : messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
-              No messages sent yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-              {messages.map((msg) => (
-                <div key={msg.listingId + msg.sentAt} className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-                    <MessageCircle size={17} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">You messaged about this listing</span>
-                      <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                        {timeAgo(msg.sentAt.slice(0, 10))}
-                      </span>
-                    </div>
-                    <p className="truncate text-sm text-[var(--color-ink-soft)]">
-                      {msg.body || '(no message text)'}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]/80">
-                      Re: {msg.listingTitle} · {formatPrice(msg.listingPrice, msg.listingCurrency)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+        {tab === 'Messages' && user && (
+          <MessagesInbox userId={user.id} threads={messages} onSent={refreshMessages} />
+        )}
 
         {tab === 'Offers' &&
           (offers === null ? (

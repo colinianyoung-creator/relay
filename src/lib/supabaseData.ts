@@ -404,10 +404,15 @@ export async function fetchSavedListings(userId: string): Promise<Listing[]> {
     .map((row) => mapListing(row.listings));
 }
 
-export async function sendMessage(listingId: string, senderId: string, body: string) {
+export async function sendMessage(
+  listingId: string,
+  senderId: string,
+  recipientId: string,
+  body: string,
+) {
   const { error } = await supabase
     .from('messages')
-    .insert({ listing_id: listingId, sender_id: senderId, body });
+    .insert({ listing_id: listingId, sender_id: senderId, recipient_id: recipientId, body });
   if (error) throw error;
 }
 
@@ -427,32 +432,85 @@ export interface MessageThread {
   listingTitle: string;
   listingPrice: number | null;
   listingCurrency: Currency;
+  otherPartyId: string;
+  otherPartyName: string;
+  lastMessage: string;
+  lastMessageAt: string;
+  lastMessageFromMe: boolean;
+}
+
+interface ThreadRow {
+  listing_id: string;
+  sender_id: string;
+  recipient_id: string;
+  body: string;
+  sent_at: string;
+  listings: { title: string; price: number | null; currency: string } | null;
+  sender: { id: string; name: string } | null;
+  recipient: { id: string; name: string } | null;
+}
+
+// One row per message, collapsed here into one row per (listing, other
+// party) — the most recent message stands in as the thread's preview, same
+// pattern as a normal inbox.
+export async function fetchMessageThreads(userId: string): Promise<MessageThread[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select(
+      'listing_id, sender_id, recipient_id, body, sent_at, listings(title, price, currency), sender:profiles!messages_sender_id_fkey(id, name), recipient:profiles!messages_recipient_id_fkey(id, name)',
+    )
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .order('sent_at', { ascending: false });
+  if (error) throw error;
+
+  const threads = new Map<string, MessageThread>();
+  for (const row of (data ?? []) as unknown as ThreadRow[]) {
+    if (!row.listings) continue;
+    const fromMe = row.sender_id === userId;
+    const otherParty = fromMe ? row.recipient : row.sender;
+    if (!otherParty) continue;
+    const key = `${row.listing_id}:${otherParty.id}`;
+    // Rows arrive newest-first, so the first one seen per key is the latest.
+    if (threads.has(key)) continue;
+    threads.set(key, {
+      listingId: row.listing_id,
+      listingTitle: row.listings.title,
+      listingPrice: row.listings.price,
+      listingCurrency: row.listings.currency as Currency,
+      otherPartyId: otherParty.id,
+      otherPartyName: otherParty.name,
+      lastMessage: row.body,
+      lastMessageAt: row.sent_at,
+      lastMessageFromMe: fromMe,
+    });
+  }
+  return Array.from(threads.values());
+}
+
+export interface ThreadMessage {
+  id: string;
+  senderId: string;
   body: string;
   sentAt: string;
 }
 
-export async function fetchSentMessages(userId: string): Promise<MessageThread[]> {
+export async function fetchThreadMessages(
+  userId: string,
+  listingId: string,
+  otherPartyId: string,
+): Promise<ThreadMessage[]> {
   const { data, error } = await supabase
     .from('messages')
-    .select('listing_id, body, sent_at, listings(title, price, currency)')
-    .eq('sender_id', userId)
-    .order('sent_at', { ascending: false });
+    .select('id, sender_id, body, sent_at')
+    .eq('listing_id', listingId)
+    .or(
+      `and(sender_id.eq.${userId},recipient_id.eq.${otherPartyId}),and(sender_id.eq.${otherPartyId},recipient_id.eq.${userId})`,
+    )
+    .order('sent_at', { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as unknown as {
-    listing_id: string;
-    body: string;
-    sent_at: string;
-    listings: { title: string; price: number | null; currency: string } | null;
-  }[])
-    .filter((row) => row.listings)
-    .map((row) => ({
-      listingId: row.listing_id,
-      listingTitle: row.listings!.title,
-      listingPrice: row.listings!.price,
-      listingCurrency: row.listings!.currency as Currency,
-      body: row.body,
-      sentAt: row.sent_at,
-    }));
+  return ((data ?? []) as { id: string; sender_id: string; body: string; sent_at: string }[]).map(
+    (row) => ({ id: row.id, senderId: row.sender_id, body: row.body, sentAt: row.sent_at }),
+  );
 }
 
 export async function fetchProfile(id: string) {
