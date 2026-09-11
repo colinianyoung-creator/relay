@@ -32,6 +32,7 @@ import {
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingRefRow } from '@/components/ListingRefRow';
+import { DeliveryPanel } from '@/components/DeliveryPanel';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -823,6 +824,7 @@ export function Account() {
                             statusLabel="Paid"
                             platformFeeAmount={inv.platformFeeAmount}
                             listingLink={link}
+                            extra={<DeliveryPanel order={inv} onChanged={refreshOrders} />}
                           />
                         )}
                       </div>

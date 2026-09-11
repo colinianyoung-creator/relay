@@ -7,6 +7,7 @@ import { ListingCard } from '@/components/ListingCard';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
+import { DeliverySuggestion } from '@/components/DeliverySuggestion';
 import { formatPrice } from '@/lib/format';
 import type { FleetBundle } from '@/types';
 
@@ -154,7 +155,7 @@ function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
 
 export function FleetDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   // Mirrors `user` so a resumed post-login action (see requireAuth) always
   // reads the current session, not the stale one captured when it was queued.
   const userRef = useRef(user);
@@ -283,6 +284,16 @@ export function FleetDetail() {
               </span>
               <span>{bundle.seller.salesCount} completed sale{bundle.seller.salesCount === 1 ? '' : 's'}</span>
             </div>
+
+            {!isOwner && bundle.listings[0] && (
+              <DeliverySuggestion
+                listing={bundle.listings[0]}
+                sellerFirstName={bundle.seller.name.split(' ')[0]}
+                sellerClub={bundle.seller.club}
+                buyerClub={profile?.club}
+                shipsInternationally={bundle.listings[0].shipsInternationally}
+              />
+            )}
 
             {isOwner ? (
               <InvoicePanel bundle={bundle} />

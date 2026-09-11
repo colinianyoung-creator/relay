@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Truck, Loader2, Ruler, CheckCircle2, CreditCard, Copy } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
@@ -19,6 +19,7 @@ import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
 import { MakeOfferModal } from '@/components/MakeOfferModal';
+import { DeliverySuggestion } from '@/components/DeliverySuggestion';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, FitProfile } from '@/types';
 
@@ -34,7 +35,7 @@ const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string 
 
 export function ListingDetail() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   // Mirrors `user` so a resumed post-login action (see requireAuth) always
   // reads the current session, not the stale one captured when it was queued.
   const userRef = useRef(user);
@@ -269,15 +270,14 @@ export function ListingDetail() {
             </dl>
           </div>
 
-          {listing.shipsInternationally && (
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4 text-sm text-[var(--color-ink-soft)]">
-              <Truck size={18} className="mt-0.5 shrink-0 text-[var(--color-ink-soft)]" />
-              <span>
-                This seller ships internationally. Specialist freight for equipment like this
-                typically runs $300–500 depending on distance and packaging — worth agreeing
-                who covers it before you commit to buy.
-              </span>
-            </div>
+          {user?.id !== listing.seller.id && (
+            <DeliverySuggestion
+              listing={listing}
+              sellerFirstName={listing.seller.name.split(' ')[0]}
+              sellerClub={listing.seller.club}
+              buyerClub={profile?.club}
+              shipsInternationally={listing.shipsInternationally}
+            />
           )}
         </div>
 

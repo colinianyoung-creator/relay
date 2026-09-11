@@ -1126,6 +1126,10 @@ export interface MyOrder {
   sport: Sport | null;
   location: string | null;
   country: string | null;
+  deliveryMethod: 'collection' | 'courier' | 'freight' | null;
+  quoteRequestedAt: string | null;
+  trackingReference: string | null;
+  trackingUrl: string | null;
 }
 
 interface MyOrderRow {
@@ -1154,10 +1158,16 @@ interface MyOrderRow {
   } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
+  delivery: {
+    method: 'collection' | 'courier' | 'freight' | null;
+    quote_requested_at: string | null;
+    tracking_reference: string | null;
+    tracking_url: string | null;
+  } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1225,8 +1235,42 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       sport: (representative?.sport as Sport | undefined) ?? null,
       location: representative?.location ?? null,
       country: representative?.country ?? null,
+      deliveryMethod: row.delivery?.method ?? null,
+      quoteRequestedAt: row.delivery?.quote_requested_at ?? null,
+      trackingReference: row.delivery?.tracking_reference ?? null,
+      trackingUrl: row.delivery?.tracking_url ?? null,
     };
   });
+}
+
+export async function requestShippingQuote(orderId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('request-shipping-quote', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function updateDeliveryDetails(
+  orderId: string,
+  fields: {
+    method?: 'collection' | 'courier' | 'freight';
+    trackingReference?: string;
+    trackingUrl?: string;
+    notes?: string;
+  },
+): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('update-delivery-details', {
+    body: {
+      orderId,
+      method: fields.method,
+      trackingReference: fields.trackingReference,
+      trackingUrl: fields.trackingUrl,
+      notes: fields.notes,
+    },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
 }
 
 // --- Offers ---
