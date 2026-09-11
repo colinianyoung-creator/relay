@@ -441,6 +441,7 @@ export interface MessageThread {
   lastMessage: string;
   lastMessageAt: string;
   lastMessageFromMe: boolean;
+  hasUnread: boolean;
   photos: string[] | null;
   sport: Sport | null;
   location: string | null;
@@ -453,6 +454,7 @@ interface ThreadRow {
   recipient_id: string;
   body: string;
   sent_at: string;
+  read_at: string | null;
   listings: {
     title: string;
     price: number | null;
@@ -468,12 +470,14 @@ interface ThreadRow {
 
 // One row per message, collapsed here into one row per (listing, other
 // party) — the most recent message stands in as the thread's preview, same
-// pattern as a normal inbox.
+// pattern as a normal inbox. A thread counts as unread if any message this
+// user received in it hasn't been marked read yet, regardless of whether
+// that message happens to be the latest one.
 export async function fetchMessageThreads(userId: string): Promise<MessageThread[]> {
   const { data, error } = await supabase
     .from('messages')
     .select(
-      'listing_id, sender_id, recipient_id, body, sent_at, listings(title, price, currency, photos, sport, location, country), sender:profiles!messages_sender_id_fkey(id, name), recipient:profiles!messages_recipient_id_fkey(id, name)',
+      'listing_id, sender_id, recipient_id, body, sent_at, read_at, listings(title, price, currency, photos, sport, location, country), sender:profiles!messages_sender_id_fkey(id, name), recipient:profiles!messages_recipient_id_fkey(id, name)',
     )
     .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
     .order('sent_at', { ascending: false });
@@ -486,8 +490,15 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
     const otherParty = fromMe ? row.recipient : row.sender;
     if (!otherParty) continue;
     const key = `${row.listing_id}:${otherParty.id}`;
-    // Rows arrive newest-first, so the first one seen per key is the latest.
-    if (threads.has(key)) continue;
+    const unread = !fromMe && row.read_at === null;
+    const existing = threads.get(key);
+    if (existing) {
+      // Rows arrive newest-first, so the first one seen per key already has
+      // the latest preview — just fold in whether any later-seen (i.e.
+      // older) row in this thread is still unread.
+      if (unread) existing.hasUnread = true;
+      continue;
+    }
     threads.set(key, {
       listingId: row.listing_id,
       listingTitle: row.listings.title,
@@ -498,6 +509,7 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
       lastMessage: row.body,
       lastMessageAt: row.sent_at,
       lastMessageFromMe: fromMe,
+      hasUnread: unread,
       photos: row.listings.photos ?? null,
       sport: (row.listings.sport as Sport | undefined) ?? null,
       location: row.listings.location ?? null,
@@ -505,6 +517,22 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
     });
   }
   return Array.from(threads.values());
+}
+
+/** Marks every message this user received in one thread as read. */
+export async function markThreadRead(
+  userId: string,
+  listingId: string,
+  otherPartyId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('listing_id', listingId)
+    .eq('recipient_id', userId)
+    .eq('sender_id', otherPartyId)
+    .is('read_at', null);
+  if (error) throw error;
 }
 
 export interface ThreadMessage {

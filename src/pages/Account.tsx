@@ -270,8 +270,10 @@ export function Account() {
             }`}
           >
             {t}
-            {t === 'Messages' && messages && messages.length > 0 && (
-              <span className="ml-1.5 text-[var(--color-brand)]">({messages.length})</span>
+            {t === 'Messages' && messages && messages.some((m) => m.hasUnread) && (
+              <span className="ml-1.5 text-[var(--color-brand)]">
+                ({messages.filter((m) => m.hasUnread).length})
+              </span>
             )}
           </button>
         ))}
@@ -326,7 +328,7 @@ export function Account() {
           ))}
 
         {tab === 'Messages' && user && (
-          <MessagesInbox userId={user.id} threads={messages} onSent={refreshMessages} />
+          <MessagesInbox userId={user.id} threads={messages} onThreadsChanged={refreshMessages} />
         )}
 
         {tab === 'Offers' && (

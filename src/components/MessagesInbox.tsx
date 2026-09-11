@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import {
   fetchThreadMessages,
+  markThreadRead,
   sendMessage,
   type MessageThread,
   type ThreadMessage,
@@ -14,12 +15,13 @@ import { ListingRefRow } from './ListingRefRow';
 export function MessagesInbox({
   userId,
   threads,
-  onSent,
+  onThreadsChanged,
 }: {
   userId: string;
   threads: MessageThread[] | null;
-  /** Called after a reply sends, so the caller can refresh the thread list's previews. */
-  onSent: () => void;
+  /** Called after a reply sends or a thread is marked read, so the caller
+   * can refresh the thread list's previews and unread badge. */
+  onThreadsChanged: () => void;
 }) {
   const [selected, setSelected] = useState<MessageThread | null>(null);
   const [thread, setThread] = useState<ThreadMessage[] | null>(null);
@@ -31,7 +33,15 @@ export function MessagesInbox({
     if (!selected) return;
     setThread(null);
     fetchThreadMessages(userId, selected.listingId, selected.otherPartyId).then(setThread);
-  }, [userId, selected]);
+    if (selected.hasUnread) {
+      markThreadRead(userId, selected.listingId, selected.otherPartyId)
+        .then(onThreadsChanged)
+        .catch(() => {});
+    }
+    // Only the initial open should trigger a read — re-running this on every
+    // parent refresh would re-mark on props that didn't really change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, selected?.listingId, selected?.otherPartyId]);
 
   async function handleReply(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +53,7 @@ export function MessagesInbox({
       setReply('');
       const updated = await fetchThreadMessages(userId, selected.listingId, selected.otherPartyId);
       setThread(updated);
-      onSent();
+      onThreadsChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send that message.');
     } finally {
@@ -162,12 +172,23 @@ export function MessagesInbox({
           )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-sm font-medium">{t.otherPartyName}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                {t.hasUnread && (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-brand)]" aria-hidden="true" />
+                )}
+                <span className={`truncate text-sm ${t.hasUnread ? 'font-semibold' : 'font-medium'}`}>
+                  {t.otherPartyName}
+                </span>
+              </span>
               <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
                 {timeAgo(t.lastMessageAt.slice(0, 10))}
               </span>
             </div>
-            <p className="truncate text-sm text-[var(--color-ink-soft)]">
+            <p
+              className={`truncate text-sm ${
+                t.hasUnread ? 'font-medium text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]'
+              }`}
+            >
               {t.lastMessageFromMe && 'You: '}
               {t.lastMessage || '(no message text)'}
             </p>
