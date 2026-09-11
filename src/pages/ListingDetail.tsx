@@ -361,11 +361,6 @@ export function ListingDetail() {
               <div className="mt-5 rounded-xl bg-[var(--color-line)]/40 p-4 text-sm text-[var(--color-ink-soft)]">
                 This listing has sold.
               </div>
-            ) : messageSent ? (
-              <div className="mt-5 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
-                Message sent — {listing.seller.name.split(' ')[0]} typically replies within a day.
-                Arrange payment and collection directly with them.
-              </div>
             ) : (
               <div className="mt-5">
                 {canBuyInApp && (
@@ -397,29 +392,38 @@ export function ListingDetail() {
                     <span className="h-px flex-1 bg-[var(--color-line)]" />
                   </div>
                 )}
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Hi ${listing.seller.name.split(' ')[0]}, is this still available? I'd love to know more about...`}
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <button
-                  onClick={() =>
-                    requireAuth(async () => {
-                      if (isDemo) {
-                        setMessageSent(true);
-                        return;
+                {messageSent ? (
+                  <div className="rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
+                    Message sent — {listing.seller.name.split(' ')[0]} typically replies within a
+                    day. Arrange payment and collection directly with them.
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder={`Hi ${listing.seller.name.split(' ')[0]}, is this still available? I'd love to know more about...`}
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm outline-none focus:border-[var(--color-ink-soft)]"
+                    />
+                    <button
+                      onClick={() =>
+                        requireAuth(async () => {
+                          if (isDemo) {
+                            setMessageSent(true);
+                            return;
+                          }
+                          if (!userRef.current) return;
+                          await sendMessage(listing.id, userRef.current.id, listing.seller.id, message);
+                          setMessageSent(true);
+                        })
                       }
-                      if (!userRef.current) return;
-                      await sendMessage(listing.id, userRef.current.id, listing.seller.id, message);
-                      setMessageSent(true);
-                    })
-                  }
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-ink)] px-4 py-2.5 text-sm font-medium text-white hover:bg-black"
-                >
-                  <MessageCircle size={16} /> Message seller
-                </button>
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-ink)] px-4 py-2.5 text-sm font-medium text-white hover:bg-black"
+                    >
+                      <MessageCircle size={16} /> Message seller
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
