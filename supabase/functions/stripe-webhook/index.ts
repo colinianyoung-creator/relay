@@ -7,6 +7,64 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { sendEmail, formatMoney, SITE_URL } from '../_shared/email.ts';
+import { notifyUser } from '../_shared/notify.ts';
+import { listingMatchesSearch, type SavedSearch } from '../_shared/matchSearch.ts';
+
+// A listing just went live (paid) — check it against every saved search and
+// notify each matching user once. Mirrors check-saved-searches, which
+// handles the free/exempt-listing paths where nothing server-side runs
+// otherwise; here we're already server-side, so no extra network hop.
+async function notifyMatchingSearches(
+  supabase: ReturnType<typeof createClient>,
+  listings: {
+    id: string;
+    title: string;
+    price: number | null;
+    currency: string;
+    sport: string;
+    condition: string;
+    country: string;
+    ships_internationally: boolean;
+    location: string;
+    bundle_id: string | null;
+  }[],
+) {
+  if (listings.length === 0) return;
+  try {
+    const { data: searches, error } = await supabase
+      .from('saved_searches')
+      .select('user_id, sport, condition, country, min_price, max_price, free_only');
+    if (error || !searches) return;
+
+    const matchesByUser = new Map<string, typeof listings>();
+    for (const search of searches as (SavedSearch & { user_id: string })[]) {
+      for (const listing of listings) {
+        if (listingMatchesSearch(listing, search)) {
+          const existing = matchesByUser.get(search.user_id) ?? [];
+          if (!existing.some((l) => l.id === listing.id)) existing.push(listing);
+          matchesByUser.set(search.user_id, existing);
+        }
+      }
+    }
+
+    for (const [userId, matched] of matchesByUser) {
+      const items = matched
+        .map((l) => {
+          const link = l.bundle_id ? `${SITE_URL}/fleet/${l.bundle_id}` : `${SITE_URL}/listing/${l.id}`;
+          return `<li><a href="${link}">${l.title}</a> — ${formatMoney(l.price ?? 0, l.currency)}, ${l.location}</li>`;
+        })
+        .join('');
+      await notifyUser(
+        supabase,
+        userId,
+        matched.length === 1 ? 'New listing matches your saved search' : 'New listings match your saved search',
+        `<p>Something new just went live that matches one of your saved searches:</p><ul>${items}</ul>`,
+      );
+    }
+  } catch (err) {
+    console.error('notifyMatchingSearches failed', err);
+  }
+}
 
 // Fires once a sale has genuinely completed (order paid, listing(s) actually
 // transferred) — covers both an instant single-listing purchase and a paid
@@ -148,12 +206,14 @@ Deno.serve(async (req) => {
       if (bundleFetchError || !bundle) {
         console.error('Fleet bundle not found for completed session', fleetBundleId, bundleFetchError);
       } else {
-        const { error: listingsUpdateError } = await supabase
+        const { data: updatedFleetListings, error: listingsUpdateError } = await supabase
           .from('listings')
           .update({ fee_status: 'paid' })
           .eq('bundle_id', fleetBundleId)
-          .eq('fee_status', 'pending');
+          .eq('fee_status', 'pending')
+          .select('id, title, price, currency, sport, condition, country, ships_internationally, location, bundle_id');
         if (listingsUpdateError) console.error('Failed to mark fleet listings paid', listingsUpdateError);
+        else await notifyMatchingSearches(supabase, updatedFleetListings ?? []);
 
         const { error: bundleUpdateError } = await supabase
           .from('listing_bundles')
@@ -168,12 +228,15 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       );
-      const { error } = await supabase
+      const { data: updatedListing, error } = await supabase
         .from('listings')
         .update({ fee_status: 'paid' })
         .eq('id', listingId)
-        .eq('stripe_checkout_session_id', session.id);
+        .eq('stripe_checkout_session_id', session.id)
+        .select('id, title, price, currency, sport, condition, country, ships_internationally, location, bundle_id')
+        .single();
       if (error) console.error('Failed to mark listing paid', error);
+      else await notifyMatchingSearches(supabase, [updatedListing]);
     }
 
     if (orderId && session.payment_status === 'paid') {

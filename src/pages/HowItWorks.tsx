@@ -9,13 +9,13 @@ const steps = [
   },
   {
     icon: MessageCircle,
-    title: 'Message the seller directly',
-    body: "No middleman, no bidding war. Ask your questions, agree a price, and arrange a viewing — same as you would with any private sale.",
+    title: 'Message the seller, or make an offer',
+    body: "Ask questions and arrange a viewing directly, or send a structured offer the seller can accept, decline or counter — no middleman either way.",
   },
   {
     icon: Handshake,
     title: 'Pay securely, or arrange it yourselves',
-    body: "If a seller's set up payouts, you can pay in-app via Stripe — Relay never sees your card details or holds your money itself. Otherwise, agree payment and collection directly, same as any private sale.",
+    body: "Once a price is agreed — asking price, an accepted offer, or a seller-sent invoice — pay in-app via Stripe if the seller's set up payouts (Relay never sees your card details or holds your money itself), or arrange payment and collection directly, same as any private sale.",
   },
 ];
 

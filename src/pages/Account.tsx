@@ -36,6 +36,7 @@ import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
 import { RefundPanel } from '@/components/RefundPanel';
+import { SavedSearches } from '@/components/SavedSearches';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -469,6 +470,7 @@ export function Account() {
               ))}
             </div>
           ))}
+        {tab === 'Saved' && user && <SavedSearches userId={user.id} />}
 
         {tab === 'Messages' && user && (
           <MessagesInbox userId={user.id} threads={messages} onThreadsChanged={refreshMessages} />

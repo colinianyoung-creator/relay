@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search, SlidersHorizontal, Loader2, Ruler } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, SlidersHorizontal, Loader2, Ruler, BellPlus, Check } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
-import { fetchListings, fetchActiveBundles, fetchFitProfile, saveFitProfile } from '@/lib/supabaseData';
+import {
+  fetchListings,
+  fetchActiveBundles,
+  fetchFitProfile,
+  saveFitProfile,
+  createSavedSearch,
+} from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasAnyProfileData } from '@/lib/fitMatch';
 import {
@@ -18,6 +24,7 @@ import { ListingCard } from '@/components/ListingCard';
 import { BundleCard } from '@/components/BundleCard';
 import { HeroArt } from '@/components/HeroArt';
 import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
+import { AuthModal } from '@/components/AuthModal';
 
 type BrowseEntry =
   | { kind: 'listing'; date: string; listing: Listing }
@@ -89,6 +96,55 @@ export function Browse() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sort, setSort] = useState<'newest' | 'price-asc' | 'price-desc'>('newest');
+
+  const [showAuth, setShowAuth] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+  const [savingSearch, setSavingSearch] = useState(false);
+  const [searchSaved, setSearchSaved] = useState(false);
+  const [saveSearchError, setSaveSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user || !pendingActionRef.current) return;
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action();
+  }, [user]);
+
+  function requireAuth(action: () => void) {
+    if (!user) {
+      pendingActionRef.current = action;
+      setShowAuth(true);
+      return;
+    }
+    action();
+  }
+
+  const hasActiveFilters =
+    sport !== 'all' || condition !== 'all' || country !== 'all' || freeOnly || !!minPrice || !!maxPrice;
+
+  async function handleSaveSearch() {
+    requireAuth(async () => {
+      if (!user) return;
+      setSaveSearchError(null);
+      setSavingSearch(true);
+      try {
+        await createSavedSearch(user.id, {
+          sport: sport === 'all' ? null : sport,
+          condition: condition === 'all' ? null : condition,
+          country: country === 'all' ? null : country,
+          minPrice: minPrice ? Number(minPrice) : null,
+          maxPrice: maxPrice ? Number(maxPrice) : null,
+          freeOnly,
+        });
+        setSearchSaved(true);
+        setTimeout(() => setSearchSaved(false), 3000);
+      } catch (err) {
+        setSaveSearchError(err instanceof Error ? err.message : 'Could not save that search.');
+      } finally {
+        setSavingSearch(false);
+      }
+    });
+  }
 
   const profileIsUsable = hasAnyProfileData(fitProfile);
   // Saved account profile wins if it has anything usable; otherwise fall back to
@@ -294,6 +350,27 @@ export function Browse() {
             <Ruler size={13} /> {activeProfileUsable ? 'Fits me' : 'Set my size'}
           </button>
 
+          {hasActiveFilters && (
+            <button
+              onClick={handleSaveSearch}
+              disabled={savingSearch || searchSaved}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition disabled:opacity-70 ${
+                searchSaved
+                  ? 'border-[var(--color-moss)] bg-[var(--color-moss-soft)] text-[var(--color-moss)]'
+                  : 'border-[var(--color-line)] bg-[var(--color-paper-raised)] text-[var(--color-ink-soft)]'
+              }`}
+            >
+              {savingSearch ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : searchSaved ? (
+                <Check size={13} />
+              ) : (
+                <BellPlus size={13} />
+              )}
+              {searchSaved ? 'Saved' : 'Save this search'}
+            </button>
+          )}
+
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as typeof sort)}
@@ -315,6 +392,7 @@ export function Browse() {
             Couldn't reach the live marketplace right now — showing demo listings only.
           </p>
         )}
+        {saveSearchError && <p className="mb-6 text-sm text-[var(--color-brand-dark)]">{saveSearchError}</p>}
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
@@ -353,6 +431,16 @@ export function Browse() {
             }
           }}
           onClose={() => setShowSizeModal(false)}
+        />
+      )}
+
+      {showAuth && (
+        <AuthModal
+          onClose={() => {
+            pendingActionRef.current = null;
+            setShowAuth(false);
+          }}
+          onAuthenticated={() => setShowAuth(false)}
         />
       )}
     </div>

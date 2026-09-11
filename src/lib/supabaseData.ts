@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Listing, Currency, FitProfile, FleetBundle, Seller, Sport } from '@/types';
+import type { Listing, Currency, FitProfile, FleetBundle, Seller, Sport, Condition } from '@/types';
 
 interface ListingRow {
   id: string;
@@ -152,6 +152,13 @@ export interface NewListingInput {
 
 export const LISTING_FEE_GBP = 9;
 
+/** Fire-and-forget — a saved-search email failing must never block or fail a listing going live. */
+function checkSavedSearches(listingIds: string[]): void {
+  supabase.functions.invoke('check-saved-searches', { body: { listingIds } }).catch((err) => {
+    console.error('check-saved-searches failed', err);
+  });
+}
+
 export async function createListing(sellerId: string, input: NewListingInput): Promise<string> {
   // Free/donation listings never owe a fee; anything with a price starts
   // 'pending' and is invisible to everyone but the seller until Checkout
@@ -185,6 +192,9 @@ export async function createListing(sellerId: string, input: NewListingInput): P
     .select('id')
     .single();
   if (error) throw error;
+  // Free/donation listings are live immediately (no Stripe step) — a priced
+  // listing's equivalent check happens in stripe-webhook once it's paid.
+  if (feeStatus === 'exempt') checkSavedSearches([data.id]);
   return data.id;
 }
 
@@ -247,29 +257,35 @@ export async function createFleetListing(
     .single();
   if (bundleError) throw bundleError;
 
-  const { error: listingsError } = await supabase.from('listings').insert(
-    items.map((item) => ({
-      seller_id: sellerId,
-      bundle_id: bundle.id,
-      title: item.title,
-      sport: shared.sport,
-      category: shared.category,
-      condition: item.condition,
-      price: item.price,
-      currency: shared.currency,
-      description: shared.description,
-      measurements: [],
-      location: shared.location,
-      country: shared.country,
-      ships_internationally: shared.shipsInternationally,
-      seat_width_cm: item.seatWidthCm ?? null,
-      seat_depth_cm: item.seatDepthCm ?? null,
-      photos: shared.photos ?? [],
-      fee_status: 'exempt',
-      sellable_individually: item.sellableIndividually,
-    })),
-  );
+  const { data: newListings, error: listingsError } = await supabase
+    .from('listings')
+    .insert(
+      items.map((item) => ({
+        seller_id: sellerId,
+        bundle_id: bundle.id,
+        title: item.title,
+        sport: shared.sport,
+        category: shared.category,
+        condition: item.condition,
+        price: item.price,
+        currency: shared.currency,
+        description: shared.description,
+        measurements: [],
+        location: shared.location,
+        country: shared.country,
+        ships_internationally: shared.shipsInternationally,
+        seat_width_cm: item.seatWidthCm ?? null,
+        seat_depth_cm: item.seatDepthCm ?? null,
+        photos: shared.photos ?? [],
+        fee_status: 'exempt',
+        sellable_individually: item.sellableIndividually,
+      })),
+    )
+    .select('id');
   if (listingsError) throw listingsError;
+
+  // Same immediate-live/no-Stripe-step reasoning as a free single listing.
+  if (newListings && newListings.length > 0) checkSavedSearches(newListings.map((l) => l.id));
 
   return bundle.id;
 }
@@ -406,6 +422,75 @@ export async function fetchSavedListings(userId: string): Promise<Listing[]> {
   return ((data ?? []) as unknown as { listings: ListingRow }[])
     .filter((row) => row.listings)
     .map((row) => mapListing(row.listings));
+}
+
+export interface SavedSearch {
+  id: string;
+  sport: Sport | null;
+  condition: Condition | null;
+  country: string | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  freeOnly: boolean;
+  createdAt: string;
+}
+
+interface SavedSearchRow {
+  id: string;
+  sport: string | null;
+  condition: string | null;
+  country: string | null;
+  min_price: number | null;
+  max_price: number | null;
+  free_only: boolean;
+  created_at: string;
+}
+
+export async function createSavedSearch(
+  userId: string,
+  filters: {
+    sport?: Sport | null;
+    condition?: Condition | null;
+    country?: string | null;
+    minPrice?: number | null;
+    maxPrice?: number | null;
+    freeOnly?: boolean;
+  },
+): Promise<void> {
+  const { error } = await supabase.from('saved_searches').insert({
+    user_id: userId,
+    sport: filters.sport ?? null,
+    condition: filters.condition ?? null,
+    country: filters.country ?? null,
+    min_price: filters.minPrice ?? null,
+    max_price: filters.maxPrice ?? null,
+    free_only: filters.freeOnly ?? false,
+  });
+  if (error) throw error;
+}
+
+export async function fetchSavedSearches(userId: string): Promise<SavedSearch[]> {
+  const { data, error } = await supabase
+    .from('saved_searches')
+    .select('id, sport, condition, country, min_price, max_price, free_only, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as SavedSearchRow[]).map((row) => ({
+    id: row.id,
+    sport: row.sport as Sport | null,
+    condition: row.condition as Condition | null,
+    country: row.country,
+    minPrice: row.min_price,
+    maxPrice: row.max_price,
+    freeOnly: row.free_only,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function deleteSavedSearch(id: string): Promise<void> {
+  const { error } = await supabase.from('saved_searches').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function sendMessage(listingId: string, recipientId: string, body: string) {
