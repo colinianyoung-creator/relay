@@ -131,6 +131,23 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
         <Truck size={13} /> Delivery
       </p>
 
+      {order.shippingAddress && (
+        <p className="mb-2 text-[var(--color-ink-soft)]">
+          <span className="font-medium text-[var(--color-ink)]">Shipping address: </span>
+          {order.shippingRecipientName && `${order.shippingRecipientName}, `}
+          {[
+            order.shippingAddress.line1,
+            order.shippingAddress.line2,
+            order.shippingAddress.city,
+            order.shippingAddress.state,
+            order.shippingAddress.postal_code,
+            order.shippingAddress.country,
+          ]
+            .filter(Boolean)
+            .join(', ')}
+        </p>
+      )}
+
       {error && <p className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
 
       {!editing && (

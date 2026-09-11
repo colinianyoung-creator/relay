@@ -1138,6 +1138,15 @@ export interface MyOrder {
   trackingUrl: string | null;
   deliveryNotes: string | null;
   evidencePaths: string[];
+  shippingAddress: {
+    line1: string | null;
+    line2: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
+    country: string | null;
+  } | null;
+  shippingRecipientName: string | null;
   alreadyReviewed: boolean;
   refundRequestId: string | null;
   refundStatus: 'pending' | 'declined' | 'refunded' | 'failed' | null;
@@ -1179,13 +1188,22 @@ interface MyOrderRow {
     tracking_url: string | null;
     notes: string | null;
     evidence_paths: string[] | null;
+    shipping_address: {
+      line1: string | null;
+      line2: string | null;
+      city: string | null;
+      state: string | null;
+      postal_code: string | null;
+      country: string | null;
+    } | null;
+    shipping_recipient_name: string | null;
   } | null;
   review: { id: string } | null;
   refund: { id: string; status: string; reason: string; details: string | null; seller_response: string | null } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1260,6 +1278,8 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       trackingUrl: row.delivery?.tracking_url ?? null,
       deliveryNotes: row.delivery?.notes ?? null,
       evidencePaths: row.delivery?.evidence_paths ?? [],
+      shippingAddress: row.delivery?.shipping_address ?? null,
+      shippingRecipientName: row.delivery?.shipping_recipient_name ?? null,
       alreadyReviewed: row.review !== null,
       refundRequestId: row.refund?.id ?? null,
       refundStatus: (row.refund?.status as MyOrder['refundStatus']) ?? null,

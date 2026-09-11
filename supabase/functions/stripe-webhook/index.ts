@@ -201,6 +201,21 @@ Deno.serve(async (req) => {
           .eq('id', orderId);
         if (orderUpdateError) console.error('Failed to mark order paid', orderUpdateError);
 
+        // Buyer's shipping address, if Checkout collected one — sits
+        // alongside the delivery-method/tracking info a seller records later.
+        if (session.shipping_details?.address) {
+          const { error: shippingError } = await supabase.from('order_deliveries').upsert(
+            {
+              order_id: orderId,
+              shipping_address: session.shipping_details.address,
+              shipping_recipient_name: session.shipping_details.name ?? null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'order_id' },
+          );
+          if (shippingError) console.error('Failed to save shipping address', shippingError);
+        }
+
         let soldCount = 0;
         let soldListingIds: string[] = [];
 

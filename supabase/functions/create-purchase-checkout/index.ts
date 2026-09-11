@@ -146,6 +146,7 @@ Deno.serve(async (req) => {
         application_fee_amount: platformFeePence,
         transfer_data: { destination: seller.stripe_connect_account_id },
       },
+      shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] },
       metadata: { order_id: order.id },
       success_url: successUrl,
       cancel_url: cancelUrl,
