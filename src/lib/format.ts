@@ -30,6 +30,16 @@ export function countryCode(country: string): string {
   return COUNTRY_CODE[country] ?? country;
 }
 
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   const now = new Date('2026-09-01').getTime();

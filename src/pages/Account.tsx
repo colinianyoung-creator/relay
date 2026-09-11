@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, PackagePlus, Loader2, Camera, Boxes, CreditCard, X, Tag, Check } from 'lucide-react';
+import {
+  BadgeCheck,
+  PackagePlus,
+  Loader2,
+  Camera,
+  Boxes,
+  CreditCard,
+  X,
+  Tag,
+  Check,
+  ChevronDown,
+  ExternalLink,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
@@ -25,7 +37,7 @@ import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
-import { formatPrice, timeAgo } from '@/lib/format';
+import { formatPrice, formatDateTime, timeAgo } from '@/lib/format';
 import type { Listing } from '@/types';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
@@ -60,6 +72,81 @@ function RoleToggle({
   );
 }
 
+// Expanded, in-place detail for one order/offer row — clicking the listing
+// reference reveals this instead of leaving the tab for the listing page,
+// which may no longer even exist once an item has sold.
+function TransactionDetails({
+  id,
+  createdAt,
+  amount,
+  currency,
+  counterpartyName,
+  role,
+  statusLabel,
+  platformFeeAmount,
+  listingLink,
+  extra,
+}: {
+  id: string;
+  createdAt: string;
+  amount: number;
+  currency: MyOrder['currency'];
+  counterpartyName: string;
+  role: 'buyer' | 'seller';
+  statusLabel: string;
+  platformFeeAmount?: number;
+  listingLink?: string | null;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl bg-[var(--color-paper)] p-4 text-xs text-[var(--color-ink-soft)] sm:grid-cols-3">
+      <div>
+        <p className="font-medium text-[var(--color-ink)]">Status</p>
+        <p>{statusLabel}</p>
+      </div>
+      <div>
+        <p className="font-medium text-[var(--color-ink)]">{role === 'buyer' ? 'Seller' : 'Buyer'}</p>
+        <p>{counterpartyName}</p>
+      </div>
+      <div>
+        <p className="font-medium text-[var(--color-ink)]">Date</p>
+        <p>{formatDateTime(createdAt)}</p>
+      </div>
+      <div>
+        <p className="font-medium text-[var(--color-ink)]">Amount</p>
+        <p>{formatPrice(amount, currency)}</p>
+      </div>
+      {platformFeeAmount !== undefined && role === 'seller' && (
+        <>
+          <div>
+            <p className="font-medium text-[var(--color-ink)]">Commission</p>
+            <p>−{formatPrice(platformFeeAmount, currency)}</p>
+          </div>
+          <div>
+            <p className="font-medium text-[var(--color-ink)]">Payout</p>
+            <p className="font-medium text-[var(--color-moss)]">
+              {formatPrice(amount - platformFeeAmount, currency)}
+            </p>
+          </div>
+        </>
+      )}
+      <div>
+        <p className="font-medium text-[var(--color-ink)]">Reference</p>
+        <p className="font-mono">{id.slice(0, 8)}</p>
+      </div>
+      {extra}
+      {listingLink && (
+        <Link
+          to={listingLink}
+          className="col-span-full inline-flex w-fit items-center gap-1 text-[var(--color-brand-dark)] hover:underline"
+        >
+          View listing <ExternalLink size={12} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [searchParams] = useSearchParams();
@@ -82,6 +169,9 @@ export function Account() {
   const [offerError, setOfferError] = useState<string | null>(null);
   const [counterOpenId, setCounterOpenId] = useState<string | null>(null);
   const [counterAmount, setCounterAmount] = useState('');
+  // Clicking a listing reference in Orders/Offers expands the transaction's
+  // own details in place, rather than leaving the tab for the listing page.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -358,62 +448,96 @@ export function Account() {
                     <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
                       {orders
                         .filter((o) => o.role === viewRole && o.status === 'pending')
-                        .map((inv) => (
-                          <div key={inv.id} className="flex items-center gap-4 p-4">
-                            <div className="min-w-0 flex-1">
-                              <ListingRefRow
-                                title={inv.title}
-                                photos={inv.photos}
-                                sport={inv.sport}
-                                location={inv.location}
-                                country={inv.country}
-                              />
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                              <p className="text-xs text-[var(--color-ink-soft)]">
-                                {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
-                                {timeAgo(inv.createdAt.slice(0, 10))}
-                              </p>
-                            </div>
-                            {viewRole === 'buyer' ? (
-                              <div className="flex shrink-0 gap-2">
+                        .map((inv) => {
+                          const expanded = expandedId === inv.id;
+                          const link = inv.listingId
+                            ? `/listing/${inv.listingId}`
+                            : inv.bundleId
+                              ? `/fleet/${inv.bundleId}`
+                              : null;
+                          return (
+                            <div key={inv.id} className="p-4">
+                              <div className="flex items-center gap-4">
                                 <button
-                                  onClick={() => handlePayInvoice(inv.id)}
-                                  disabled={invoiceBusyId === inv.id}
-                                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                                  onClick={() => setExpandedId(expanded ? null : inv.id)}
+                                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
                                 >
-                                  {invoiceBusyId === inv.id ? (
-                                    <Loader2 size={13} className="animate-spin" />
-                                  ) : (
-                                    <CreditCard size={13} />
-                                  )}
-                                  Pay now
+                                  <ChevronDown
+                                    size={14}
+                                    className={`shrink-0 text-[var(--color-ink-soft)] transition-transform ${
+                                      expanded ? 'rotate-180' : ''
+                                    }`}
+                                  />
+                                  <span className="min-w-0 flex-1">
+                                    <ListingRefRow
+                                      title={inv.title}
+                                      photos={inv.photos}
+                                      sport={inv.sport}
+                                      location={inv.location}
+                                      country={inv.country}
+                                    />
+                                  </span>
                                 </button>
-                                <button
-                                  onClick={() => handleCancelInvoice(inv.id)}
-                                  disabled={invoiceBusyId === inv.id}
-                                  className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                                >
-                                  Decline
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleCancelInvoice(inv.id)}
-                                disabled={invoiceBusyId === inv.id}
-                                className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                              >
-                                {invoiceBusyId === inv.id ? (
-                                  <Loader2 size={13} className="animate-spin" />
+                                <div className="shrink-0 text-right">
+                                  <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                                  <p className="text-xs text-[var(--color-ink-soft)]">
+                                    {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                                    {timeAgo(inv.createdAt.slice(0, 10))}
+                                  </p>
+                                </div>
+                                {viewRole === 'buyer' ? (
+                                  <div className="flex shrink-0 gap-2">
+                                    <button
+                                      onClick={() => handlePayInvoice(inv.id)}
+                                      disabled={invoiceBusyId === inv.id}
+                                      className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                                    >
+                                      {invoiceBusyId === inv.id ? (
+                                        <Loader2 size={13} className="animate-spin" />
+                                      ) : (
+                                        <CreditCard size={13} />
+                                      )}
+                                      Pay now
+                                    </button>
+                                    <button
+                                      onClick={() => handleCancelInvoice(inv.id)}
+                                      disabled={invoiceBusyId === inv.id}
+                                      className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                                    >
+                                      Decline
+                                    </button>
+                                  </div>
                                 ) : (
-                                  <X size={13} />
+                                  <button
+                                    onClick={() => handleCancelInvoice(inv.id)}
+                                    disabled={invoiceBusyId === inv.id}
+                                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                                  >
+                                    {invoiceBusyId === inv.id ? (
+                                      <Loader2 size={13} className="animate-spin" />
+                                    ) : (
+                                      <X size={13} />
+                                    )}
+                                    Cancel
+                                  </button>
                                 )}
-                                Cancel
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                              </div>
+                              {expanded && (
+                                <TransactionDetails
+                                  id={inv.id}
+                                  createdAt={inv.createdAt}
+                                  amount={inv.amount}
+                                  currency={inv.currency}
+                                  counterpartyName={inv.counterpartyName}
+                                  role={viewRole}
+                                  statusLabel={viewRole === 'buyer' ? 'Awaiting your payment' : 'Awaiting payment'}
+                                  platformFeeAmount={inv.platformFeeAmount}
+                                  listingLink={link}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   )}
                 </>
@@ -446,10 +570,22 @@ export function Account() {
                       .map((offer) => {
                   const myTurn = offer.status === 'pending' && offer.proposedBy !== offer.role;
                   const myOwnProposal = offer.status === 'pending' && offer.proposedBy === offer.role;
+                  const expanded = expandedId === offer.id;
+                  const listingLink = `/listing/${offer.listingId}`;
                   return (
                     <div key={offer.id} className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="min-w-0 flex-1">
+                        <button
+                          onClick={() => setExpandedId(expanded ? null : offer.id)}
+                          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={`mt-1 shrink-0 text-[var(--color-ink-soft)] transition-transform ${
+                              expanded ? 'rotate-180' : ''
+                            }`}
+                          />
+                          <span className="min-w-0 flex-1">
                           <ListingRefRow
                             title={offer.listingTitle}
                             photos={offer.photos}
@@ -475,7 +611,8 @@ export function Account() {
                           {offer.message && (
                             <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">"{offer.message}"</p>
                           )}
-                        </div>
+                          </span>
+                        </button>
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-medium">{formatPrice(offer.amount, offer.currency)}</p>
                           <p className="text-xs text-[var(--color-ink-soft)]">
@@ -571,6 +708,41 @@ export function Account() {
                           </button>
                         </div>
                       )}
+
+                      {expanded && (
+                        <TransactionDetails
+                          id={offer.id}
+                          createdAt={offer.createdAt}
+                          amount={offer.amount}
+                          currency={offer.currency}
+                          counterpartyName={offer.counterpartyName}
+                          role={offer.role}
+                          statusLabel={
+                            offer.status === 'pending'
+                              ? myTurn
+                                ? 'Your turn to respond'
+                                : `Waiting on ${offer.counterpartyName.split(' ')[0]}`
+                              : offer.status === 'accepted'
+                                ? 'Accepted'
+                                : offer.status === 'declined'
+                                  ? 'Declined'
+                                  : 'Withdrawn'
+                          }
+                          listingLink={listingLink}
+                          extra={
+                            <div>
+                              <p className="font-medium text-[var(--color-ink)]">Proposed by</p>
+                              <p>
+                                {offer.proposedBy === offer.role
+                                  ? 'You'
+                                  : offer.counterpartyName.split(' ')[0]}
+                                {offer.updatedAt !== offer.createdAt &&
+                                  ` · last updated ${formatDateTime(offer.updatedAt)}`}
+                              </p>
+                            </div>
+                          }
+                        />
+                      )}
                     </div>
                   );
                 })}
@@ -602,45 +774,57 @@ export function Account() {
                         ? `/fleet/${inv.bundleId}`
                         : null;
                     const payout = inv.amount - inv.platformFeeAmount;
-                    const content = (
-                      <>
-                        <div className="min-w-0 flex-1">
-                          <ListingRefRow
-                            title={inv.title}
-                            photos={inv.photos}
-                            sport={inv.sport}
-                            location={inv.location}
-                            country={inv.country}
+                    const expanded = expandedId === inv.id;
+                    return (
+                      <div key={inv.id} className="p-4">
+                        <button
+                          onClick={() => setExpandedId(expanded ? null : inv.id)}
+                          className="flex w-full items-center gap-4 text-left"
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={`shrink-0 text-[var(--color-ink-soft)] transition-transform ${
+                              expanded ? 'rotate-180' : ''
+                            }`}
                           />
-                          {viewRole === 'seller' && (
-                            <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
-                              −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
-                              <span className="font-medium text-[var(--color-moss)]">
-                                {formatPrice(payout, inv.currency)} payout
-                              </span>
+                          <div className="min-w-0 flex-1">
+                            <ListingRefRow
+                              title={inv.title}
+                              photos={inv.photos}
+                              sport={inv.sport}
+                              location={inv.location}
+                              country={inv.country}
+                            />
+                            {viewRole === 'seller' && (
+                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
+                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
+                                <span className="font-medium text-[var(--color-moss)]">
+                                  {formatPrice(payout, inv.currency)} payout
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                            <p className="text-xs text-[var(--color-ink-soft)]">
+                              {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                              {timeAgo(inv.createdAt.slice(0, 10))}
                             </p>
-                          )}
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                          <p className="text-xs text-[var(--color-ink-soft)]">
-                            {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
-                            {timeAgo(inv.createdAt.slice(0, 10))}
-                          </p>
-                        </div>
-                      </>
-                    );
-                    return link ? (
-                      <Link
-                        key={inv.id}
-                        to={link}
-                        className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
-                      >
-                        {content}
-                      </Link>
-                    ) : (
-                      <div key={inv.id} className="flex items-center gap-4 p-4">
-                        {content}
+                          </div>
+                        </button>
+                        {expanded && (
+                          <TransactionDetails
+                            id={inv.id}
+                            createdAt={inv.createdAt}
+                            amount={inv.amount}
+                            currency={inv.currency}
+                            counterpartyName={inv.counterpartyName}
+                            role={viewRole}
+                            statusLabel="Paid"
+                            platformFeeAmount={inv.platformFeeAmount}
+                            listingLink={link}
+                          />
+                        )}
                       </div>
                     );
                   })}
