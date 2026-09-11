@@ -3,6 +3,7 @@
 // a price is actually agreed.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
 
     const { data: listing, error: listingError } = await supabase
       .from('listings')
-      .select('id, seller_id, sold_at, fee_status, price')
+      .select('id, title, seller_id, sold_at, fee_status, price')
       .eq('id', listingId)
       .single();
     if (listingError || !listing) {
@@ -112,6 +113,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    await notifyUser(
+      supabase,
+      listing.seller_id,
+      `New offer on ${listing.title}`,
+      `<p>You've received a new offer on "${listing.title}" — check your Offers tab to respond.</p>`,
+    );
 
     return new Response(JSON.stringify({ id: offer.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

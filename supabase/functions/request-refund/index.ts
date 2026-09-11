@@ -5,6 +5,7 @@
 // negative.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -102,6 +103,12 @@ Deno.serve(async (req) => {
         body: `I'd like to request a refund for this order — ${reason}.${details ? ` ${details}` : ''} You can approve or decline this from your Orders tab.`,
       });
       if (messageError) console.error('Failed to send refund-request message', messageError);
+      await notifyUser(
+        supabase,
+        order.seller_id,
+        'Refund requested',
+        `<p>A refund has been requested for one of your orders — ${reason}. Check your Orders tab to approve or decline it.</p>`,
+      );
     }
 
     return new Response(JSON.stringify({ id: refundRequest.id }), {

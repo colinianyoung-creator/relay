@@ -4,6 +4,7 @@
 // stripe-webhook, and the Invoices tab handle it with no changes at all.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 const PLATFORM_FEE_PERCENT = 5;
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
     // Re-validate — time may have passed since the offer was made.
     const { data: listing, error: listingError } = await supabase
       .from('listings')
-      .select('id, seller_id, sold_at, fee_status')
+      .select('id, title, seller_id, sold_at, fee_status')
       .eq('id', offer.listing_id)
       .single();
     if (listingError || !listing) {
@@ -136,6 +137,14 @@ Deno.serve(async (req) => {
       .update({ status: 'accepted', order_id: order.id, updated_at: new Date().toISOString() })
       .eq('id', offerId);
     if (updateError) console.error('Failed to mark offer accepted', updateError);
+
+    const otherId = user.id === offer.buyer_id ? offer.seller_id : offer.buyer_id;
+    await notifyUser(
+      supabase,
+      otherId,
+      `Your offer on ${listing.title} was accepted`,
+      `<p>Your offer on "${listing.title}" was accepted — check your Offers tab for next steps.</p>`,
+    );
 
     return new Response(JSON.stringify({ orderId: order.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

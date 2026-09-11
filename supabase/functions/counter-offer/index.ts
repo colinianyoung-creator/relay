@@ -2,6 +2,7 @@
 // whose turn it is, same "not your own proposal" rule as accept/decline.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('id, buyer_id, seller_id, proposed_by, status')
+      .select('id, buyer_id, seller_id, proposed_by, status, listing:listings(title)')
       .eq('id', offerId)
       .single();
     if (offerError || !offer) {
@@ -83,6 +84,15 @@ Deno.serve(async (req) => {
       .update({ amount, proposed_by: callerSide, updated_at: new Date().toISOString() })
       .eq('id', offerId);
     if (updateError) throw updateError;
+
+    const otherId = user.id === offer.buyer_id ? offer.seller_id : offer.buyer_id;
+    const listingTitle = offer.listing?.title ?? 'a listing';
+    await notifyUser(
+      supabase,
+      otherId,
+      `New counter-offer on ${listingTitle}`,
+      `<p>You've received a counter-offer on "${listingTitle}" — check your Offers tab to respond.</p>`,
+    );
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -2,6 +2,7 @@
 // for the other party rejecting it instead.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
 
     const { data: offer, error: offerError } = await supabase
       .from('offers')
-      .select('id, buyer_id, seller_id, proposed_by, status')
+      .select('id, buyer_id, seller_id, proposed_by, status, listing:listings(title)')
       .eq('id', offerId)
       .single();
     if (offerError || !offer) {
@@ -77,6 +78,15 @@ Deno.serve(async (req) => {
       .update({ status: 'withdrawn', updated_at: new Date().toISOString() })
       .eq('id', offerId);
     if (updateError) throw updateError;
+
+    const otherId = user.id === offer.buyer_id ? offer.seller_id : offer.buyer_id;
+    const listingTitle = offer.listing?.title ?? 'a listing';
+    await notifyUser(
+      supabase,
+      otherId,
+      `An offer on ${listingTitle} was withdrawn`,
+      `<p>The offer on "${listingTitle}" you were waiting on has been withdrawn.</p>`,
+    );
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

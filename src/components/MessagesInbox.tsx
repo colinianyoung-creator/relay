@@ -49,7 +49,7 @@ export function MessagesInbox({
     setError(null);
     setSending(true);
     try {
-      await sendMessage(selected.listingId, userId, selected.otherPartyId, reply.trim());
+      await sendMessage(selected.listingId, selected.otherPartyId, reply.trim());
       setReply('');
       const updated = await fetchThreadMessages(userId, selected.listingId, selected.otherPartyId);
       setThread(updated);

@@ -7,6 +7,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -104,6 +105,12 @@ Deno.serve(async (req) => {
           body: `I've declined the refund request for this order.${note ? ` ${note}` : ''}`,
         });
       }
+      await notifyUser(
+        supabase,
+        order.buyer_id,
+        'Refund request declined',
+        `<p>Your refund request was declined.${note ? ` ${note}` : ''}</p>`,
+      );
       return new Response(JSON.stringify({ status: 'declined' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -148,6 +155,12 @@ Deno.serve(async (req) => {
           body: `I've approved the refund for this order — it's on its way back to you.${note ? ` ${note}` : ''}`,
         });
       }
+      await notifyUser(
+        supabase,
+        order.buyer_id,
+        'Refund approved',
+        `<p>Your refund was approved — it's on its way back to you.${note ? ` ${note}` : ''}</p>`,
+      );
 
       return new Response(JSON.stringify({ status: 'refunded' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -168,6 +181,12 @@ Deno.serve(async (req) => {
           body: "I've approved this refund, but the payment couldn't be automatically reversed — Relay's team will follow up to sort it out manually.",
         });
       }
+      await notifyUser(
+        supabase,
+        order.buyer_id,
+        'Refund approved — follow-up needed',
+        "<p>Your refund was approved but couldn't be processed automatically. Relay's team will follow up to sort it out manually.</p>",
+      );
 
       return new Response(
         JSON.stringify({ error: "The refund couldn't be processed automatically — it's been flagged for manual review." }),

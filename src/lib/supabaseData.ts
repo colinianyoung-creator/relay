@@ -408,16 +408,12 @@ export async function fetchSavedListings(userId: string): Promise<Listing[]> {
     .map((row) => mapListing(row.listings));
 }
 
-export async function sendMessage(
-  listingId: string,
-  senderId: string,
-  recipientId: string,
-  body: string,
-) {
-  const { error } = await supabase
-    .from('messages')
-    .insert({ listing_id: listingId, sender_id: senderId, recipient_id: recipientId, body });
+export async function sendMessage(listingId: string, recipientId: string, body: string) {
+  const { data, error } = await supabase.functions.invoke('send-message', {
+    body: { listingId, recipientId, body },
+  });
   if (error) throw error;
+  if (data?.error) throw new Error(data.error);
 }
 
 export async function hasMessaged(listingId: string, senderId: string): Promise<boolean> {

@@ -4,6 +4,7 @@
 // then recording it back on the order via update-delivery-details.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -100,6 +101,12 @@ Deno.serve(async (req) => {
           "record the method and tracking details on the order once it's arranged?",
       });
       if (messageError) console.error('Failed to send shipping-quote message', messageError);
+      await notifyUser(
+        supabase,
+        recipientId,
+        'Shipping quote requested',
+        "<p>A shipping quote has been requested for one of your orders — check your Messages for details.</p>",
+      );
     }
 
     return new Response(JSON.stringify({ ok: true }), {

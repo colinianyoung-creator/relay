@@ -414,7 +414,7 @@ export function ListingDetail() {
                             return;
                           }
                           if (!userRef.current) return;
-                          await sendMessage(listing.id, userRef.current.id, listing.seller.id, message);
+                          await sendMessage(listing.id, listing.seller.id, message);
                           setMessageSent(true);
                         })
                       }
