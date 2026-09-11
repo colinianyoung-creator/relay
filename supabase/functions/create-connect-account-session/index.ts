@@ -85,6 +85,10 @@ Deno.serve(async (req) => {
       components: {
         account_onboarding: { enabled: true },
         account_management: { enabled: true },
+        // account_management alone only shows business/bank-detail settings
+        // — payouts is the component that actually surfaces balance and
+        // payout history, which is what a seller wants to see by default.
+        payouts: { enabled: true },
       },
     });
 

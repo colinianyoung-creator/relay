@@ -99,6 +99,10 @@ export async function fetchListings(): Promise<Listing[]> {
     .from('listings')
     .select(LISTING_SELECT)
     .eq('sellable_individually', true)
+    // Sold listings stay reachable by direct link (their own page still
+    // shows "This listing has sold") but drop out of Browse itself, same as
+    // any real marketplace — nobody wants to search through dead stock.
+    .is('sold_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data as unknown as ListingRow[]).map(mapListing);
@@ -1060,7 +1064,7 @@ export async function cancelCustomOrder(orderId: string): Promise<void> {
   if (data?.error) throw new Error(data.error);
 }
 
-export interface Invoice {
+export interface MyOrder {
   id: string;
   role: 'buyer' | 'seller';
   amount: number;
@@ -1070,10 +1074,13 @@ export interface Invoice {
   createdAt: string;
   hasStripeSession: boolean;
   itemCount: number;
+  title: string;
+  listingId: string | null;
+  bundleId: string | null;
   counterpartyName: string;
 }
 
-interface InvoiceRow {
+interface MyOrderRow {
   id: string;
   buyer_id: string;
   seller_id: string;
@@ -1084,41 +1091,57 @@ interface InvoiceRow {
   created_at: string;
   stripe_checkout_session_id: string | null;
   bundle_listing_ids: string[] | null;
+  listing: { id: string; title: string } | null;
+  bundle: { id: string; title: string } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
 }
 
-const INVOICE_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
+const ORDER_SELECT =
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
 
-/** Every custom-order invoice this user is either side of, most recent first. Single-listing instant purchases (bundle_listing_ids null) aren't invoices, so they're excluded. */
-export async function fetchMyInvoices(userId: string): Promise<Invoice[]> {
+/**
+ * Every order this user is either side of, most recent first — both direct
+ * single-listing purchases (Buy now) and custom/bundle invoices (accepted
+ * offers, seller-sent invoices, club-gear-lot sales) share the same `orders`
+ * table, so this is the one place to look for "what have I bought/sold".
+ */
+export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
   const { data, error } = await supabase
     .from('orders')
-    .select(INVOICE_SELECT)
-    .not('bundle_listing_ids', 'is', null)
+    .select(ORDER_SELECT)
     .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data as unknown as InvoiceRow[]).map((row) => ({
-    id: row.id,
-    role: row.buyer_id === userId ? 'buyer' : 'seller',
-    amount: row.amount,
-    currency: row.currency as Currency,
-    platformFeeAmount: row.platform_fee_amount,
-    status: row.status,
-    createdAt: row.created_at,
-    hasStripeSession: !!row.stripe_checkout_session_id,
-    itemCount: row.bundle_listing_ids?.length ?? 0,
-    counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
-  }));
+  return (data as unknown as MyOrderRow[]).map((row) => {
+    const isMulti = !!row.bundle_listing_ids && row.bundle_listing_ids.length > 0;
+    const n = row.bundle_listing_ids?.length ?? 0;
+    const title = isMulti
+      ? (row.bundle?.title ?? `${n} item${n === 1 ? '' : 's'}`)
+      : (row.listing?.title ?? 'Listing');
+    return {
+      id: row.id,
+      role: row.buyer_id === userId ? ('buyer' as const) : ('seller' as const),
+      amount: row.amount,
+      currency: row.currency as Currency,
+      platformFeeAmount: row.platform_fee_amount,
+      status: row.status,
+      createdAt: row.created_at,
+      hasStripeSession: !!row.stripe_checkout_session_id,
+      itemCount: isMulti ? row.bundle_listing_ids!.length : 1,
+      title,
+      listingId: row.listing?.id ?? null,
+      bundleId: row.bundle?.id ?? null,
+      counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
+    };
+  });
 }
 
 // --- Offers ---
 // A buyer proposes a price on a listing; the seller (or buyer again, after a
 // counter) accepts, declines, or counters. Accepting creates a normal
 // custom-order invoice under the hood — see accept-offer/index.ts — so once
-// an offer is accepted it shows up in fetchMyInvoices like any other invoice.
+// an offer is accepted it shows up in fetchMyOrders like any other order.
 
 export async function createOffer(
   listingId: string,

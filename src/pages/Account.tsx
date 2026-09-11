@@ -5,7 +5,7 @@ import {
   fetchListingsBySeller,
   fetchSavedListings,
   fetchMessageThreads,
-  fetchMyInvoices,
+  fetchMyOrders,
   payCustomOrder,
   cancelCustomOrder,
   fetchMyOffers,
@@ -15,7 +15,7 @@ import {
   withdrawOffer,
   uploadAvatar,
   type MessageThread,
-  type Invoice,
+  type MyOrder,
   type Offer,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
@@ -28,7 +28,7 @@ import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing } from '@/types';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
-const TABS = ['My listings', 'Saved', 'Messages', 'Offers', 'Invoices', 'Payouts', 'Fit profile'] as const;
+const TABS = ['My listings', 'Saved', 'Messages', 'Offers', 'Orders', 'Payouts', 'Fit profile'] as const;
 
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -36,14 +36,14 @@ export function Account() {
   const [tab, setTab] = useState<(typeof TABS)[number]>(() => {
     const t = searchParams.get('tab');
     if (t === 'payouts') return 'Payouts';
-    if (t === 'invoices') return 'Invoices';
+    if (t === 'orders' || t === 'invoices') return 'Orders';
     if (t === 'offers') return 'Offers';
     return 'My listings';
   });
   const [myListings, setMyListings] = useState<Listing[] | null>(null);
   const [saved, setSaved] = useState<Listing[] | null>(null);
   const [messages, setMessages] = useState<MessageThread[] | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[] | null>(null);
+  const [orders, setOrders] = useState<MyOrder[] | null>(null);
   const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[] | null>(null);
@@ -55,8 +55,8 @@ export function Account() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  function refreshInvoices() {
-    if (user) fetchMyInvoices(user.id).then(setInvoices);
+  function refreshOrders() {
+    if (user) fetchMyOrders(user.id).then(setOrders);
   }
 
   async function handlePayInvoice(invoiceId: string) {
@@ -64,7 +64,7 @@ export function Account() {
     setInvoiceBusyId(invoiceId);
     try {
       const origin = window.location.origin;
-      const url = await payCustomOrder(invoiceId, `${origin}/account?tab=invoices`, `${origin}/account?tab=invoices`);
+      const url = await payCustomOrder(invoiceId, `${origin}/account?tab=orders`, `${origin}/account?tab=orders`);
       window.location.href = url;
     } catch (err) {
       setInvoiceError(err instanceof Error ? err.message : 'Something went wrong starting payment.');
@@ -77,7 +77,7 @@ export function Account() {
     setInvoiceBusyId(invoiceId);
     try {
       await cancelCustomOrder(invoiceId);
-      refreshInvoices();
+      refreshOrders();
     } catch (err) {
       setInvoiceError(err instanceof Error ? err.message : 'Could not cancel that invoice.');
     } finally {
@@ -95,7 +95,7 @@ export function Account() {
     try {
       await acceptOffer(offerId);
       refreshOffers();
-      refreshInvoices();
+      refreshOrders();
     } catch (err) {
       setOfferError(err instanceof Error ? err.message : 'Could not accept that offer.');
     } finally {
@@ -172,7 +172,7 @@ export function Account() {
     if (!user) return;
     fetchListingsBySeller(user.id).then(setMyListings);
     fetchSavedListings(user.id).then(setSaved);
-    fetchMyInvoices(user.id).then(setInvoices);
+    fetchMyOrders(user.id).then(setOrders);
     fetchMyOffers(user.id).then(setOffers);
     fetchMessageThreads(user.id).then(setMessages);
   }, [user]);
@@ -404,10 +404,10 @@ export function Account() {
                           )}
                           {offer.status === 'accepted' && (
                             <button
-                              onClick={() => setTab('Invoices')}
+                              onClick={() => setTab('Orders')}
                               className="rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                             >
-                              View invoice
+                              View order
                             </button>
                           )}
                         </div>
@@ -450,8 +450,8 @@ export function Account() {
             </div>
           ))}
 
-        {tab === 'Invoices' &&
-          (invoices === null ? (
+        {tab === 'Orders' &&
+          (orders === null ? (
             <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
           ) : (
             <div className="space-y-8">
@@ -463,14 +463,14 @@ export function Account() {
 
               <div>
                 <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">To pay</h3>
-                {invoices.filter((i) => i.role === 'buyer' && i.status === 'pending').length === 0 ? (
+                {orders.filter((o) => o.role === 'buyer' && o.status === 'pending').length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
                     No invoices waiting on you.
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {invoices
-                      .filter((i) => i.role === 'buyer' && i.status === 'pending')
+                    {orders
+                      .filter((o) => o.role === 'buyer' && o.status === 'pending')
                       .map((inv) => (
                         <div key={inv.id} className="flex items-center gap-4 p-4">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
@@ -486,7 +486,8 @@ export function Account() {
                               </span>
                             </div>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              {inv.itemCount} item{inv.itemCount === 1 ? '' : 's'}
+                              {inv.title}
+                              {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
                             </p>
                           </div>
                           <div className="flex shrink-0 gap-2">
@@ -517,15 +518,128 @@ export function Account() {
               </div>
 
               <div>
-                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sent</h3>
-                {invoices.filter((i) => i.role === 'seller').length === 0 ? (
+                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Purchases</h3>
+                {orders.filter((o) => o.role === 'buyer' && o.status === 'paid').length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    Nothing bought yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {orders
+                      .filter((o) => o.role === 'buyer' && o.status === 'paid')
+                      .map((inv) => {
+                        const link = inv.listingId
+                          ? `/listing/${inv.listingId}`
+                          : inv.bundleId
+                            ? `/fleet/${inv.bundleId}`
+                            : null;
+                        const content = (
+                          <>
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-moss-soft)] text-[var(--color-moss)]">
+                              <Receipt size={17} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="truncate text-sm font-medium">{inv.title}</span>
+                                <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                                  {timeAgo(inv.createdAt.slice(0, 10))}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[var(--color-ink-soft)]">
+                                {formatPrice(inv.amount, inv.currency)} from {inv.counterpartyName}
+                                {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
+                              </p>
+                            </div>
+                          </>
+                        );
+                        return link ? (
+                          <Link
+                            key={inv.id}
+                            to={link}
+                            className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
+                          >
+                            {content}
+                          </Link>
+                        ) : (
+                          <div key={inv.id} className="flex items-center gap-4 p-4">
+                            {content}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sales</h3>
+                {orders.filter((o) => o.role === 'seller' && o.status === 'paid').length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    Nothing sold yet.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {orders
+                      .filter((o) => o.role === 'seller' && o.status === 'paid')
+                      .map((inv) => {
+                        const link = inv.listingId
+                          ? `/listing/${inv.listingId}`
+                          : inv.bundleId
+                            ? `/fleet/${inv.bundleId}`
+                            : null;
+                        const payout = inv.amount - inv.platformFeeAmount;
+                        const content = (
+                          <>
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-moss-soft)] text-[var(--color-moss)]">
+                              <Receipt size={17} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="truncate text-sm font-medium">{inv.title}</span>
+                                <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                                  {timeAgo(inv.createdAt.slice(0, 10))}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[var(--color-ink-soft)]">
+                                {formatPrice(inv.amount, inv.currency)} to {inv.counterpartyName}
+                                {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
+                              </p>
+                              <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]/80">
+                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
+                                <span className="font-medium text-[var(--color-moss)]">
+                                  {formatPrice(payout, inv.currency)} payout
+                                </span>
+                              </p>
+                            </div>
+                          </>
+                        );
+                        return link ? (
+                          <Link
+                            key={inv.id}
+                            to={link}
+                            className="flex items-center gap-4 p-4 hover:bg-[var(--color-paper)]"
+                          >
+                            {content}
+                          </Link>
+                        ) : (
+                          <div key={inv.id} className="flex items-center gap-4 p-4">
+                            {content}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Invoices sent</h3>
+                {orders.filter((o) => o.role === 'seller' && o.status !== 'paid').length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
                     You haven't sent an invoice yet — send one from a club gear lot you own.
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {invoices
-                      .filter((i) => i.role === 'seller')
+                    {orders
+                      .filter((o) => o.role === 'seller' && o.status !== 'paid')
                       .map((inv) => (
                         <div key={inv.id} className="flex items-center gap-4 p-4">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
@@ -541,13 +655,10 @@ export function Account() {
                               </span>
                             </div>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              {inv.itemCount} item{inv.itemCount === 1 ? '' : 's'} ·{' '}
-                              <Badge
-                                tone={
-                                  inv.status === 'paid' ? 'moss' : inv.status === 'cancelled' ? 'neutral' : 'brand'
-                                }
-                              >
-                                {inv.status === 'paid' ? 'Paid' : inv.status === 'cancelled' ? 'Cancelled' : 'Pending'}
+                              {inv.title}
+                              {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''} ·{' '}
+                              <Badge tone={inv.status === 'cancelled' ? 'neutral' : 'brand'}>
+                                {inv.status === 'cancelled' ? 'Cancelled' : 'Pending'}
                               </Badge>
                             </p>
                           </div>
