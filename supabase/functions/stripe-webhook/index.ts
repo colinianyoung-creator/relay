@@ -202,6 +202,7 @@ Deno.serve(async (req) => {
         if (orderUpdateError) console.error('Failed to mark order paid', orderUpdateError);
 
         let soldCount = 0;
+        let soldListingIds: string[] = [];
 
         if (order.bundle_listing_ids && order.bundle_listing_ids.length > 0) {
           // Multi-item order (fleet bundle purchase or a one-off negotiated
@@ -235,6 +236,7 @@ Deno.serve(async (req) => {
 
           if (updatedListings && updatedListings.length > 0) {
             soldCount = updatedListings.length;
+            soldListingIds = updatedListings.map((l) => l.id);
             const { error: salesCountError } = await supabase.rpc('increment_sales_count', {
               p_seller_id: order.seller_id,
               p_count: updatedListings.length,
@@ -256,10 +258,40 @@ Deno.serve(async (req) => {
             console.error('Listing was already sold when order', orderId, 'completed — needs manual refund review');
           } else {
             soldCount = updatedListings.length;
+            soldListingIds = updatedListings.map((l) => l.id);
             const { error: salesCountError } = await supabase.rpc('increment_sales_count', {
               p_seller_id: order.seller_id,
             });
             if (salesCountError) console.error('Failed to increment seller sales_count', salesCountError);
+          }
+        }
+
+        // A listing that just sold may have other pending orders sitting
+        // against it — an abandoned Buy now attempt, or a still-open offer
+        // negotiation that was never accepted. Those can never be fulfilled
+        // now, so leaving them "pending" would show the same listing as
+        // both paid and still-owed in the buyer's and seller's Orders tabs.
+        if (soldListingIds.length > 0) {
+          const idList = soldListingIds.join(',');
+          const { error: cancelStaleError } = await supabase
+            .from('orders')
+            .update({ status: 'cancelled' })
+            .eq('status', 'pending')
+            .neq('id', orderId)
+            .or(`listing_id.in.(${idList}),bundle_listing_ids.ov.{${idList}}`);
+          if (cancelStaleError) {
+            console.error('Failed to cancel stale pending orders for sold listing(s)', cancelStaleError);
+          }
+
+          // Same problem, different table — an open offer negotiation on a
+          // listing that just sold elsewhere can never be accepted now.
+          const { error: declineStaleOffersError } = await supabase
+            .from('offers')
+            .update({ status: 'declined' })
+            .eq('status', 'pending')
+            .in('listing_id', soldListingIds);
+          if (declineStaleOffersError) {
+            console.error('Failed to decline stale pending offers for sold listing(s)', declineStaleOffersError);
           }
         }
 
