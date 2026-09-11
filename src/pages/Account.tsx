@@ -34,6 +34,7 @@ import {
 import { ListingCard } from '@/components/ListingCard';
 import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
+import { ReviewForm } from '@/components/ReviewForm';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -144,6 +145,55 @@ function TransactionDetails({
         >
           View listing <ExternalLink size={12} />
         </Link>
+      )}
+    </div>
+  );
+}
+
+// A completed order — however it was paid for (Buy now, an accepted offer,
+// or a seller-sent invoice) — should always be reviewable. This is the one
+// place that covers all three, rather than only the direct-purchase
+// checkout-confirmation redirect (see PurchaseCheckoutConfirm.tsx), which
+// never fires for the other two and left them permanently unreviewable.
+function OrderReviewSection({
+  order,
+  reviewerId,
+  onSubmitted,
+}: {
+  order: MyOrder;
+  reviewerId: string;
+  onSubmitted: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  if (!order.listingId) return null;
+  if (order.alreadyReviewed || submitted) {
+    return <p className="col-span-full border-t border-[var(--color-line)] pt-3 text-[var(--color-moss)]">Reviewed — thanks!</p>;
+  }
+
+  return (
+    <div className="col-span-full border-t border-[var(--color-line)] pt-3">
+      {open ? (
+        <ReviewForm
+          orderId={order.id}
+          listingId={order.listingId}
+          reviewerId={reviewerId}
+          sellerId={order.counterpartyId}
+          sellerName={order.counterpartyName}
+          compact
+          onSubmitted={() => {
+            setSubmitted(true);
+            onSubmitted();
+          }}
+        />
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="rounded-full border border-[var(--color-line)] px-3 py-1.5 font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+        >
+          Leave a review
+        </button>
       )}
     </div>
   );
@@ -835,7 +885,14 @@ export function Account() {
                             statusLabel="Paid"
                             platformFeeAmount={inv.platformFeeAmount}
                             listingLink={link}
-                            extra={<DeliveryPanel order={inv} onChanged={refreshOrders} />}
+                            extra={
+                              <>
+                                {viewRole === 'buyer' && (
+                                  <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
+                                )}
+                                <DeliveryPanel order={inv} onChanged={refreshOrders} />
+                              </>
+                            }
                           />
                         )}
                       </div>

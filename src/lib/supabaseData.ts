@@ -1121,6 +1121,7 @@ export interface MyOrder {
   title: string;
   listingId: string | null;
   bundleId: string | null;
+  counterpartyId: string;
   counterpartyName: string;
   photos: string[] | null;
   sport: Sport | null;
@@ -1132,6 +1133,7 @@ export interface MyOrder {
   trackingUrl: string | null;
   deliveryNotes: string | null;
   evidencePaths: string[];
+  alreadyReviewed: boolean;
 }
 
 interface MyOrderRow {
@@ -1168,10 +1170,11 @@ interface MyOrderRow {
     notes: string | null;
     evidence_paths: string[] | null;
   } | null;
+  review: { id: string } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths), review:reviews(id)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1234,6 +1237,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       title,
       listingId: row.listing?.id ?? singleFallback?.id ?? null,
       bundleId: row.bundle?.id ?? null,
+      counterpartyId: row.buyer_id === userId ? row.seller_id : row.buyer_id,
       counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
       photos: representative?.photos ?? null,
       sport: (representative?.sport as Sport | undefined) ?? null,
@@ -1245,6 +1249,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       trackingUrl: row.delivery?.tracking_url ?? null,
       deliveryNotes: row.delivery?.notes ?? null,
       evidencePaths: row.delivery?.evidence_paths ?? [],
+      alreadyReviewed: row.review !== null,
     };
   });
 }

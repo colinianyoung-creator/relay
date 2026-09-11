@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Loader2, AlertTriangle, Star } from 'lucide-react';
-import { fetchListing, fetchCompletedOrder, createReview, type CompletedOrder } from '@/lib/supabaseData';
+import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { fetchListing, fetchCompletedOrder, type CompletedOrder } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
+import { ReviewForm as SharedReviewForm } from '@/components/ReviewForm';
 import type { Listing } from '@/types';
 
 const POLL_INTERVAL_MS = 1500;
@@ -10,78 +11,22 @@ const POLL_TIMEOUT_MS = 30_000;
 
 function ReviewForm({ order, sellerName }: { order: CompletedOrder; sellerName: string }) {
   const { user } = useAuth();
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   if (submitted) {
-    return (
-      <p className="mt-10 text-sm text-[var(--color-moss)]">Thanks for the review!</p>
-    );
+    return <p className="mt-10 text-sm text-[var(--color-moss)]">Thanks for the review!</p>;
   }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user || rating === 0) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      await createReview(order.id, order.listingId, user.id, order.sellerId, rating, comment);
-      setSubmitted(true);
-    } catch {
-      setError("Couldn't submit your review — try again in a moment.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  if (!user) return null;
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mt-10 rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6 text-left"
-    >
-      <h2 className="text-lg">How was buying from {sellerName.split(' ')[0]}?</h2>
-      <div className="mt-3 flex gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setRating(n)}
-            onMouseEnter={() => setHoverRating(n)}
-            onMouseLeave={() => setHoverRating(0)}
-            aria-label={`${n} star${n === 1 ? '' : 's'}`}
-          >
-            <Star
-              size={26}
-              className={
-                n <= (hoverRating || rating)
-                  ? 'fill-[var(--color-brand)] text-[var(--color-brand)]'
-                  : 'text-[var(--color-line)]'
-              }
-            />
-          </button>
-        ))}
-      </div>
-      <textarea
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        placeholder="Anything worth telling other buyers? (optional)"
-        rows={3}
-        className="mt-4 w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-      />
-      {error && <p className="mt-2 text-sm text-[var(--color-brand-dark)]">{error}</p>}
-      <button
-        type="submit"
-        disabled={rating === 0 || submitting}
-        className="mt-3 flex items-center gap-2 rounded-full bg-[var(--color-ink)] px-4 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-50"
-      >
-        {submitting && <Loader2 size={15} className="animate-spin" />}
-        Submit review
-      </button>
-    </form>
+    <SharedReviewForm
+      orderId={order.id}
+      listingId={order.listingId}
+      reviewerId={user.id}
+      sellerId={order.sellerId}
+      sellerName={sellerName}
+      onSubmitted={() => setSubmitted(true)}
+    />
   );
 }
 
