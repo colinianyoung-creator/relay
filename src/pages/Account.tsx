@@ -35,6 +35,7 @@ import { ListingCard } from '@/components/ListingCard';
 import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
+import { RefundPanel } from '@/components/RefundPanel';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -811,14 +812,14 @@ export function Account() {
 
             {orders === null ? (
               <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-            ) : orders.filter((o) => o.role === viewRole && o.status === 'paid').length === 0 ? (
+            ) : orders.filter((o) => o.role === viewRole && (o.status === 'paid' || o.status === 'refunded')).length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
                 {viewRole === 'buyer' ? 'Nothing bought yet.' : 'Nothing sold yet.'}
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
                 {orders
-                  .filter((o) => o.role === viewRole && o.status === 'paid')
+                  .filter((o) => o.role === viewRole && (o.status === 'paid' || o.status === 'refunded'))
                   .map((inv) => {
                     const link = inv.listingId
                       ? `/listing/${inv.listingId}`
@@ -867,7 +868,14 @@ export function Account() {
                             </p>
                           </div>
                           <div className="shrink-0 text-right">
-                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                            <p className="text-sm font-medium">
+                              {formatPrice(inv.amount, inv.currency)}
+                              {inv.status === 'refunded' && (
+                                <span className="ml-1.5 text-xs font-normal text-[var(--color-brand-dark)]">
+                                  Refunded
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-[var(--color-ink-soft)]">
                               {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
                               {timeAgo(inv.createdAt.slice(0, 10))}
@@ -882,15 +890,16 @@ export function Account() {
                             currency={inv.currency}
                             counterpartyName={inv.counterpartyName}
                             role={viewRole}
-                            statusLabel="Paid"
+                            statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
                             platformFeeAmount={inv.platformFeeAmount}
                             listingLink={link}
                             extra={
                               <>
-                                {viewRole === 'buyer' && (
+                                {viewRole === 'buyer' && inv.status === 'paid' && (
                                   <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
                                 )}
                                 <DeliveryPanel order={inv} onChanged={refreshOrders} />
+                                <RefundPanel order={inv} viewRole={viewRole} onChanged={refreshOrders} />
                               </>
                             }
                           />

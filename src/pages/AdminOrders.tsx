@@ -7,7 +7,7 @@ import { Badge } from '@/components/Badge';
 import { AdminTabs } from '@/components/AdminTabs';
 import { formatPrice, timeAgo } from '@/lib/format';
 
-const FILTERS = ['all', 'pending', 'paid', 'cancelled', 'disputed'] as const;
+const FILTERS = ['all', 'pending', 'paid', 'refunded', 'cancelled', 'disputed', 'refund failed'] as const;
 type Filter = (typeof FILTERS)[number];
 
 function statusTone(status: AdminOrder['status']): 'brand' | 'moss' | 'neutral' {
@@ -33,18 +33,27 @@ export function AdminOrders() {
     if (!orders) return null;
     const paid = orders.filter((o) => o.status === 'paid');
     const disputed = orders.filter((o) => o.disputedAt);
+    const refundFailed = orders.filter((o) => o.refundStatus === 'failed');
     // GMV/fees only summed in GBP to keep the header honest — mixing
     // currencies into one total would misrepresent the number.
     const gbpPaid = paid.filter((o) => o.currency === 'GBP');
     const gmv = gbpPaid.reduce((sum, o) => sum + o.amount, 0);
     const fees = gbpPaid.reduce((sum, o) => sum + o.platformFeeAmount, 0);
-    return { total: orders.length, paidCount: paid.length, disputedCount: disputed.length, gmv, fees };
+    return {
+      total: orders.length,
+      paidCount: paid.length,
+      disputedCount: disputed.length,
+      refundFailedCount: refundFailed.length,
+      gmv,
+      fees,
+    };
   }, [orders]);
 
   const visible = useMemo(() => {
     if (!orders) return null;
     if (filter === 'all') return orders;
     if (filter === 'disputed') return orders.filter((o) => o.disputedAt);
+    if (filter === 'refund failed') return orders.filter((o) => o.refundStatus === 'failed');
     return orders.filter((o) => o.status === filter);
   }, [orders, filter]);
 
@@ -92,6 +101,13 @@ export function AdminOrders() {
             <div className="mt-1 flex items-center gap-1.5 text-xl">
               {stats.disputedCount}
               {stats.disputedCount > 0 && <AlertTriangle size={16} className="text-[var(--color-brand)]" />}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4">
+            <div className="text-xs uppercase tracking-wide text-[var(--color-ink-soft)]">Refund failed</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xl">
+              {stats.refundFailedCount}
+              {stats.refundFailedCount > 0 && <AlertTriangle size={16} className="text-[var(--color-brand)]" />}
             </div>
           </div>
         </div>
@@ -150,6 +166,11 @@ export function AdminOrders() {
                           <AlertTriangle size={11} /> {o.disputeStatus?.replace(/_/g, ' ') ?? 'disputed'}
                         </Badge>
                       )}
+                      {o.refundStatus === 'failed' && (
+                        <Badge tone="brand">
+                          <AlertTriangle size={11} /> refund failed — process manually
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
                       {o.buyerName} → {o.sellerName}
@@ -157,6 +178,17 @@ export function AdminOrders() {
                     <p className="mt-2 text-xs text-[var(--color-ink-soft)]/80">
                       {o.stripePaymentIntentId ?? o.stripeCheckoutSessionId ?? 'no Stripe reference'}
                     </p>
+                    {o.refundStatus === 'failed' && o.stripePaymentIntentId && (
+                      <a
+                        href={`https://dashboard.stripe.com/payments/${o.stripePaymentIntentId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs text-[var(--color-brand-dark)] hover:underline"
+                      >
+                        Open in Stripe dashboard
+                        {o.refundFailureReason ? ` — ${o.refundFailureReason}` : ''}
+                      </a>
+                    )}
                   </div>
 
                   <div className="shrink-0 text-right">
