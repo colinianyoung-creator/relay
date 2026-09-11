@@ -11,6 +11,7 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -32,7 +33,7 @@ import {
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingRefRow } from '@/components/ListingRefRow';
-import { DeliveryPanel } from '@/components/DeliveryPanel';
+import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -804,6 +805,16 @@ export function Account() {
                                 </span>
                               </p>
                             )}
+                            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
+                              <Truck size={11} className="shrink-0" />
+                              {inv.deliveryMethod
+                                ? `${METHOD_LABEL[inv.deliveryMethod]}${inv.trackingReference ? ` · ${inv.trackingReference}` : ''}`
+                                : inv.deliveryNotes
+                                  ? inv.deliveryNotes.length > 40
+                                    ? `${inv.deliveryNotes.slice(0, 40)}…`
+                                    : inv.deliveryNotes
+                                  : 'Delivery not yet arranged'}
+                            </p>
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>

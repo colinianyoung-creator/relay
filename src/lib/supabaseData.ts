@@ -1130,6 +1130,8 @@ export interface MyOrder {
   quoteRequestedAt: string | null;
   trackingReference: string | null;
   trackingUrl: string | null;
+  deliveryNotes: string | null;
+  evidencePaths: string[];
 }
 
 interface MyOrderRow {
@@ -1163,11 +1165,13 @@ interface MyOrderRow {
     quote_requested_at: string | null;
     tracking_reference: string | null;
     tracking_url: string | null;
+    notes: string | null;
+    evidence_paths: string[] | null;
   } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1239,6 +1243,8 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       quoteRequestedAt: row.delivery?.quote_requested_at ?? null,
       trackingReference: row.delivery?.tracking_reference ?? null,
       trackingUrl: row.delivery?.tracking_url ?? null,
+      deliveryNotes: row.delivery?.notes ?? null,
+      evidencePaths: row.delivery?.evidence_paths ?? [],
     };
   });
 }
@@ -1258,6 +1264,8 @@ export async function updateDeliveryDetails(
     trackingReference?: string;
     trackingUrl?: string;
     notes?: string;
+    addEvidencePath?: string;
+    removeEvidencePath?: string;
   },
 ): Promise<void> {
   const { data, error } = await supabase.functions.invoke('update-delivery-details', {
@@ -1267,10 +1275,45 @@ export async function updateDeliveryDetails(
       trackingReference: fields.trackingReference,
       trackingUrl: fields.trackingUrl,
       notes: fields.notes,
+      addEvidencePath: fields.addEvidencePath,
+      removeEvidencePath: fields.removeEvidencePath,
     },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
+}
+
+const MAX_EVIDENCE_BYTES = 8 * 1024 * 1024;
+
+/** Uploads a proof-of-shipping file (photo or PDF) to a private, order-scoped bucket. */
+export async function uploadDeliveryEvidence(orderId: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    throw new Error('Only images or PDFs can be uploaded as evidence.');
+  }
+  if (file.size > MAX_EVIDENCE_BYTES) {
+    throw new Error('Evidence files must be under 8MB.');
+  }
+  const ext = file.name.split('.').pop() ?? 'jpg';
+  const path = `${orderId}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from('delivery-evidence').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (error) throw error;
+  await updateDeliveryDetails(orderId, { addEvidencePath: path });
+  return path;
+}
+
+export async function deleteDeliveryEvidence(orderId: string, path: string): Promise<void> {
+  await supabase.storage.from('delivery-evidence').remove([path]);
+  await updateDeliveryDetails(orderId, { removeEvidencePath: path });
+}
+
+/** Evidence lives in a private bucket — a signed URL is required to view it. */
+export async function getDeliveryEvidenceUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('delivery-evidence').createSignedUrl(path, 3600);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 // --- Offers ---

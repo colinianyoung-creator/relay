@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { orderId, method, trackingReference, trackingUrl, notes } = await req.json();
+    const { orderId, method, trackingReference, trackingUrl, notes, addEvidencePath, removeEvidencePath } =
+      await req.json();
     if (!orderId) {
       return new Response(JSON.stringify({ error: 'Missing orderId' }), {
         status: 400,
@@ -73,6 +74,18 @@ Deno.serve(async (req) => {
     if (trackingReference !== undefined) update.tracking_reference = trackingReference;
     if (trackingUrl !== undefined) update.tracking_url = trackingUrl;
     if (notes !== undefined) update.notes = notes;
+
+    if (addEvidencePath || removeEvidencePath) {
+      const { data: existing } = await supabase
+        .from('order_deliveries')
+        .select('evidence_paths')
+        .eq('order_id', orderId)
+        .maybeSingle();
+      let paths = existing?.evidence_paths ?? [];
+      if (addEvidencePath) paths = [...paths, addEvidencePath];
+      if (removeEvidencePath) paths = paths.filter((p: string) => p !== removeEvidencePath);
+      update.evidence_paths = paths;
+    }
 
     const { error: upsertError } = await supabase
       .from('order_deliveries')
