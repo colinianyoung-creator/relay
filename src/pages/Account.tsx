@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, PackagePlus, Loader2, Camera, Boxes, Receipt, CreditCard, X, Tag, Check } from 'lucide-react';
+import { BadgeCheck, PackagePlus, Loader2, Camera, Boxes, CreditCard, X, Tag, Check } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   fetchListingsBySeller,
@@ -19,6 +19,7 @@ import {
   type Offer,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
+import { ListingRefRow } from '@/components/ListingRefRow';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
@@ -189,6 +190,11 @@ export function Account() {
     return <Navigate to="/" replace />;
   }
 
+  // Once an accepted offer's invoice is actually paid, it's a completed
+  // sale living in the Orders tab now — no longer something to act on or
+  // track here.
+  const visibleOffers = offers?.filter((o) => !(o.status === 'accepted' && o.orderPaid)) ?? null;
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-center gap-4">
@@ -294,9 +300,9 @@ export function Account() {
         )}
 
         {tab === 'Offers' &&
-          (offers === null ? (
+          (visibleOffers === null ? (
             <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-          ) : offers.length === 0 ? (
+          ) : visibleOffers.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
               <Tag size={28} />
               <p>No offers yet — make one from a listing, or wait for one on yours.</p>
@@ -309,51 +315,45 @@ export function Account() {
                 </p>
               )}
               <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                {offers.map((offer) => {
+                {visibleOffers.map((offer) => {
                   const myTurn = offer.status === 'pending' && offer.proposedBy !== offer.role;
                   const myOwnProposal = offer.status === 'pending' && offer.proposedBy === offer.role;
                   return (
                     <div key={offer.id} className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-                          <Tag size={17} />
-                        </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">
-                              {formatPrice(offer.amount, offer.currency)}{' '}
-                              {offer.role === 'buyer' ? 'to' : 'from'} {offer.counterpartyName}
-                            </span>
-                            <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                              {timeAgo(offer.updatedAt.slice(0, 10))}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[var(--color-ink-soft)]">
-                            {offer.listingTitle}
-                            {offer.status === 'pending' && (
-                              <>
-                                {' · '}
-                                <Badge tone={myTurn ? 'brand' : 'neutral'}>
-                                  {myTurn ? 'Your turn' : `Waiting on ${offer.counterpartyName.split(' ')[0]}`}
-                                </Badge>
-                              </>
-                            )}
-                            {offer.status !== 'pending' && (
-                              <>
-                                {' · '}
-                                <Badge tone={offer.status === 'accepted' ? 'moss' : 'neutral'}>
-                                  {offer.status === 'accepted'
-                                    ? 'Accepted'
-                                    : offer.status === 'declined'
-                                      ? 'Declined'
-                                      : 'Withdrawn'}
-                                </Badge>
-                              </>
+                          <ListingRefRow
+                            title={offer.listingTitle}
+                            photos={offer.photos}
+                            sport={offer.sport}
+                            location={offer.location}
+                            country={offer.country}
+                          />
+                          <p className="mt-1.5 text-xs text-[var(--color-ink-soft)]">
+                            {offer.status === 'pending' ? (
+                              <Badge tone={myTurn ? 'brand' : 'neutral'}>
+                                {myTurn ? 'Your turn' : `Waiting on ${offer.counterpartyName.split(' ')[0]}`}
+                              </Badge>
+                            ) : (
+                              <Badge tone={offer.status === 'accepted' ? 'moss' : 'neutral'}>
+                                {offer.status === 'accepted'
+                                  ? 'Accepted'
+                                  : offer.status === 'declined'
+                                    ? 'Declined'
+                                    : 'Withdrawn'}
+                              </Badge>
                             )}
                           </p>
                           {offer.message && (
                             <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">"{offer.message}"</p>
                           )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-medium">{formatPrice(offer.amount, offer.currency)}</p>
+                          <p className="text-xs text-[var(--color-ink-soft)]">
+                            {offer.role === 'buyer' ? 'to' : 'from'} {offer.counterpartyName} ·{' '}
+                            {timeAgo(offer.updatedAt.slice(0, 10))}
+                          </p>
                         </div>
                         <div className="flex shrink-0 gap-2">
                           {myTurn && (
@@ -473,21 +473,19 @@ export function Account() {
                       .filter((o) => o.role === 'buyer' && o.status === 'pending')
                       .map((inv) => (
                         <div key={inv.id} className="flex items-center gap-4 p-4">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-                            <Receipt size={17} />
-                          </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium">
-                                {formatPrice(inv.amount, inv.currency)} from {inv.counterpartyName}
-                              </span>
-                              <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                                {timeAgo(inv.createdAt.slice(0, 10))}
-                              </span>
-                            </div>
+                            <ListingRefRow
+                              title={inv.title}
+                              photos={inv.photos}
+                              sport={inv.sport}
+                              location={inv.location}
+                              country={inv.country}
+                            />
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              {inv.title}
-                              {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
+                              from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
                             </p>
                           </div>
                           <div className="flex shrink-0 gap-2">
@@ -535,19 +533,19 @@ export function Account() {
                             : null;
                         const content = (
                           <>
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-moss-soft)] text-[var(--color-moss)]">
-                              <Receipt size={17} />
-                            </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="truncate text-sm font-medium">{inv.title}</span>
-                                <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                                  {timeAgo(inv.createdAt.slice(0, 10))}
-                                </span>
-                              </div>
+                              <ListingRefRow
+                                title={inv.title}
+                                photos={inv.photos}
+                                sport={inv.sport}
+                                location={inv.location}
+                                country={inv.country}
+                              />
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
                               <p className="text-xs text-[var(--color-ink-soft)]">
-                                {formatPrice(inv.amount, inv.currency)} from {inv.counterpartyName}
-                                {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
+                                from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
                               </p>
                             </div>
                           </>
@@ -589,25 +587,25 @@ export function Account() {
                         const payout = inv.amount - inv.platformFeeAmount;
                         const content = (
                           <>
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-moss-soft)] text-[var(--color-moss)]">
-                              <Receipt size={17} />
-                            </div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="truncate text-sm font-medium">{inv.title}</span>
-                                <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                                  {timeAgo(inv.createdAt.slice(0, 10))}
-                                </span>
-                              </div>
-                              <p className="text-xs text-[var(--color-ink-soft)]">
-                                {formatPrice(inv.amount, inv.currency)} to {inv.counterpartyName}
-                                {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''}
-                              </p>
-                              <p className="mt-0.5 text-xs text-[var(--color-ink-soft)]/80">
+                              <ListingRefRow
+                                title={inv.title}
+                                photos={inv.photos}
+                                sport={inv.sport}
+                                location={inv.location}
+                                country={inv.country}
+                              />
+                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
                                 −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
                                 <span className="font-medium text-[var(--color-moss)]">
                                   {formatPrice(payout, inv.currency)} payout
                                 </span>
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                              <p className="text-xs text-[var(--color-ink-soft)]">
+                                to {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
                               </p>
                             </div>
                           </>
@@ -642,22 +640,19 @@ export function Account() {
                       .filter((o) => o.role === 'seller' && o.status === 'pending')
                       .map((inv) => (
                         <div key={inv.id} className="flex items-center gap-4 p-4">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-                            <Receipt size={17} />
-                          </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium">
-                                {formatPrice(inv.amount, inv.currency)} to {inv.counterpartyName}
-                              </span>
-                              <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                                {timeAgo(inv.createdAt.slice(0, 10))}
-                              </span>
-                            </div>
+                            <ListingRefRow
+                              title={inv.title}
+                              photos={inv.photos}
+                              sport={inv.sport}
+                              location={inv.location}
+                              country={inv.country}
+                            />
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              {inv.title}
-                              {inv.itemCount > 1 ? ` · ${inv.itemCount} items` : ''} ·{' '}
-                              <Badge tone="brand">Pending</Badge>
+                              to {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
                             </p>
                           </div>
                           <button

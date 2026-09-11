@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Listing, Currency, FitProfile, FleetBundle, Seller } from '@/types';
+import type { Listing, Currency, FitProfile, FleetBundle, Seller, Sport } from '@/types';
 
 interface ListingRow {
   id: string;
@@ -441,6 +441,10 @@ export interface MessageThread {
   lastMessage: string;
   lastMessageAt: string;
   lastMessageFromMe: boolean;
+  photos: string[] | null;
+  sport: Sport | null;
+  location: string | null;
+  country: string | null;
 }
 
 interface ThreadRow {
@@ -449,7 +453,15 @@ interface ThreadRow {
   recipient_id: string;
   body: string;
   sent_at: string;
-  listings: { title: string; price: number | null; currency: string } | null;
+  listings: {
+    title: string;
+    price: number | null;
+    currency: string;
+    photos: string[] | null;
+    sport: string;
+    location: string;
+    country: string;
+  } | null;
   sender: { id: string; name: string } | null;
   recipient: { id: string; name: string } | null;
 }
@@ -461,7 +473,7 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
   const { data, error } = await supabase
     .from('messages')
     .select(
-      'listing_id, sender_id, recipient_id, body, sent_at, listings(title, price, currency), sender:profiles!messages_sender_id_fkey(id, name), recipient:profiles!messages_recipient_id_fkey(id, name)',
+      'listing_id, sender_id, recipient_id, body, sent_at, listings(title, price, currency, photos, sport, location, country), sender:profiles!messages_sender_id_fkey(id, name), recipient:profiles!messages_recipient_id_fkey(id, name)',
     )
     .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
     .order('sent_at', { ascending: false });
@@ -486,6 +498,10 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
       lastMessage: row.body,
       lastMessageAt: row.sent_at,
       lastMessageFromMe: fromMe,
+      photos: row.listings.photos ?? null,
+      sport: (row.listings.sport as Sport | undefined) ?? null,
+      location: row.listings.location ?? null,
+      country: row.listings.country ?? null,
     });
   }
   return Array.from(threads.values());
@@ -1078,6 +1094,10 @@ export interface MyOrder {
   listingId: string | null;
   bundleId: string | null;
   counterpartyName: string;
+  photos: string[] | null;
+  sport: Sport | null;
+  location: string | null;
+  country: string | null;
 }
 
 interface MyOrderRow {
@@ -1091,14 +1111,25 @@ interface MyOrderRow {
   created_at: string;
   stripe_checkout_session_id: string | null;
   bundle_listing_ids: string[] | null;
-  listing: { id: string; title: string } | null;
-  bundle: { id: string; title: string } | null;
+  listing: {
+    id: string;
+    title: string;
+    photos: string[] | null;
+    sport: string;
+    location: string;
+    country: string;
+  } | null;
+  bundle: {
+    id: string;
+    title: string;
+    listings: { photos: string[] | null; sport: string; location: string; country: string }[];
+  } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1113,11 +1144,40 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
     .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data as unknown as MyOrderRow[]).map((row) => {
+  const rows = data as unknown as MyOrderRow[];
+
+  // A single-item accepted offer (the most common order type after a plain
+  // Buy now) has exactly one id in bundle_listing_ids and no bundle row —
+  // bundle_listing_ids is a plain uuid[], not a foreign key, so Postgrest
+  // can't embed it in the select above. Fetch those listings in one extra
+  // batch query instead of falling back to a generic icon for them.
+  const singleFallbackIds = [
+    ...new Set(
+      rows
+        .filter((r) => !r.bundle && r.bundle_listing_ids?.length === 1)
+        .map((r) => r.bundle_listing_ids![0]),
+    ),
+  ];
+  const fallbackListings = new Map<
+    string,
+    { id: string; title: string; photos: string[] | null; sport: string; location: string; country: string }
+  >();
+  if (singleFallbackIds.length > 0) {
+    const { data: extraListings } = await supabase
+      .from('listings')
+      .select('id, title, photos, sport, location, country')
+      .in('id', singleFallbackIds);
+    for (const l of extraListings ?? []) fallbackListings.set(l.id, l);
+  }
+
+  return rows.map((row) => {
     const isMulti = !!row.bundle_listing_ids && row.bundle_listing_ids.length > 0;
     const n = row.bundle_listing_ids?.length ?? 0;
+    const singleFallback =
+      isMulti && n === 1 ? (fallbackListings.get(row.bundle_listing_ids![0]) ?? null) : null;
+    const representative = isMulti ? (row.bundle?.listings?.[0] ?? singleFallback) : row.listing;
     const title = isMulti
-      ? (row.bundle?.title ?? `${n} item${n === 1 ? '' : 's'}`)
+      ? (row.bundle?.title ?? singleFallback?.title ?? `${n} item${n === 1 ? '' : 's'}`)
       : (row.listing?.title ?? 'Listing');
     return {
       id: row.id,
@@ -1130,9 +1190,13 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       hasStripeSession: !!row.stripe_checkout_session_id,
       itemCount: isMulti ? row.bundle_listing_ids!.length : 1,
       title,
-      listingId: row.listing?.id ?? null,
+      listingId: row.listing?.id ?? singleFallback?.id ?? null,
       bundleId: row.bundle?.id ?? null,
       counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
+      photos: representative?.photos ?? null,
+      sport: (representative?.sport as Sport | undefined) ?? null,
+      location: representative?.location ?? null,
+      country: representative?.country ?? null,
     };
   });
 }
@@ -1200,9 +1264,15 @@ export interface Offer {
   message: string | null;
   proposedBy: 'buyer' | 'seller';
   status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
+  /** True once the order this offer's acceptance created has actually been paid. */
+  orderPaid: boolean;
   counterpartyName: string;
   createdAt: string;
   updatedAt: string;
+  photos: string[] | null;
+  sport: Sport | null;
+  location: string | null;
+  country: string | null;
 }
 
 interface OfferRow {
@@ -1217,13 +1287,20 @@ interface OfferRow {
   status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
   created_at: string;
   updated_at: string;
-  listing: { title: string } | null;
+  listing: {
+    title: string;
+    photos: string[] | null;
+    sport: string;
+    location: string;
+    country: string;
+  } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
+  order: { status: string } | null;
 }
 
 const OFFER_SELECT =
-  'id, listing_id, buyer_id, seller_id, amount, currency, message, proposed_by, status, created_at, updated_at, listing:listings(title), buyer:profiles!offers_buyer_id_fkey(name), seller:profiles!offers_seller_id_fkey(name)';
+  'id, listing_id, buyer_id, seller_id, amount, currency, message, proposed_by, status, created_at, updated_at, listing:listings(title, photos, sport, location, country), buyer:profiles!offers_buyer_id_fkey(name), seller:profiles!offers_seller_id_fkey(name), order:orders(status)';
 
 /** Every offer this user is either side of, most recent activity first. */
 export async function fetchMyOffers(userId: string): Promise<Offer[]> {
@@ -1242,7 +1319,12 @@ export async function fetchMyOffers(userId: string): Promise<Offer[]> {
     currency: row.currency as Currency,
     message: row.message,
     proposedBy: row.proposed_by,
+    photos: row.listing?.photos ?? null,
+    sport: (row.listing?.sport as Sport | undefined) ?? null,
+    location: row.listing?.location ?? null,
+    country: row.listing?.country ?? null,
     status: row.status,
+    orderPaid: row.order?.status === 'paid',
     counterpartyName: (row.buyer_id === userId ? row.seller?.name : row.buyer?.name) ?? 'Relay member',
     createdAt: row.created_at,
     updatedAt: row.updated_at,

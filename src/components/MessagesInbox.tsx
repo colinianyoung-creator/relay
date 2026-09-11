@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, MessageCircle, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import {
   fetchThreadMessages,
   sendMessage,
@@ -8,6 +8,8 @@ import {
   type ThreadMessage,
 } from '@/lib/supabaseData';
 import { formatPrice, timeAgo } from '@/lib/format';
+import { ListingCover } from './ListingCover';
+import { ListingRefRow } from './ListingRefRow';
 
 export function MessagesInbox({
   userId,
@@ -74,11 +76,16 @@ export function MessagesInbox({
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{selected.otherPartyName}</p>
-            <Link
-              to={`/listing/${selected.listingId}`}
-              className="truncate text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-brand)] hover:underline"
-            >
-              {selected.listingTitle} · {formatPrice(selected.listingPrice, selected.listingCurrency)}
+            <Link to={`/listing/${selected.listingId}`} className="mt-1 block hover:opacity-80">
+              <ListingRefRow
+                title={selected.listingTitle}
+                photos={selected.photos}
+                sport={selected.sport}
+                location={selected.location}
+                country={selected.country}
+                price={selected.listingPrice}
+                currency={selected.listingCurrency}
+              />
             </Link>
           </div>
         </div>
@@ -142,9 +149,17 @@ export function MessagesInbox({
           onClick={() => setSelected(t)}
           className="flex w-full items-center gap-4 p-4 text-left hover:bg-[var(--color-paper)]"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-            <MessageCircle size={17} />
-          </div>
+          {t.sport ? (
+            <ListingCover
+              sport={t.sport}
+              photos={t.photos ?? undefined}
+              className="h-12 w-12 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
+              {t.otherPartyName.slice(0, 1)}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <span className="truncate text-sm font-medium">{t.otherPartyName}</span>
@@ -158,6 +173,7 @@ export function MessagesInbox({
             </p>
             <p className="mt-0.5 truncate text-xs text-[var(--color-ink-soft)]/80">
               Re: {t.listingTitle} · {formatPrice(t.listingPrice, t.listingCurrency)}
+              {t.location ? ` · ${t.location}` : ''}
             </p>
           </div>
         </button>
