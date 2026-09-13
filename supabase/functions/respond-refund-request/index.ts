@@ -1,13 +1,12 @@
 // Seller approves or declines a pending refund request. Approval is what
-// actually calls Stripe — this is a Connect destination charge, so
-// reverse_transfer pulls the money back out of the seller's own Connect
-// balance; if that balance can't cover it (already paid out), the refund
-// fails here and the request is marked 'failed' for admin to handle
-// manually rather than the app pretending it succeeded.
+// actually calls Stripe, via the shared refundOrder helper — see that file
+// for how the refund differs depending on whether the seller's transfer
+// has already released.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
 import { notifyUser } from '../_shared/notify.ts';
+import { refundOrder } from '../_shared/refundOrder.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -73,7 +72,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, stripe_payment_intent_id')
+      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, stripe_payment_intent_id, transfer_status')
       .eq('id', request.order_id)
       .single();
     if (orderError || !order) {
@@ -117,35 +116,23 @@ Deno.serve(async (req) => {
     }
 
     // Approve — this is the only path that actually moves money.
-    if (order.status !== 'paid' || !order.stripe_payment_intent_id) {
-      return new Response(JSON.stringify({ error: 'This order is not in a refundable state.' }), {
-        status: 409,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
       apiVersion: '2024-12-18.acacia',
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    try {
-      const refund = await stripe.refunds.create({
-        payment_intent: order.stripe_payment_intent_id,
-        reverse_transfer: true,
-        refund_application_fee: true,
-      });
+    const result = await refundOrder(stripe, supabase, order);
 
+    if (result.ok) {
       await supabase
         .from('refund_requests')
         .update({
           status: 'refunded',
           seller_response: note || null,
-          stripe_refund_id: refund.id,
+          stripe_refund_id: result.refundId,
           updated_at: new Date().toISOString(),
         })
         .eq('id', requestId);
-      await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
 
       if (anchorListingId) {
         await supabase.from('messages').insert({
@@ -165,12 +152,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ status: 'refunded' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } catch (stripeErr) {
-      console.error('Stripe refund failed', stripeErr);
-      const failureReason = stripeErr instanceof Error ? stripeErr.message : 'Stripe refund failed';
+    } else {
       await supabase
         .from('refund_requests')
-        .update({ status: 'failed', failure_reason: failureReason, updated_at: new Date().toISOString() })
+        .update({ status: 'failed', failure_reason: result.error, updated_at: new Date().toISOString() })
         .eq('id', requestId);
 
       if (anchorListingId) {

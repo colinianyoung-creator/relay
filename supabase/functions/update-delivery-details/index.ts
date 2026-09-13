@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { orderId, method, trackingReference, trackingUrl, notes, addEvidencePath, removeEvidencePath } =
+    const { orderId, method, trackingReference, trackingUrl, notes, addEvidencePath, removeEvidencePath, markShipped } =
       await req.json();
     if (!orderId) {
       return new Response(JSON.stringify({ error: 'Missing orderId' }), {
@@ -68,12 +68,27 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (markShipped && order.seller_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Only the seller can mark an order as shipped' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const update: Record<string, unknown> = { order_id: orderId, updated_at: new Date().toISOString() };
     if (method !== undefined) update.method = method;
     if (trackingReference !== undefined) update.tracking_reference = trackingReference;
     if (trackingUrl !== undefined) update.tracking_url = trackingUrl;
     if (notes !== undefined) update.notes = notes;
+
+    if (markShipped) {
+      const { data: existingShipped } = await supabase
+        .from('order_deliveries')
+        .select('shipped_at')
+        .eq('order_id', orderId)
+        .maybeSingle();
+      if (!existingShipped?.shipped_at) update.shipped_at = new Date().toISOString();
+    }
 
     if (addEvidencePath || removeEvidencePath) {
       const { data: existing } = await supabase

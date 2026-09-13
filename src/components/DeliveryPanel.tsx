@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { FileText, Loader2, Truck, X } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, Truck, X } from 'lucide-react';
 import {
+  confirmReceipt,
   deleteDeliveryEvidence,
   getDeliveryEvidenceUrl,
   requestShippingQuote,
@@ -107,6 +108,32 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
     }
   }
 
+  async function handleMarkShipped() {
+    setError(null);
+    setBusy(true);
+    try {
+      await updateDeliveryDetails(order.id, { markShipped: true });
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not mark this as shipped.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmReceipt() {
+    setError(null);
+    setBusy(true);
+    try {
+      await confirmReceipt(order.id);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm receipt.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -177,6 +204,21 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
           )}
           {order.deliveryNotes && <p className="mt-1 text-[var(--color-ink-soft)]">{order.deliveryNotes}</p>}
 
+          {order.transferStatus === 'pending' && (
+            <p className="mt-1 text-[var(--color-ink-soft)]">
+              {order.receivedConfirmedAt
+                ? 'Receipt confirmed — payout releasing.'
+                : order.shippedAt
+                  ? `Marked shipped ${formatDateTime(order.shippedAt)}. Relay holds the seller's payout until receipt is confirmed, or automatically after 14 days.`
+                  : "Relay holds the seller's payout until the order ships and receipt is confirmed."}
+            </p>
+          )}
+          {order.transferStatus === 'released' && (
+            <p className="mt-1 flex items-center gap-1.5 text-[var(--color-moss)]">
+              <CheckCircle2 size={13} /> Payout released to the seller.
+            </p>
+          )}
+
           <div className="mt-2 flex flex-wrap gap-3">
             {!order.quoteRequestedAt && !hasArranged && (
               <button
@@ -186,6 +228,26 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
               >
                 {busy && <Loader2 size={12} className="animate-spin" />}
                 Request a shipping quote
+              </button>
+            )}
+            {order.role === 'seller' && !order.shippedAt && order.transferStatus === 'pending' && (
+              <button
+                onClick={handleMarkShipped}
+                disabled={busy}
+                className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+              >
+                {busy && <Loader2 size={12} className="animate-spin" />}
+                Mark as shipped
+              </button>
+            )}
+            {order.role === 'buyer' && order.transferStatus === 'pending' && !order.receivedConfirmedAt && (
+              <button
+                onClick={handleConfirmReceipt}
+                disabled={busy}
+                className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {busy && <Loader2 size={12} className="animate-spin" />}
+                Confirm receipt
               </button>
             )}
             <button

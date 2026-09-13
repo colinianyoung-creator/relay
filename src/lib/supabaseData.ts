@@ -909,6 +909,8 @@ export interface AdminOrder {
   currency: Currency;
   platformFeeAmount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
+  transferStatus: 'pending' | 'released' | 'refunded';
+  shippedAt: string | null;
   createdAt: string;
   stripeCheckoutSessionId: string | null;
   stripePaymentIntentId: string | null;
@@ -929,6 +931,7 @@ interface AdminOrderRow {
   currency: string;
   platform_fee_amount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
+  transfer_status: 'pending' | 'released' | 'refunded';
   created_at: string;
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;
@@ -940,13 +943,14 @@ interface AdminOrderRow {
   buyer: { name: string } | null;
   seller: { name: string } | null;
   refund: { status: string; failure_reason: string | null } | null;
+  delivery: { shipped_at: string | null } | null;
 }
 
 // Explicit FK names needed on both profiles joins — orders has two separate
 // FKs to profiles (buyer_id, seller_id), same ambiguity as elsewhere in
 // this file.
 const ADMIN_ORDER_SELECT =
-  'id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(status, failure_reason)';
+  'id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(status, failure_reason), delivery:order_deliveries(shipped_at)';
 
 export async function fetchAllOrders(): Promise<AdminOrder[]> {
   const { data, error } = await supabase
@@ -960,6 +964,8 @@ export async function fetchAllOrders(): Promise<AdminOrder[]> {
     currency: row.currency as Currency,
     platformFeeAmount: row.platform_fee_amount,
     status: row.status,
+    transferStatus: row.transfer_status,
+    shippedAt: row.delivery?.shipped_at ?? null,
     createdAt: row.created_at,
     stripeCheckoutSessionId: row.stripe_checkout_session_id,
     stripePaymentIntentId: row.stripe_payment_intent_id,
@@ -1219,6 +1225,9 @@ export interface MyOrder {
   trackingUrl: string | null;
   deliveryNotes: string | null;
   evidencePaths: string[];
+  shippedAt: string | null;
+  receivedConfirmedAt: string | null;
+  transferStatus: 'pending' | 'released' | 'refunded';
   shippingAddress: {
     line1: string | null;
     line2: string | null;
@@ -1244,6 +1253,7 @@ interface MyOrderRow {
   currency: string;
   platform_fee_amount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
+  transfer_status: 'pending' | 'released' | 'refunded';
   created_at: string;
   stripe_checkout_session_id: string | null;
   bundle_listing_ids: string[] | null;
@@ -1269,6 +1279,8 @@ interface MyOrderRow {
     tracking_url: string | null;
     notes: string | null;
     evidence_paths: string[] | null;
+    shipped_at: string | null;
+    received_confirmed_at: string | null;
     shipping_address: {
       line1: string | null;
       line2: string | null;
@@ -1284,7 +1296,7 @@ interface MyOrderRow {
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1341,6 +1353,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       currency: row.currency as Currency,
       platformFeeAmount: row.platform_fee_amount,
       status: row.status,
+      transferStatus: row.transfer_status,
       createdAt: row.created_at,
       hasStripeSession: !!row.stripe_checkout_session_id,
       itemCount: isMulti ? row.bundle_listing_ids!.length : 1,
@@ -1359,6 +1372,8 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       trackingUrl: row.delivery?.tracking_url ?? null,
       deliveryNotes: row.delivery?.notes ?? null,
       evidencePaths: row.delivery?.evidence_paths ?? [],
+      shippedAt: row.delivery?.shipped_at ?? null,
+      receivedConfirmedAt: row.delivery?.received_confirmed_at ?? null,
       shippingAddress: row.delivery?.shipping_address ?? null,
       shippingRecipientName: row.delivery?.shipping_recipient_name ?? null,
       alreadyReviewed: row.review !== null,
@@ -1408,6 +1423,7 @@ export async function updateDeliveryDetails(
     notes?: string;
     addEvidencePath?: string;
     removeEvidencePath?: string;
+    markShipped?: boolean;
   },
 ): Promise<void> {
   const { data, error } = await supabase.functions.invoke('update-delivery-details', {
@@ -1419,7 +1435,26 @@ export async function updateDeliveryDetails(
       notes: fields.notes,
       addEvidencePath: fields.addEvidencePath,
       removeEvidencePath: fields.removeEvidencePath,
+      markShipped: fields.markShipped,
     },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Buyer marks an order received — releases the held transfer to the seller immediately. */
+export async function confirmReceipt(orderId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('confirm-receipt', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Admin-only: refunds a paid order directly, without a buyer having to request it first. */
+export async function adminRefundOrder(orderId: string, reason: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('admin-refund-order', {
+    body: { orderId, reason },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

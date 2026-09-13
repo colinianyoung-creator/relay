@@ -69,9 +69,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         </p>
         <p className="mt-3">
           If a seller has payouts enabled and a buyer pays through Relay's in-app checkout, Relay
-          takes a <strong>{PLATFORM_FEE_PERCENT}% commission</strong> on the sale price, deducted
-          automatically before the remainder is transferred to the seller — the buyer is never
-          charged more than the listed price. Both fees are shown before you pay and are
+          takes a <strong>{PLATFORM_FEE_PERCENT}% commission</strong> on the sale price — the buyer
+          is never charged more than the listed price. Both fees are shown before you pay and are
           non-refundable except where required by law or at Relay's discretion.
         </p>
       </>
@@ -83,9 +82,11 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         <p>
           Where a seller has completed payouts setup, buyers may pay in-app via Stripe Checkout.
-          Relay never sees or stores your card details, and funds are transferred by Stripe
-          directly to the seller's own connected account, minus Relay's commission — Relay itself
-          never holds buyer funds.
+          Relay never sees or stores your card details. Relay holds the payment (minus its
+          commission) until the buyer confirms receipt of the item, or for up to 14 days after the
+          seller marks it shipped if the buyer doesn't respond, at which point it's transferred by
+          Stripe to the seller's own connected account. This hold exists to reduce the risk of a
+          buyer paying for an item that's never sent.
         </p>
         <p className="mt-3">
           Where in-app payment isn't available, or either party prefers it, buyers and sellers

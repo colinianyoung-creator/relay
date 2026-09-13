@@ -150,7 +150,7 @@ async function sendOrderEmails(
         html: `
           <p>Hi ${sellerName},</p>
           <p>${buyerName} just bought "<strong>${itemLabel}</strong>" for ${amountStr}.</p>
-          <p>Your payout, after Relay's platform fee, is <strong>${payoutStr}</strong> — it'll follow automatically once Stripe settles the transfer to your connected account.</p>
+          <p>Your payout, after Relay's platform fee, is <strong>${payoutStr}</strong>. Relay holds this until your buyer confirms receipt (or 14 days after you mark it shipped, whichever comes first) — then it's sent straight to your connected account.</p>
           <p><a href="${sellerLink}">View in your account</a></p>
           <p>— Relay</p>
         `,

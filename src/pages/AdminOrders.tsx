@@ -2,10 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Loader2, Receipt, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { fetchAllOrders, type AdminOrder } from '@/lib/supabaseData';
+import { adminRefundOrder, fetchAllOrders, type AdminOrder } from '@/lib/supabaseData';
 import { Badge } from '@/components/Badge';
 import { AdminTabs } from '@/components/AdminTabs';
 import { formatPrice, timeAgo } from '@/lib/format';
+
+function transferTone(status: AdminOrder['transferStatus']): 'brand' | 'moss' | 'neutral' {
+  if (status === 'released') return 'moss';
+  if (status === 'pending') return 'brand';
+  return 'neutral';
+}
 
 const FILTERS = ['all', 'pending', 'paid', 'refunded', 'cancelled', 'disputed', 'refund failed'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -21,6 +27,24 @@ export function AdminOrders() {
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  const [refundError, setRefundError] = useState<string | null>(null);
+
+  async function handleIssueRefund(orderId: string) {
+    const reason = window.prompt('Reason for this refund (shown to the buyer and seller):');
+    if (!reason) return;
+    setRefundError(null);
+    setRefundingId(orderId);
+    try {
+      await adminRefundOrder(orderId, reason);
+      const refreshed = await fetchAllOrders();
+      setOrders(refreshed);
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : 'Could not issue that refund.');
+    } finally {
+      setRefundingId(null);
+    }
+  }
 
   useEffect(() => {
     if (!profile?.is_admin) return;
@@ -81,6 +105,7 @@ export function AdminOrders() {
       </p>
 
       {error && <p className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
+      {refundError && <p className="mt-4 text-sm text-[var(--color-brand-dark)]">{refundError}</p>}
 
       {stats && (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -161,6 +186,12 @@ export function AdminOrders() {
                         <span className="text-sm font-medium text-[var(--color-ink-soft)]">{o.listingTitle}</span>
                       )}
                       <Badge tone={statusTone(o.status)}>{o.status}</Badge>
+                      {o.status === 'paid' && (
+                        <Badge tone={transferTone(o.transferStatus)}>
+                          payout {o.transferStatus}
+                          {o.transferStatus === 'pending' && !o.shippedAt && ' — not shipped'}
+                        </Badge>
+                      )}
                       {o.disputedAt && (
                         <Badge tone="brand">
                           <AlertTriangle size={11} /> {o.disputeStatus?.replace(/_/g, ' ') ?? 'disputed'}
@@ -197,6 +228,16 @@ export function AdminOrders() {
                       fee {formatPrice(o.platformFeeAmount, o.currency)}
                     </div>
                     <div className="mt-1 text-xs text-[var(--color-ink-soft)]">{timeAgo(o.createdAt.slice(0, 10))}</div>
+                    {o.status === 'paid' && (
+                      <button
+                        onClick={() => handleIssueRefund(o.id)}
+                        disabled={refundingId === o.id}
+                        className="mt-2 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                      >
+                        {refundingId === o.id && <Loader2 size={11} className="animate-spin" />}
+                        Issue refund
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

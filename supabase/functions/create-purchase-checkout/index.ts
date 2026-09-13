@@ -1,8 +1,9 @@
 // Creates a Stripe Checkout session for a buyer purchasing a listing
-// directly through Relay. Uses a destination charge: the full amount is
-// charged to the buyer, Stripe transfers it to the seller's connected
-// account, and Relay's cut is taken off the top via application_fee_amount
-// — Stripe handles the split, Relay never custodies the funds itself.
+// directly through Relay. Uses separate charges and transfers: the full
+// amount is captured into Relay's own platform balance, and only
+// transferred to the seller once the buyer confirms receipt (or the
+// auto-release window elapses) — see releaseTransfer.ts. This holds funds
+// during the delivery window instead of paying the seller out instantly.
 //
 // As with the listing fee, actual "did they pay" state is set by
 // stripe-webhook, never trusted from the client redirect alone.
@@ -142,10 +143,6 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: platformFeePence,
-        transfer_data: { destination: seller.stripe_connect_account_id },
-      },
       shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] },
       metadata: { order_id: order.id },
       success_url: successUrl,

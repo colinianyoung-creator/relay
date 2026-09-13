@@ -107,7 +107,6 @@ Deno.serve(async (req) => {
     }
 
     const amountPence = Math.round(Number(order.amount) * 100);
-    const platformFeePence = Math.round(Number(order.platform_fee_amount) * 100);
     const itemNote = listings.length === 1 ? listings[0].title : `${listings.length} items`;
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
@@ -132,10 +131,6 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        application_fee_amount: platformFeePence,
-        transfer_data: { destination: seller.stripe_connect_account_id },
-      },
       shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] },
       metadata: { order_id: order.id },
       success_url: successUrl,
