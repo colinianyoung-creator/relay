@@ -1228,6 +1228,9 @@ export interface MyOrder {
   shippedAt: string | null;
   receivedConfirmedAt: string | null;
   transferStatus: 'pending' | 'released' | 'refunded';
+  trackingStatus: 'pending' | 'in_transit' | 'delivered' | null;
+  deliveredAt: string | null;
+  handoverTokenExpiresAt: string | null;
   shippingAddress: {
     line1: string | null;
     line2: string | null;
@@ -1281,6 +1284,9 @@ interface MyOrderRow {
     evidence_paths: string[] | null;
     shipped_at: string | null;
     received_confirmed_at: string | null;
+    tracking_status: 'pending' | 'in_transit' | 'delivered' | null;
+    delivered_at: string | null;
+    handover_token_expires_at: string | null;
     shipping_address: {
       line1: string | null;
       line2: string | null;
@@ -1296,7 +1302,7 @@ interface MyOrderRow {
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1374,6 +1380,9 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       evidencePaths: row.delivery?.evidence_paths ?? [],
       shippedAt: row.delivery?.shipped_at ?? null,
       receivedConfirmedAt: row.delivery?.received_confirmed_at ?? null,
+      trackingStatus: row.delivery?.tracking_status ?? null,
+      deliveredAt: row.delivery?.delivered_at ?? null,
+      handoverTokenExpiresAt: row.delivery?.handover_token_expires_at ?? null,
       shippingAddress: row.delivery?.shipping_address ?? null,
       shippingRecipientName: row.delivery?.shipping_recipient_name ?? null,
       alreadyReviewed: row.review !== null,
@@ -1424,6 +1433,7 @@ export async function updateDeliveryDetails(
     addEvidencePath?: string;
     removeEvidencePath?: string;
     markShipped?: boolean;
+    markDelivered?: boolean;
   },
 ): Promise<void> {
   const { data, error } = await supabase.functions.invoke('update-delivery-details', {
@@ -1436,6 +1446,7 @@ export async function updateDeliveryDetails(
       addEvidencePath: fields.addEvidencePath,
       removeEvidencePath: fields.removeEvidencePath,
       markShipped: fields.markShipped,
+      markDelivered: fields.markDelivered,
     },
   });
   if (error) throw error;
@@ -1446,6 +1457,25 @@ export async function updateDeliveryDetails(
 export async function confirmReceipt(orderId: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('confirm-receipt', {
     body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Seller-only: generates a short-lived handover code for a local-collection order, rendered as a QR code. */
+export async function generateHandoverCode(orderId: string): Promise<{ token: string; expiresAt: string }> {
+  const { data, error } = await supabase.functions.invoke('generate-handover-code', {
+    body: { orderId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { token: data.token, expiresAt: data.expiresAt };
+}
+
+/** Buyer-only: redeems a handover code scanned from the seller's QR at collection, releasing funds immediately. */
+export async function confirmHandover(orderId: string, token: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('confirm-handover', {
+    body: { orderId, token },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);

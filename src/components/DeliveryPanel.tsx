@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, FileText, Loader2, Truck, X } from 'lucide-react';
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
+import { Camera, CheckCircle2, FileText, Loader2, QrCode, Truck, X } from 'lucide-react';
 import {
+  confirmHandover,
   confirmReceipt,
   deleteDeliveryEvidence,
+  generateHandoverCode,
   getDeliveryEvidenceUrl,
   requestShippingQuote,
   updateDeliveryDetails,
   uploadDeliveryEvidence,
   type MyOrder,
 } from '@/lib/supabaseData';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatPrice } from '@/lib/format';
 
 export const METHOD_LABEL: Record<string, string> = {
   collection: 'Local collection',
@@ -75,6 +79,10 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   const [notes, setNotes] = useState(order.deliveryNotes ?? '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [handoverQr, setHandoverQr] = useState<{ dataUrl: string; expiresAt: string } | null>(null);
+  const [scannedToken, setScannedToken] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   async function handleRequestQuote() {
     setError(null);
@@ -129,6 +137,75 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not confirm receipt.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMarkDelivered() {
+    setError(null);
+    setBusy(true);
+    try {
+      await updateDeliveryDetails(order.id, { markDelivered: true });
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not mark this as delivered.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGenerateHandoverCode() {
+    setError(null);
+    setBusy(true);
+    try {
+      const { token, expiresAt } = await generateHandoverCode(order.id);
+      const dataUrl = await QRCode.toDataURL(token, { width: 220, margin: 1 });
+      setHandoverQr({ dataUrl, expiresAt });
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not generate a handover code.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleScanPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setScanError(null);
+    setScannedToken(null);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not read that photo.');
+      ctx.drawImage(bitmap, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(imageData.data, imageData.width, imageData.height);
+      if (!result?.data) {
+        setScanError("Couldn't find a QR code in that photo — try again with the code clearly in frame.");
+        return;
+      }
+      setScannedToken(result.data);
+    } catch {
+      setScanError("Couldn't read that photo — try again.");
+    }
+  }
+
+  async function handleConfirmHandover() {
+    if (!scannedToken) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await confirmHandover(order.id, scannedToken);
+      setScannedToken(null);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm handover.');
     } finally {
       setBusy(false);
     }
@@ -208,9 +285,11 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
             <p className="mt-1 text-[var(--color-ink-soft)]">
               {order.receivedConfirmedAt
                 ? 'Receipt confirmed — payout releasing.'
-                : order.shippedAt
-                  ? `Marked shipped ${formatDateTime(order.shippedAt)}. Relay holds the seller's payout until receipt is confirmed, or automatically after 14 days.`
-                  : "Relay holds the seller's payout until the order ships and receipt is confirmed."}
+                : order.trackingStatus === 'delivered'
+                  ? `Marked delivered ${formatDateTime(order.deliveredAt!)}. Relay will pay the seller automatically in 48 hours unless you confirm receipt or raise an issue sooner.`
+                  : order.shippedAt
+                    ? `Marked shipped ${formatDateTime(order.shippedAt)}. Relay holds the seller's payout until receipt is confirmed, or automatically after 14 days.`
+                    : "Relay holds the seller's payout until the order ships and receipt is confirmed."}
             </p>
           )}
           {order.transferStatus === 'released' && (
@@ -240,6 +319,21 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 Mark as shipped
               </button>
             )}
+            {order.role === 'seller' &&
+              order.shippedAt &&
+              (order.deliveryMethod === 'courier' || order.deliveryMethod === 'freight') &&
+              order.trackingStatus !== 'delivered' &&
+              order.transferStatus === 'pending' && (
+                <button
+                  onClick={handleMarkDelivered}
+                  disabled={busy || !order.trackingReference}
+                  title={!order.trackingReference ? 'Add a tracking reference first' : undefined}
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                >
+                  {busy && <Loader2 size={12} className="animate-spin" />}
+                  Mark as delivered
+                </button>
+              )}
             {order.role === 'buyer' && order.transferStatus === 'pending' && !order.receivedConfirmedAt && (
               <button
                 onClick={handleConfirmReceipt}
@@ -250,6 +344,36 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 Confirm receipt
               </button>
             )}
+            {order.role === 'seller' &&
+              (order.deliveryMethod === 'collection' || !order.deliveryMethod) &&
+              order.transferStatus === 'pending' && (
+                <button
+                  onClick={handleGenerateHandoverCode}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                >
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : <QrCode size={12} />}
+                  {handoverQr ? 'Regenerate handover code' : 'Generate handover QR code'}
+                </button>
+              )}
+            {order.role === 'buyer' &&
+              (order.deliveryMethod === 'collection' || !order.deliveryMethod) &&
+              order.transferStatus === 'pending' && (
+                <button
+                  onClick={() => scanInputRef.current?.click()}
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  <Camera size={12} /> Scan to accept item
+                </button>
+              )}
+            <input
+              ref={scanInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleScanPhoto}
+              className="hidden"
+            />
             <button
               onClick={() => setEditing(true)}
               className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
@@ -257,6 +381,42 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
               {hasArranged || order.deliveryNotes ? 'Edit details' : 'Record what was arranged'}
             </button>
           </div>
+
+          {handoverQr && (
+            <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
+              <img src={handoverQr.dataUrl} alt="Handover QR code" className="mx-auto h-40 w-40" />
+              <p className="mt-2 text-center text-[var(--color-ink-soft)]">
+                Show this to the buyer at handover. Expires {formatDateTime(handoverQr.expiresAt)}.
+              </p>
+            </div>
+          )}
+
+          {scanError && <p className="mt-2 text-[var(--color-brand-dark)]">{scanError}</p>}
+
+          {scannedToken && (
+            <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
+              <p>
+                Confirm you've received <strong>{order.title}</strong> from {order.counterpartyName} and release{' '}
+                {formatPrice(order.amount, order.currency)} to them?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={handleConfirmHandover}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                >
+                  {busy && <Loader2 size={12} className="animate-spin" />}
+                  Confirm & release
+                </button>
+                <button
+                  onClick={() => setScannedToken(null)}
+                  className="text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

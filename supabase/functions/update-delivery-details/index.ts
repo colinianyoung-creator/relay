@@ -36,8 +36,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { orderId, method, trackingReference, trackingUrl, notes, addEvidencePath, removeEvidencePath, markShipped } =
-      await req.json();
+    const {
+      orderId,
+      method,
+      trackingReference,
+      trackingUrl,
+      notes,
+      addEvidencePath,
+      removeEvidencePath,
+      markShipped,
+      markDelivered,
+    } = await req.json();
     if (!orderId) {
       return new Response(JSON.stringify({ error: 'Missing orderId' }), {
         status: 400,
@@ -74,6 +83,18 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (markDelivered && order.seller_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Only the seller can mark an order as delivered' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { data: existing } = await supabase
+      .from('order_deliveries')
+      .select('shipped_at, delivered_at, method, tracking_reference, evidence_paths')
+      .eq('order_id', orderId)
+      .maybeSingle();
 
     const update: Record<string, unknown> = { order_id: orderId, updated_at: new Date().toISOString() };
     if (method !== undefined) update.method = method;
@@ -82,20 +103,31 @@ Deno.serve(async (req) => {
     if (notes !== undefined) update.notes = notes;
 
     if (markShipped) {
-      const { data: existingShipped } = await supabase
-        .from('order_deliveries')
-        .select('shipped_at')
-        .eq('order_id', orderId)
-        .maybeSingle();
-      if (!existingShipped?.shipped_at) update.shipped_at = new Date().toISOString();
+      if (!existing?.shipped_at) update.shipped_at = new Date().toISOString();
+    }
+
+    if (markDelivered) {
+      const effectiveMethod = method !== undefined ? method : existing?.method;
+      const effectiveTracking = trackingReference !== undefined ? trackingReference : existing?.tracking_reference;
+      if (effectiveMethod !== 'courier' && effectiveMethod !== 'freight') {
+        return new Response(
+          JSON.stringify({ error: 'Marking delivered only applies to courier or freight orders.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      if (!effectiveTracking || effectiveTracking.trim().length < 4 || effectiveTracking.trim().length > 40) {
+        return new Response(
+          JSON.stringify({ error: 'Enter a valid tracking reference (4-40 characters) before marking delivered.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      if (!existing?.delivered_at) {
+        update.tracking_status = 'delivered';
+        update.delivered_at = new Date().toISOString();
+      }
     }
 
     if (addEvidencePath || removeEvidencePath) {
-      const { data: existing } = await supabase
-        .from('order_deliveries')
-        .select('evidence_paths')
-        .eq('order_id', orderId)
-        .maybeSingle();
       let paths = existing?.evidence_paths ?? [];
       if (addEvidencePath) paths = [...paths, addEvidencePath];
       if (removeEvidencePath) paths = paths.filter((p: string) => p !== removeEvidencePath);

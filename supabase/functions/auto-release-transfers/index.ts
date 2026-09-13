@@ -1,9 +1,11 @@
-// Scheduled (pg_cron, see the delayed_payout migration), never called by a
-// client. Two passes each run: (1) email buyers on day 11 of the 14-day
-// hold to warn them the seller is about to be paid, (2) actually release
-// the transfer for anything that's now past day 14. Nothing here is
-// gated on Confirm Receipt — this is exactly the path for a buyer who
-// never responds.
+// Scheduled hourly (pg_cron, see the delayed_payout/delivery_confirmation_triggers
+// migrations), never called by a client. Three passes each run: (1) email buyers on
+// day 11 of the 14-day hold to warn them the seller is about to be paid, (2) release
+// the transfer for anything past day 14 (the generic no-response fallback), and
+// (3) release the transfer 48 hours after the seller self-reports courier delivery
+// (a faster, delivery-specific path — see update-delivery-details' markDelivered).
+// Nothing here is gated on Confirm Receipt — these are exactly the paths for a buyer
+// who never responds.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -12,6 +14,7 @@ import { releaseTransfer } from '../_shared/releaseTransfer.ts';
 
 const REMINDER_DAYS = 11;
 const RELEASE_DAYS = 14;
+const DELIVERED_RELEASE_HOURS = 48;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -38,9 +41,11 @@ Deno.serve(async (req) => {
   const now = Date.now();
   const reminderCutoff = new Date(now - REMINDER_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const releaseCutoff = new Date(now - RELEASE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const deliveredReleaseCutoff = new Date(now - DELIVERED_RELEASE_HOURS * 60 * 60 * 1000).toISOString();
 
   let reminded = 0;
   let released = 0;
+  let deliveredReleased = 0;
   const errors: string[] = [];
 
   try {
@@ -108,7 +113,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, reminded, released, errors }), {
+    // --- Delivered-release pass (courier/freight, 48h after self-reported delivery) ---
+    const { data: dueForDeliveredRelease, error: deliveredFetchError } = await supabase
+      .from('orders')
+      .select(
+        'id, seller_id, amount, currency, platform_fee_amount, transfer_status, stripe_payment_intent_id, dispute_status, order_deliveries!inner(delivered_at)',
+      )
+      .eq('status', 'paid')
+      .eq('transfer_status', 'pending')
+      .is('dispute_status', null)
+      .lte('order_deliveries.delivered_at', deliveredReleaseCutoff);
+    if (deliveredFetchError) {
+      console.error('Failed to fetch orders due for delivered-release', deliveredFetchError);
+    } else {
+      for (const order of dueForDeliveredRelease ?? []) {
+        const { data: pendingRefund } = await supabase
+          .from('refund_requests')
+          .select('id')
+          .eq('order_id', order.id)
+          .eq('status', 'pending')
+          .maybeSingle();
+        if (pendingRefund) continue;
+
+        const result = await releaseTransfer(supabase, stripe, order, 'delivery_timeout');
+        if (result.ok) deliveredReleased += 1;
+        else errors.push(`${order.id}: ${result.error}`);
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, reminded, released, deliveredReleased, errors }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {

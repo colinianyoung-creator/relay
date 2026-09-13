@@ -1,14 +1,16 @@
 // Moves a paid order's seller share out of Relay's platform balance into
 // the seller's Connect account — the actual "payout" step under separate
 // charges & transfers. Called from confirm-receipt (buyer clicked Confirm
-// Receipt) and auto-release-transfers (14-day timeout). Never assumes the
-// caller already checked eligibility — re-checks transfer_status, disputes
-// and pending refund requests itself so it's safe to call from either path.
+// Receipt), confirm-handover (QR-scanned collection handoff), and
+// auto-release-transfers (14-day no-response fallback, or 48h after a
+// self-reported courier delivery). Never assumes the caller already checked
+// eligibility — re-checks transfer_status, disputes and pending refund
+// requests itself so it's safe to call from any of those paths.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { notifyUser } from './notify.ts';
 
-export type ReleasedBy = 'buyer_confirmed' | 'auto_release' | 'admin';
+export type ReleasedBy = 'buyer_confirmed' | 'auto_release' | 'admin' | 'delivery_timeout';
 
 interface OrderForRelease {
   id: string;
