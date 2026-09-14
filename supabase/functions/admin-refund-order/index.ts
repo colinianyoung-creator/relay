@@ -1,6 +1,9 @@
 // Admin-only: refunds any paid order directly, without waiting for a buyer
 // to file a refund request first — the case this exists for is a seller who
-// never ships, where the buyer may not think to (or know how to) ask.
+// never ships, where the buyer may not think to (or know how to) ask. Also
+// doubles as how admin approves an escalated refund request (see
+// escalate-refund-request/dismiss-refund-escalation) — this is the "yes"
+// path, dismiss-refund-escalation is the "no" path.
 // Uses the same refundOrder branching as respond-refund-request, and
 // records itself in refund_requests (initiated_by: 'admin') so every
 // refund, however it started, shows up in the same audit trail.
@@ -73,7 +76,7 @@ Deno.serve(async (req) => {
       .select('id, status')
       .eq('order_id', orderId)
       .maybeSingle();
-    if (existingRequest && existingRequest.status !== 'failed') {
+    if (existingRequest && existingRequest.status !== 'failed' && existingRequest.status !== 'escalated') {
       return new Response(
         JSON.stringify({ error: 'This order already has a refund request in progress or resolved.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

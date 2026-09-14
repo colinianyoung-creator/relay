@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Loader2, Receipt, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { adminRefundOrder, fetchAllOrders, type AdminOrder } from '@/lib/supabaseData';
+import { adminRefundOrder, dismissRefundEscalation, fetchAllOrders, type AdminOrder } from '@/lib/supabaseData';
 import { Badge } from '@/components/Badge';
 import { AdminTabs } from '@/components/AdminTabs';
 import { formatPrice, timeAgo } from '@/lib/format';
@@ -13,7 +13,7 @@ function transferTone(status: AdminOrder['transferStatus']): 'brand' | 'moss' | 
   return 'neutral';
 }
 
-const FILTERS = ['all', 'pending', 'paid', 'refunded', 'cancelled', 'disputed', 'refund failed'] as const;
+const FILTERS = ['all', 'pending', 'paid', 'refunded', 'cancelled', 'disputed', 'refund failed', 'escalated'] as const;
 type Filter = (typeof FILTERS)[number];
 
 function statusTone(status: AdminOrder['status']): 'brand' | 'moss' | 'neutral' {
@@ -46,6 +46,22 @@ export function AdminOrders() {
     }
   }
 
+  async function handleDismissEscalation(requestId: string, orderId: string) {
+    const note = window.prompt('Note for the buyer (optional):');
+    if (note === null) return;
+    setRefundError(null);
+    setRefundingId(orderId);
+    try {
+      await dismissRefundEscalation(requestId, note || undefined);
+      const refreshed = await fetchAllOrders();
+      setOrders(refreshed);
+    } catch (err) {
+      setRefundError(err instanceof Error ? err.message : 'Could not dismiss that escalation.');
+    } finally {
+      setRefundingId(null);
+    }
+  }
+
   useEffect(() => {
     if (!profile?.is_admin) return;
     fetchAllOrders()
@@ -58,6 +74,7 @@ export function AdminOrders() {
     const paid = orders.filter((o) => o.status === 'paid');
     const disputed = orders.filter((o) => o.disputedAt);
     const refundFailed = orders.filter((o) => o.refundStatus === 'failed');
+    const escalated = orders.filter((o) => o.refundStatus === 'escalated');
     // GMV/fees only summed in GBP to keep the header honest — mixing
     // currencies into one total would misrepresent the number.
     const gbpPaid = paid.filter((o) => o.currency === 'GBP');
@@ -68,6 +85,7 @@ export function AdminOrders() {
       paidCount: paid.length,
       disputedCount: disputed.length,
       refundFailedCount: refundFailed.length,
+      escalatedCount: escalated.length,
       gmv,
       fees,
     };
@@ -78,6 +96,7 @@ export function AdminOrders() {
     if (filter === 'all') return orders;
     if (filter === 'disputed') return orders.filter((o) => o.disputedAt);
     if (filter === 'refund failed') return orders.filter((o) => o.refundStatus === 'failed');
+    if (filter === 'escalated') return orders.filter((o) => o.refundStatus === 'escalated');
     return orders.filter((o) => o.status === filter);
   }, [orders, filter]);
 
@@ -133,6 +152,13 @@ export function AdminOrders() {
             <div className="mt-1 flex items-center gap-1.5 text-xl">
               {stats.refundFailedCount}
               {stats.refundFailedCount > 0 && <AlertTriangle size={16} className="text-[var(--color-brand)]" />}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4">
+            <div className="text-xs uppercase tracking-wide text-[var(--color-ink-soft)]">Escalated</div>
+            <div className="mt-1 flex items-center gap-1.5 text-xl">
+              {stats.escalatedCount}
+              {stats.escalatedCount > 0 && <AlertTriangle size={16} className="text-[var(--color-brand)]" />}
             </div>
           </div>
         </div>
@@ -202,6 +228,11 @@ export function AdminOrders() {
                           <AlertTriangle size={11} /> refund failed — process manually
                         </Badge>
                       )}
+                      {o.refundStatus === 'escalated' && (
+                        <Badge tone="brand">
+                          <AlertTriangle size={11} /> refund escalated — needs review
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
                       {o.buyerName} → {o.sellerName}
@@ -229,14 +260,26 @@ export function AdminOrders() {
                     </div>
                     <div className="mt-1 text-xs text-[var(--color-ink-soft)]">{timeAgo(o.createdAt.slice(0, 10))}</div>
                     {o.status === 'paid' && (
-                      <button
-                        onClick={() => handleIssueRefund(o.id)}
-                        disabled={refundingId === o.id}
-                        className="mt-2 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                      >
-                        {refundingId === o.id && <Loader2 size={11} className="animate-spin" />}
-                        Issue refund
-                      </button>
+                      <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+                        <button
+                          onClick={() => handleIssueRefund(o.id)}
+                          disabled={refundingId === o.id}
+                          className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                        >
+                          {refundingId === o.id && <Loader2 size={11} className="animate-spin" />}
+                          Issue refund
+                        </button>
+                        {o.refundStatus === 'escalated' && o.refundRequestId && (
+                          <button
+                            onClick={() => handleDismissEscalation(o.refundRequestId!, o.id)}
+                            disabled={refundingId === o.id}
+                            className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                          >
+                            {refundingId === o.id && <Loader2 size={11} className="animate-spin" />}
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

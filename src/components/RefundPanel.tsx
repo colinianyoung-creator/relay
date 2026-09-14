@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CircleDollarSign, Loader2 } from 'lucide-react';
-import { respondToRefundRequest, type MyOrder } from '@/lib/supabaseData';
+import { escalateRefundRequest, respondToRefundRequest, type MyOrder } from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
 
 /**
@@ -50,6 +50,19 @@ export function RefundPanel({
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not approve that request.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEscalate() {
+    setError(null);
+    setBusy(true);
+    try {
+      await escalateRefundRequest(order.refundRequestId!);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not escalate that request.');
     } finally {
       setBusy(false);
     }
@@ -131,9 +144,32 @@ export function RefundPanel({
       )}
 
       {order.refundRequestId && order.refundStatus === 'declined' && (
+        <div>
+          <p>
+            Declined.
+            {order.refundSellerResponse && ` ${order.refundSellerResponse}`}
+          </p>
+          {viewRole === 'buyer' && (
+            <button
+              onClick={handleEscalate}
+              disabled={busy}
+              className="mt-2 flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+            >
+              {busy && <Loader2 size={12} className="animate-spin" />}
+              Escalate to Relay
+            </button>
+          )}
+        </div>
+      )}
+
+      {order.refundRequestId && order.refundStatus === 'escalated' && (
+        <p>Escalated to Relay's team — they'll review and follow up.</p>
+      )}
+
+      {order.refundRequestId && order.refundStatus === 'dismissed' && (
         <p>
-          Declined.
-          {order.refundSellerResponse && ` ${order.refundSellerResponse}`}
+          Relay reviewed this and won't be issuing a refund.
+          {order.refundAdminNote && ` ${order.refundAdminNote}`}
         </p>
       )}
 

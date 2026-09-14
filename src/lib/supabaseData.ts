@@ -916,7 +916,8 @@ export interface AdminOrder {
   stripePaymentIntentId: string | null;
   disputedAt: string | null;
   disputeStatus: string | null;
-  refundStatus: 'pending' | 'declined' | 'refunded' | 'failed' | null;
+  refundRequestId: string | null;
+  refundStatus: 'pending' | 'declined' | 'refunded' | 'failed' | 'escalated' | 'dismissed' | null;
   refundFailureReason: string | null;
   listingId: string | null;
   listingTitle: string;
@@ -942,7 +943,7 @@ interface AdminOrderRow {
   bundle: { id: string; title: string } | null;
   buyer: { name: string } | null;
   seller: { name: string } | null;
-  refund: { status: string; failure_reason: string | null } | null;
+  refund: { id: string; status: string; failure_reason: string | null } | null;
   delivery: { shipped_at: string | null } | null;
 }
 
@@ -950,7 +951,7 @@ interface AdminOrderRow {
 // FKs to profiles (buyer_id, seller_id), same ambiguity as elsewhere in
 // this file.
 const ADMIN_ORDER_SELECT =
-  'id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(status, failure_reason), delivery:order_deliveries(shipped_at)';
+  'id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(id, status, failure_reason), delivery:order_deliveries(shipped_at)';
 
 export async function fetchAllOrders(): Promise<AdminOrder[]> {
   const { data, error } = await supabase
@@ -971,6 +972,7 @@ export async function fetchAllOrders(): Promise<AdminOrder[]> {
     stripePaymentIntentId: row.stripe_payment_intent_id,
     disputedAt: row.disputed_at,
     disputeStatus: row.dispute_status,
+    refundRequestId: row.refund?.id ?? null,
     refundStatus: (row.refund?.status as AdminOrder['refundStatus']) ?? null,
     refundFailureReason: row.refund?.failure_reason ?? null,
     listingId: row.listing?.id ?? null,
@@ -1242,10 +1244,11 @@ export interface MyOrder {
   shippingRecipientName: string | null;
   alreadyReviewed: boolean;
   refundRequestId: string | null;
-  refundStatus: 'pending' | 'declined' | 'refunded' | 'failed' | null;
+  refundStatus: 'pending' | 'declined' | 'refunded' | 'failed' | 'escalated' | 'dismissed' | null;
   refundReason: string | null;
   refundDetails: string | null;
   refundSellerResponse: string | null;
+  refundAdminNote: string | null;
 }
 
 interface MyOrderRow {
@@ -1298,11 +1301,18 @@ interface MyOrderRow {
     shipping_recipient_name: string | null;
   } | null;
   review: { id: string } | null;
-  refund: { id: string; status: string; reason: string; details: string | null; seller_response: string | null } | null;
+  refund: {
+    id: string;
+    status: string;
+    reason: string;
+    details: string | null;
+    seller_response: string | null;
+    admin_note: string | null;
+  } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1391,6 +1401,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       refundReason: row.refund?.reason ?? null,
       refundDetails: row.refund?.details ?? null,
       refundSellerResponse: row.refund?.seller_response ?? null,
+      refundAdminNote: row.refund?.admin_note ?? null,
     };
   });
 }
@@ -1398,6 +1409,24 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
 export async function requestRefund(orderId: string, reason: string, details?: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('request-refund', {
     body: { orderId, reason, details },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Buyer-only: escalates a declined refund request to Relay for review. */
+export async function escalateRefundRequest(requestId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('escalate-refund-request', {
+    body: { requestId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Admin-only: closes out an escalated refund request without issuing a refund. */
+export async function dismissRefundEscalation(requestId: string, note?: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('dismiss-refund-escalation', {
+    body: { requestId, note },
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
