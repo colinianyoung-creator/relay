@@ -440,7 +440,13 @@ export function Account() {
             </div>
           ) : (
             <div>
-              <div className="mb-5 flex justify-end">
+              <div className="mb-5 flex justify-end gap-2">
+                <Link
+                  to="/sell"
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black"
+                >
+                  <PackagePlus size={13} /> Sell equipment
+                </Link>
                 <Link
                   to="/sell/club-gear/new"
                   className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
