@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
 import {
   ConnectComponentsProvider,
@@ -6,9 +7,18 @@ import {
   ConnectAccountManagement,
   ConnectPayouts,
 } from '@stripe/react-connect-js';
-import { BadgeCheck, CircleDollarSign, Loader2, Settings } from 'lucide-react';
+import { BadgeCheck, CircleDollarSign, Loader2, Settings, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { createConnectAccountSession, refreshConnectStatus } from '@/lib/supabaseData';
+import { createConnectAccountSession, refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
+import { ListingRefRow } from '@/components/ListingRefRow';
+import { Badge } from '@/components/Badge';
+import { formatPrice, timeAgo } from '@/lib/format';
+
+function transferTone(status: MyOrder['transferStatus']): 'brand' | 'moss' | 'neutral' {
+  if (status === 'released') return 'moss';
+  if (status === 'pending') return 'brand';
+  return 'neutral';
+}
 
 // Embedded rather than a redirect to a Stripe-hosted page — the seller never
 // leaves Relay, and the UI is themed to match via the appearance option
@@ -31,7 +41,7 @@ function getConnectInstance(): StripeConnectInstance {
   });
 }
 
-export function PayoutsPanel() {
+export function PayoutsPanel({ orders }: { orders: MyOrder[] | null }) {
   const { profile, refreshProfile } = useAuth();
   const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [mode, setMode] = useState<'onboarding' | 'payouts' | 'management' | null>(null);
@@ -39,17 +49,11 @@ export function PayoutsPanel() {
   const [error, setError] = useState<string | null>(null);
 
   const chargesEnabled = !!profile?.stripe_connect_charges_enabled;
+  const soldOrders = (orders ?? []).filter(
+    (o) => o.role === 'seller' && (o.status === 'paid' || o.status === 'refunded'),
+  );
 
-  // A seller with payouts already active goes straight to their balance —
-  // that's the thing they actually want to see, not a settings form.
-  useEffect(() => {
-    if (chargesEnabled && mode === null) {
-      setConnectInstance(getConnectInstance());
-      setMode('payouts');
-    }
-  }, [chargesEnabled, mode]);
-
-  function openEmbedded(nextMode: 'onboarding' | 'management') {
+  function openEmbedded(nextMode: 'onboarding' | 'payouts' | 'management') {
     setError(null);
     setConnectInstance(getConnectInstance());
     setMode(nextMode);
@@ -103,7 +107,7 @@ export function PayoutsPanel() {
               </p>
             </div>
           </div>
-          {chargesEnabled && mode === 'payouts' && (
+          {chargesEnabled && mode === null && (
             <button
               onClick={() => openEmbedded('management')}
               aria-label="Payout settings"
@@ -135,23 +139,80 @@ export function PayoutsPanel() {
                 <ConnectPayouts />
               )}
             </ConnectComponentsProvider>
-            {mode === 'management' && (
+            {mode !== 'onboarding' && (
               <button
-                onClick={() => setMode('payouts')}
+                onClick={() => {
+                  setMode(null);
+                  setConnectInstance(null);
+                }}
                 className="mt-4 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
               >
-                Back to balance
+                {chargesEnabled ? 'Back to sold items' : 'Back'}
               </button>
+            )}
+          </div>
+        ) : chargesEnabled ? (
+          <div className="mt-5">
+            <button
+              onClick={() => openEmbedded('payouts')}
+              className="flex items-center gap-2 rounded-full border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+            >
+              <Wallet size={15} /> View Stripe balance
+            </button>
+
+            <h3 className="mt-6 mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sold items</h3>
+            {soldOrders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-8 text-center text-sm text-[var(--color-ink-soft)]">
+                Nothing sold yet.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)]">
+                {soldOrders.map((o) => {
+                  const link = o.listingId ? `/listing/${o.listingId}` : o.bundleId ? `/club-gear/${o.bundleId}` : null;
+                  const payout = o.amount - o.platformFeeAmount;
+                  const row = (
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="min-w-0 flex-1">
+                        <ListingRefRow
+                          title={o.title}
+                          photos={o.photos}
+                          sport={o.sport}
+                          location={o.location}
+                          country={o.country}
+                        />
+                        <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
+                          {timeAgo(o.createdAt.slice(0, 10))} · to {o.counterpartyName}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-medium text-[var(--color-moss)]">
+                          {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
+                        </p>
+                        <Badge tone={o.status === 'refunded' ? 'neutral' : transferTone(o.transferStatus)}>
+                          {o.status === 'refunded' ? 'refunded' : o.transferStatus}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                  return link ? (
+                    <Link key={o.id} to={link} className="block hover:bg-[var(--color-paper)]">
+                      {row}
+                    </Link>
+                  ) : (
+                    <div key={o.id}>{row}</div>
+                  );
+                })}
+              </div>
             )}
           </div>
         ) : (
           <div className="mt-5 flex items-center gap-3">
             <button
-              onClick={() => openEmbedded(chargesEnabled ? 'management' : 'onboarding')}
+              onClick={() => openEmbedded('onboarding')}
               disabled={checking}
               className="flex items-center gap-2 rounded-full bg-[var(--color-ink)] px-4 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
             >
-              {chargesEnabled ? 'Update payout details' : 'Set up payouts with Stripe'}
+              Set up payouts with Stripe
             </button>
             <button
               onClick={checkStatus}

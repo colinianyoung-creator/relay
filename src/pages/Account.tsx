@@ -920,7 +920,7 @@ export function Account() {
           </div>
         )}
 
-        {tab === 'Payouts' && <PayoutsPanel />}
+        {tab === 'Payouts' && <PayoutsPanel orders={orders} />}
 
         {tab === 'Fit profile' && <FitProfileForm userId={user.id} />}
       </div>
