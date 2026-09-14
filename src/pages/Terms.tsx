@@ -82,11 +82,12 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         <p>
           Where a seller has completed payouts setup, buyers may pay in-app via Stripe Checkout.
-          Relay never sees or stores your card details. Relay holds the payment (minus its
-          commission) until the buyer confirms receipt of the item, or for up to 14 days after the
-          seller marks it shipped if the buyer doesn't respond, at which point it's transferred by
-          Stripe to the seller's own connected account. This hold exists to reduce the risk of a
-          buyer paying for an item that's never sent.
+          Relay never sees or stores your card details. Your payment is processed by Stripe and
+          held in Relay's own Stripe account (not the seller's, and not a separate escrow) until
+          the buyer confirms receipt of the item, or for up to 14 days after the seller marks it
+          shipped if the buyer doesn't respond, at which point Stripe transfers the payment (minus
+          Relay's commission) to the seller's own connected account. This hold exists to reduce the
+          risk of a buyer paying for an item that's never sent.
         </p>
         <p className="mt-3">
           Where in-app payment isn't available, or either party prefers it, buyers and sellers

@@ -98,7 +98,7 @@ export function PayoutsPanel() {
               <h2 className="text-lg">{chargesEnabled ? 'Payouts active' : 'Get paid through Relay'}</h2>
               <p className="text-sm text-[var(--color-ink-soft)]">
                 {chargesEnabled
-                  ? "Buyers can pay you directly through Relay — Relay holds the funds until the buyer confirms receipt (or 14 days after you mark an order shipped), then sends your payout to your bank account."
+                  ? "Buyers can pay you directly through Relay — Stripe holds the funds in Relay's own account until the buyer confirms receipt (or 14 days after you mark an order shipped), then sends your payout to your bank account."
                   : "Set this up once and buyers can pay you in-app, instead of arranging payment separately."}
               </p>
             </div>
@@ -116,9 +116,9 @@ export function PayoutsPanel() {
 
         {!chargesEnabled && (
           <p className="mt-4 text-xs text-[var(--color-ink-soft)]">
-            Payouts are handled by Stripe, not Relay — you'll verify your identity and bank details
-            right here. Relay takes a small commission on each sale; the rest is held by Relay until
-            the buyer confirms receipt (or automatically after 14 days), then transferred to you.
+            Payouts are handled by Stripe — you'll verify your identity and bank details right here.
+            Relay takes a small commission on each sale; the rest sits in Relay's own Stripe balance
+            until the buyer confirms receipt (or automatically after 14 days), then transfers to you.
           </p>
         )}
 
