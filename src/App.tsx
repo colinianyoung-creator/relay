@@ -19,7 +19,6 @@ import { FleetBoard } from '@/pages/FleetBoard';
 import { FleetDetail } from '@/pages/FleetDetail';
 import { CreateFleetBundle } from '@/pages/CreateFleetBundle';
 import { CreateFleetListing } from '@/pages/CreateFleetListing';
-import { FleetCheckoutConfirm } from '@/pages/FleetCheckoutConfirm';
 
 function App() {
   return (
@@ -33,7 +32,6 @@ function App() {
           <Route path="/sell/confirm" element={<ListingCheckoutConfirm />} />
           <Route path="/sell/fleet/new" element={<CreateFleetListing />} />
           <Route path="/sell/fleet/existing" element={<CreateFleetBundle />} />
-          <Route path="/sell/fleet/confirm" element={<FleetCheckoutConfirm />} />
           <Route path="/purchase/confirm" element={<PurchaseCheckoutConfirm />} />
           <Route path="/fleets" element={<FleetBoard />} />
           <Route path="/fleet/:id" element={<FleetDetail />} />
