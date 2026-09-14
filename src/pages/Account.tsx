@@ -10,7 +10,6 @@ import {
   Tag,
   Check,
   ChevronDown,
-  ExternalLink,
   Truck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -36,6 +35,7 @@ import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
 import { RefundPanel } from '@/components/RefundPanel';
+import { TransactionDetails } from '@/components/TransactionDetails';
 import { SavedSearches } from '@/components/SavedSearches';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
@@ -80,78 +80,6 @@ function RoleToggle({
 // Expanded, in-place detail for one order/offer row — clicking the listing
 // reference reveals this instead of leaving the tab for the listing page,
 // which may no longer even exist once an item has sold.
-function TransactionDetails({
-  id,
-  createdAt,
-  amount,
-  currency,
-  counterpartyName,
-  role,
-  statusLabel,
-  platformFeeAmount,
-  listingLink,
-  extra,
-}: {
-  id: string;
-  createdAt: string;
-  amount: number;
-  currency: MyOrder['currency'];
-  counterpartyName: string;
-  role: 'buyer' | 'seller';
-  statusLabel: string;
-  platformFeeAmount?: number;
-  listingLink?: string | null;
-  extra?: React.ReactNode;
-}) {
-  return (
-    <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl bg-[var(--color-paper)] p-4 text-xs text-[var(--color-ink-soft)] sm:grid-cols-3">
-      <div>
-        <p className="font-medium text-[var(--color-ink)]">Status</p>
-        <p>{statusLabel}</p>
-      </div>
-      <div>
-        <p className="font-medium text-[var(--color-ink)]">{role === 'buyer' ? 'Seller' : 'Buyer'}</p>
-        <p>{counterpartyName}</p>
-      </div>
-      <div>
-        <p className="font-medium text-[var(--color-ink)]">Date</p>
-        <p>{formatDateTime(createdAt)}</p>
-      </div>
-      <div>
-        <p className="font-medium text-[var(--color-ink)]">Amount</p>
-        <p>{formatPrice(amount, currency)}</p>
-      </div>
-      {platformFeeAmount !== undefined && role === 'seller' && (
-        <>
-          <div>
-            <p className="font-medium text-[var(--color-ink)]">Commission</p>
-            <p>−{formatPrice(platformFeeAmount, currency)}</p>
-          </div>
-          <div>
-            <p className="font-medium text-[var(--color-ink)]">Payout</p>
-            <p className="font-medium text-[var(--color-moss)]">
-              {formatPrice(amount - platformFeeAmount, currency)}
-            </p>
-          </div>
-        </>
-      )}
-      <div>
-        <p className="font-medium text-[var(--color-ink)]">Reference</p>
-        <p className="font-mono">{id.slice(0, 8)}</p>
-      </div>
-      {extra}
-      {listingLink && (
-        <Link
-          to={listingLink}
-          className="col-span-full inline-flex w-fit items-center gap-1 text-[var(--color-brand-dark)] hover:underline"
-        >
-          View listing <ExternalLink size={12} />
-        </Link>
-      )}
-    </div>
-  );
-}
-
 // A completed order — however it was paid for (Buy now, an accepted offer,
 // or a seller-sent invoice) — should always be reviewable. This is the one
 // place that covers all three, rather than only the direct-purchase
@@ -816,25 +744,22 @@ export function Account() {
 
         {tab === 'Orders' && (
           <div>
-            <RoleToggle value={viewRole} onChange={setViewRole} />
-
             {orders === null ? (
               <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-            ) : orders.filter((o) => o.role === viewRole && (o.status === 'paid' || o.status === 'refunded')).length === 0 ? (
+            ) : orders.filter((o) => o.role === 'buyer' && (o.status === 'paid' || o.status === 'refunded')).length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                {viewRole === 'buyer' ? 'Nothing bought yet.' : 'Nothing sold yet.'}
+                Nothing bought yet.
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
                 {orders
-                  .filter((o) => o.role === viewRole && (o.status === 'paid' || o.status === 'refunded'))
+                  .filter((o) => o.role === 'buyer' && (o.status === 'paid' || o.status === 'refunded'))
                   .map((inv) => {
                     const link = inv.listingId
                       ? `/listing/${inv.listingId}`
                       : inv.bundleId
                         ? `/club-gear/${inv.bundleId}`
                         : null;
-                    const payout = inv.amount - inv.platformFeeAmount;
                     const expanded = expandedId === inv.id;
                     return (
                       <div key={inv.id} className="p-4">
@@ -856,14 +781,6 @@ export function Account() {
                               location={inv.location}
                               country={inv.country}
                             />
-                            {viewRole === 'seller' && (
-                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
-                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
-                                <span className="font-medium text-[var(--color-moss)]">
-                                  {formatPrice(payout, inv.currency)} payout
-                                </span>
-                              </p>
-                            )}
                             <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
                               <Truck size={11} className="shrink-0" />
                               {inv.deliveryMethod
@@ -885,8 +802,7 @@ export function Account() {
                               )}
                             </p>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
-                              {timeAgo(inv.createdAt.slice(0, 10))}
+                              from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
                             </p>
                           </div>
                         </button>
@@ -897,17 +813,17 @@ export function Account() {
                             amount={inv.amount}
                             currency={inv.currency}
                             counterpartyName={inv.counterpartyName}
-                            role={viewRole}
+                            role="buyer"
                             statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
                             platformFeeAmount={inv.platformFeeAmount}
                             listingLink={link}
                             extra={
                               <>
-                                {viewRole === 'buyer' && inv.status === 'paid' && (
+                                {inv.status === 'paid' && (
                                   <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
                                 )}
                                 <DeliveryPanel order={inv} onChanged={refreshOrders} />
-                                <RefundPanel order={inv} viewRole={viewRole} onChanged={refreshOrders} />
+                                <RefundPanel order={inv} viewRole="buyer" onChanged={refreshOrders} />
                               </>
                             }
                           />
@@ -920,7 +836,7 @@ export function Account() {
           </div>
         )}
 
-        {tab === 'Payouts' && <PayoutsPanel orders={orders} />}
+        {tab === 'Payouts' && <PayoutsPanel orders={orders} onOrdersChanged={refreshOrders} />}
 
         {tab === 'Fit profile' && <FitProfileForm userId={user.id} />}
       </div>

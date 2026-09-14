@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
 import {
   ConnectComponentsProvider,
@@ -7,12 +6,15 @@ import {
   ConnectAccountManagement,
   ConnectPayouts,
 } from '@stripe/react-connect-js';
-import { BadgeCheck, CircleDollarSign, Loader2, Settings, Wallet } from 'lucide-react';
+import { BadgeCheck, ChevronDown, CircleDollarSign, Loader2, Settings, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { createConnectAccountSession, refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
 import { ListingRefRow } from '@/components/ListingRefRow';
+import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
+import { RefundPanel } from '@/components/RefundPanel';
+import { TransactionDetails } from '@/components/TransactionDetails';
 import { Badge } from '@/components/Badge';
-import { formatPrice, timeAgo } from '@/lib/format';
+import { formatPrice } from '@/lib/format';
 
 function transferTone(status: MyOrder['transferStatus']): 'brand' | 'moss' | 'neutral' {
   if (status === 'released') return 'moss';
@@ -41,12 +43,19 @@ function getConnectInstance(): StripeConnectInstance {
   });
 }
 
-export function PayoutsPanel({ orders }: { orders: MyOrder[] | null }) {
+export function PayoutsPanel({
+  orders,
+  onOrdersChanged,
+}: {
+  orders: MyOrder[] | null;
+  onOrdersChanged: () => void;
+}) {
   const { profile, refreshProfile } = useAuth();
   const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [mode, setMode] = useState<'onboarding' | 'payouts' | 'management' | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const chargesEnabled = !!profile?.stripe_connect_charges_enabled;
   const soldOrders = (orders ?? []).filter(
@@ -170,36 +179,67 @@ export function PayoutsPanel({ orders }: { orders: MyOrder[] | null }) {
                 {soldOrders.map((o) => {
                   const link = o.listingId ? `/listing/${o.listingId}` : o.bundleId ? `/club-gear/${o.bundleId}` : null;
                   const payout = o.amount - o.platformFeeAmount;
-                  const row = (
-                    <div className="flex items-center gap-4 p-4">
-                      <div className="min-w-0 flex-1">
-                        <ListingRefRow
-                          title={o.title}
-                          photos={o.photos}
-                          sport={o.sport}
-                          location={o.location}
-                          country={o.country}
+                  const expanded = expandedId === o.id;
+                  return (
+                    <div key={o.id} className="p-4">
+                      <button
+                        onClick={() => setExpandedId(expanded ? null : o.id)}
+                        className="flex w-full items-center gap-4 text-left"
+                      >
+                        <ChevronDown
+                          size={14}
+                          className={`shrink-0 text-[var(--color-ink-soft)] transition-transform ${
+                            expanded ? 'rotate-180' : ''
+                          }`}
                         />
-                        <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
-                          {timeAgo(o.createdAt.slice(0, 10))} · to {o.counterpartyName}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-medium text-[var(--color-moss)]">
-                          {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
-                        </p>
-                        <Badge tone={o.status === 'refunded' ? 'neutral' : transferTone(o.transferStatus)}>
-                          {o.status === 'refunded' ? 'refunded' : o.transferStatus}
-                        </Badge>
-                      </div>
+                        <div className="min-w-0 flex-1">
+                          <ListingRefRow
+                            title={o.title}
+                            photos={o.photos}
+                            sport={o.sport}
+                            location={o.location}
+                            country={o.country}
+                          />
+                          <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
+                            <Truck size={11} className="shrink-0" />
+                            {o.deliveryMethod
+                              ? `${METHOD_LABEL[o.deliveryMethod]}${o.trackingReference ? ` · ${o.trackingReference}` : ''}`
+                              : o.deliveryNotes
+                                ? o.deliveryNotes.length > 40
+                                  ? `${o.deliveryNotes.slice(0, 40)}…`
+                                  : o.deliveryNotes
+                                : 'Delivery not yet arranged'}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-medium text-[var(--color-moss)]">
+                            {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
+                          </p>
+                          <Badge tone={o.status === 'refunded' ? 'neutral' : transferTone(o.transferStatus)}>
+                            {o.status === 'refunded' ? 'refunded' : o.transferStatus}
+                          </Badge>
+                        </div>
+                      </button>
+                      {expanded && (
+                        <TransactionDetails
+                          id={o.id}
+                          createdAt={o.createdAt}
+                          amount={o.amount}
+                          currency={o.currency}
+                          counterpartyName={o.counterpartyName}
+                          role="seller"
+                          statusLabel={o.status === 'refunded' ? 'Refunded' : 'Paid'}
+                          platformFeeAmount={o.platformFeeAmount}
+                          listingLink={link}
+                          extra={
+                            <>
+                              <DeliveryPanel order={o} onChanged={onOrdersChanged} />
+                              <RefundPanel order={o} viewRole="seller" onChanged={onOrdersChanged} />
+                            </>
+                          }
+                        />
+                      )}
                     </div>
-                  );
-                  return link ? (
-                    <Link key={o.id} to={link} className="block hover:bg-[var(--color-paper)]">
-                      {row}
-                    </Link>
-                  ) : (
-                    <div key={o.id}>{row}</div>
                   );
                 })}
               </div>
