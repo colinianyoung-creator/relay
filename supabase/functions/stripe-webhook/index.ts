@@ -50,7 +50,7 @@ async function notifyMatchingSearches(
     for (const [userId, matched] of matchesByUser) {
       const items = matched
         .map((l) => {
-          const link = l.bundle_id ? `${SITE_URL}/fleet/${l.bundle_id}` : `${SITE_URL}/listing/${l.id}`;
+          const link = l.bundle_id ? `${SITE_URL}/club-gear/${l.bundle_id}` : `${SITE_URL}/listing/${l.id}`;
           return `<li><a href="${link}">${l.title}</a> — ${formatMoney(l.price ?? 0, l.currency)}, ${l.location}</li>`;
         })
         .join('');
@@ -112,7 +112,7 @@ async function sendOrderEmails(
       } else {
         itemLabel = `${order.bundle_listing_ids!.length} items`;
       }
-      buyerLink = order.bundle_id ? `${SITE_URL}/fleet/${order.bundle_id}` : `${SITE_URL}/account`;
+      buyerLink = order.bundle_id ? `${SITE_URL}/club-gear/${order.bundle_id}` : `${SITE_URL}/account`;
     } else {
       const { data: listing } = await supabase
         .from('listings')
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
             );
           }
 
-          // Only a /fleets-sourced order has a formal bundle to close out —
+          // Only a /club-gear-sourced order has a formal bundle to close out —
           // a one-off invoice not tied to a browsable bundle has none.
           if (order.bundle_id) {
             const { error: bundleStatusError } = await supabase

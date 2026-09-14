@@ -27,7 +27,7 @@ export function FleetBoard() {
             lot — buy bundles into a single checkout instead of sourcing kit one at a time.
           </p>
           <Link
-            to="/sell/fleet/new"
+            to="/sell/club-gear/new"
             className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
           >
             <Boxes size={16} /> List your gear

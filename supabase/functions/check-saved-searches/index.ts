@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     for (const [userId, matched] of matchesByUser) {
       const items = matched
         .map((l) => {
-          const link = l.bundle_id ? `${SITE_URL}/fleet/${l.bundle_id}` : `${SITE_URL}/listing/${l.id}`;
+          const link = l.bundle_id ? `${SITE_URL}/club-gear/${l.bundle_id}` : `${SITE_URL}/listing/${l.id}`;
           return `<li><a href="${link}">${l.title}</a> — ${formatMoney(l.price ?? 0, l.currency)}, ${l.location}</li>`;
         })
         .join('');

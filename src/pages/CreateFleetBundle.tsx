@@ -68,7 +68,7 @@ export function CreateFleetBundle() {
     setSubmitting(true);
     try {
       const bundleId = await createFleetBundle(user!.id, title, description, Array.from(selected));
-      navigate(`/fleet/${bundleId}`);
+      navigate(`/club-gear/${bundleId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
       setSubmitting(false);
@@ -91,7 +91,7 @@ export function CreateFleetBundle() {
       </p>
       <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
         Starting from scratch?{' '}
-        <Link to="/sell/fleet/new" className="text-[var(--color-brand)] underline">
+        <Link to="/sell/club-gear/new" className="text-[var(--color-brand)] underline">
           List a whole set of gear at once
         </Link>{' '}
         instead — no need to create each listing separately first.

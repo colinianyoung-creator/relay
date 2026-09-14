@@ -442,7 +442,7 @@ export function Account() {
             <div>
               <div className="mb-5 flex justify-end">
                 <Link
-                  to="/sell/fleet/new"
+                  to="/sell/club-gear/new"
                   className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                 >
                   <Boxes size={13} /> List club gear
@@ -508,7 +508,7 @@ export function Account() {
                           const link = inv.listingId
                             ? `/listing/${inv.listingId}`
                             : inv.bundleId
-                              ? `/fleet/${inv.bundleId}`
+                              ? `/club-gear/${inv.bundleId}`
                               : null;
                           return (
                             <div key={inv.id} className="p-4">
@@ -826,7 +826,7 @@ export function Account() {
                     const link = inv.listingId
                       ? `/listing/${inv.listingId}`
                       : inv.bundleId
-                        ? `/fleet/${inv.bundleId}`
+                        ? `/club-gear/${inv.bundleId}`
                         : null;
                     const payout = inv.amount - inv.platformFeeAmount;
                     const expanded = expandedId === inv.id;

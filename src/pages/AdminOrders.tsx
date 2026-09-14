@@ -203,7 +203,7 @@ export function AdminOrders() {
                         </Link>
                       ) : o.bundleId ? (
                         <Link
-                          to={`/fleet/${o.bundleId}`}
+                          to={`/club-gear/${o.bundleId}`}
                           className="text-sm font-medium hover:text-[var(--color-brand)]"
                         >
                           {o.listingTitle}

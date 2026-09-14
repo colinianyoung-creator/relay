@@ -120,7 +120,7 @@ export function CreateFleetListing() {
       </p>
       <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
         Already listed these separately?{' '}
-        <Link to="/sell/fleet/existing" className="text-[var(--color-brand)] underline">
+        <Link to="/sell/club-gear/existing" className="text-[var(--color-brand)] underline">
           Group existing listings instead
         </Link>
         .
@@ -174,7 +174,7 @@ export function CreateFleetListing() {
               itemInputs,
             );
 
-            navigate(`/fleet/${bundleId}`);
+            navigate(`/club-gear/${bundleId}`);
           } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Something went wrong.');
             setSubmitting(false);

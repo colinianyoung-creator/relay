@@ -14,7 +14,7 @@ export function BundleCard({ bundle }: { bundle: FleetBundle }) {
 
   return (
     <Link
-      to={`/fleet/${bundle.id}`}
+      to={`/club-gear/${bundle.id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-12px_rgba(27,26,23,0.18)]"
     >
       <div className="relative">

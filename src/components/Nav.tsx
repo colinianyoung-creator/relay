@@ -24,7 +24,7 @@ export function Nav() {
           <NavLink to="/" end className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
             Browse
           </NavLink>
-          <NavLink to="/fleets" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
+          <NavLink to="/club-gear" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
             Club Gear
           </NavLink>
           <NavLink to="/how-it-works" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>

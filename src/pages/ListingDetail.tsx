@@ -438,7 +438,7 @@ export function ListingDetail() {
                 {isFleetOnly ? (
                   <>
                     Only sold as part of its club gear lot —{' '}
-                    <Link to={`/fleet/${listing.bundleId}`} className="underline">
+                    <Link to={`/club-gear/${listing.bundleId}`} className="underline">
                       view the lot
                     </Link>
                     .
