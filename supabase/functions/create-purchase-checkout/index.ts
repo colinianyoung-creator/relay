@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     const { data: listing, error: listingError } = await supabase
       .from('listings')
-      .select('id, seller_id, title, price, currency, fee_status, sold_at')
+      .select('id, seller_id, title, price, currency, fee_status, sold_at, bundle_id, sellable_individually')
       .eq('id', listingId)
       .single();
     if (listingError || !listing) {
@@ -75,6 +75,17 @@ Deno.serve(async (req) => {
         status: 409,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    // Mirrors ListingDetail.tsx's isFleetOnly check — a fleet item not
+    // marked sellable individually can only be bought as part of its bundle
+    // (via a custom invoice), never on its own. The UI already hides Buy
+    // Now for these; this is the server-side backstop a direct API call
+    // could otherwise bypass.
+    if (listing.bundle_id && listing.sellable_individually === false) {
+      return new Response(
+        JSON.stringify({ error: 'This item is only sold as part of its club gear lot.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
     if (listing.fee_status === 'pending') {
       return new Response(JSON.stringify({ error: 'This listing is not published yet' }), {
