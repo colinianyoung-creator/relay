@@ -7,6 +7,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { SITE_URL } from '../_shared/email.ts';
+
+// Stripe's "Sporting Goods Stores" MCC — every seller on Relay sells the
+// same kind of thing, so there's no reason to make each one pick this
+// themselves during onboarding.
+const SPORTING_GOODS_MCC = '5941';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,6 +61,20 @@ Deno.serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
+    // Every Relay seller sells the same kind of thing (secondhand adaptive
+    // sports kit) and, for most, has no business website of their own — set
+    // this once here rather than making Stripe ask each seller to fill in
+    // an "Edit professional details" step (industry / website / product
+    // description) during onboarding. This is Stripe's card-network risk
+    // classification (MCC), unrelated to VAT/tax status — every Connect
+    // account needs it, individual or not, but it doesn't need to come from
+    // the seller when the platform already knows the answer.
+    const businessProfile = {
+      mcc: SPORTING_GOODS_MCC,
+      url: `${SITE_URL}/seller/${user.id}`,
+      product_description: 'Secondhand adaptive sports equipment, sold peer-to-peer via Relay.',
+    };
+
     let accountId = profile.stripe_connect_account_id as string | null;
     if (!accountId) {
       const account = await stripe.accounts.create({
@@ -68,6 +88,7 @@ Deno.serve(async (req) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
+        business_profile: businessProfile,
         metadata: {
           platform: 'relay',
           seller_type: 'p2p_individual',
@@ -78,6 +99,10 @@ Deno.serve(async (req) => {
         .from('profiles')
         .update({ stripe_connect_account_id: accountId })
         .eq('id', user.id);
+    } else {
+      // Backfill for accounts created before this field was set — keeps
+      // existing sellers from hitting the same "professional details" step.
+      await stripe.accounts.update(accountId, { business_profile: businessProfile });
     }
 
     const accountSession = await stripe.accountSessions.create({
