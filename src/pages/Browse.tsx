@@ -73,14 +73,16 @@ export function Browse() {
     fetchFitProfile(user.id).then(setFitProfile);
   }, [user]);
 
-  // Demo listings are there to keep Browse from looking empty before real
-  // sellers show up — once at least one real listing exists, they're no
-  // longer needed and would just look like clutter mixed in with genuine,
-  // buyable items.
-  const listings = useMemo(
-    () => (realListings.length > 0 ? realListings : demoListings),
-    [realListings],
-  );
+  // Demo listings top up the grid to a full row while real supply is still
+  // thin, tapering off as real listings arrive — an instant all-or-nothing
+  // swap would go from a full demo grid to a couple of lonely real cards.
+  // "newest" sort naturally puts real listings first (their postedAt is
+  // always more recent than the demo array's fixed dates).
+  const DEMO_FILL_TARGET = 9;
+  const listings = useMemo(() => {
+    if (realListings.length >= DEMO_FILL_TARGET) return realListings;
+    return [...realListings, ...demoListings.slice(0, DEMO_FILL_TARGET - realListings.length)];
+  }, [realListings]);
   const entries = useMemo<BrowseEntry[]>(
     () => [
       ...listings.map((listing): BrowseEntry => ({ kind: 'listing', date: listing.postedAt, listing })),
@@ -399,12 +401,25 @@ export function Browse() {
             Nothing matches those filters yet — try widening your search.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={
+              filtered.length <= 2
+                ? 'mx-auto grid max-w-xl grid-cols-1 gap-5 sm:max-w-2xl sm:grid-cols-2'
+                : filtered.length <= 6
+                  ? 'mx-auto grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+                  : 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+            }
+          >
             {filtered.map((entry) =>
               entry.kind === 'bundle' ? (
                 <BundleCard key={entry.bundle.id} bundle={entry.bundle} />
               ) : (
-                <ListingCard key={entry.listing.id} listing={entry.listing} fitProfile={activeFitProfile} />
+                <ListingCard
+                  key={entry.listing.id}
+                  listing={entry.listing}
+                  fitProfile={activeFitProfile}
+                  isDemo={demoListings.some((l) => l.id === entry.listing.id)}
+                />
               ),
             )}
           </div>
