@@ -8,8 +8,7 @@ export function LegalDraftNotice() {
       <p>
         <strong>Draft, not legal advice.</strong> This page reflects how Relay actually works
         today, but hasn't been reviewed by a lawyer. Have qualified counsel check it — especially
-        the VAT/marketplace-facilitator and consumer-rights sections — before relying on it
-        commercially.
+        the consumer-rights sections — before relying on it commercially.
       </p>
     </div>
   );
