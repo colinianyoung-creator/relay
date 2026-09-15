@@ -75,10 +75,10 @@ export function Nav() {
           ) : (
             <button
               onClick={() => setShowAuth(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-line)] text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-              aria-label="Sign in"
+              className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
             >
-              <CircleUserRound size={20} />
+              <CircleUserRound size={16} />
+              Sign in
             </button>
           )}
         </div>
