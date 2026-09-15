@@ -331,6 +331,19 @@ export async function createPurchaseCheckout(
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
+// Checked before any photo (listing or avatar) reaches Storage — rejects
+// images flagged as containing a minor. Throws with a generic, non-accusatory
+// message so callers can surface it exactly like any other upload error.
+async function moderatePhoto(file: File): Promise<void> {
+  const body = new FormData();
+  body.set('file', file);
+  const { data, error } = await supabase.functions.invoke('moderate-photo', { body });
+  if (error) throw error;
+  if (data?.allowed === false) {
+    throw new Error("This photo doesn't meet our content guidelines. Please choose a different image.");
+  }
+}
+
 export async function uploadListingPhoto(userId: string, file: File): Promise<string> {
   if (!file.type.startsWith('image/')) {
     throw new Error('Only image files can be uploaded.');
@@ -338,6 +351,7 @@ export async function uploadListingPhoto(userId: string, file: File): Promise<st
   if (file.size > MAX_PHOTO_BYTES) {
     throw new Error('Photos must be under 8MB.');
   }
+  await moderatePhoto(file);
   const ext = file.name.split('.').pop() ?? 'jpg';
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from('listing-photos').upload(path, file, {
@@ -367,6 +381,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   if (file.size > MAX_AVATAR_BYTES) {
     throw new Error('Profile pictures must be under 5MB.');
   }
+  await moderatePhoto(file);
   const ext = file.name.split('.').pop() ?? 'jpg';
   const path = `${userId}/avatar.${ext}`;
   const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
