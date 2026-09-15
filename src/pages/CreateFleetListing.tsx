@@ -11,6 +11,7 @@ import {
 import { CURRENCIES, CATEGORY_LABEL, SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
+import { PayoutsGate } from '@/components/PayoutsGate';
 import { formatPrice } from '@/lib/format';
 import type { Currency } from '@/types';
 
@@ -37,9 +38,10 @@ function newItem(): ItemDraft {
 }
 
 export function CreateFleetListing() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
+  const [showPayoutsGate, setShowPayoutsGate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -107,6 +109,64 @@ export function CreateFleetListing() {
     );
   }
 
+  async function publishFleetListing(opts?: { skipPayoutsCheck?: boolean }) {
+    setSubmitError(null);
+
+    if (items.length < 2) {
+      setSubmitError('A gear lot needs at least 2 items.');
+      return;
+    }
+    for (const it of items) {
+      if (!it.title.trim() || !(Number(it.price) > 0)) {
+        setSubmitError('Every item needs a title and a price greater than 0.');
+        return;
+      }
+    }
+
+    if (!opts?.skipPayoutsCheck && !profile?.stripe_connect_charges_enabled) {
+      setShowPayoutsGate(true);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const photoUrls: string[] = [];
+      for (const file of photoFiles) {
+        photoUrls.push(await uploadListingPhoto(user!.id, file));
+      }
+
+      const itemInputs: FleetItemInput[] = items.map((it) => ({
+        title: it.title,
+        condition: it.condition,
+        price: Number(it.price),
+        sellableIndividually: it.sellableIndividually,
+        seatWidthCm: it.seatWidthCm ? Number(it.seatWidthCm) : null,
+        seatDepthCm: it.seatDepthCm ? Number(it.seatDepthCm) : null,
+      }));
+
+      const bundleId = await createFleetListing(
+        user!.id,
+        {
+          title,
+          description,
+          sport,
+          category: CATEGORY_LABEL[sport],
+          currency,
+          location,
+          country,
+          shipsInternationally,
+          photos: photoUrls,
+        },
+        itemInputs,
+      );
+
+      navigate(`/club-gear/${bundleId}`);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Something went wrong.');
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center gap-2">
@@ -126,59 +186,20 @@ export function CreateFleetListing() {
         .
       </p>
 
+      {showPayoutsGate ? (
+        <div className="mt-8">
+          <PayoutsGate
+            onDone={(enabled) => {
+              setShowPayoutsGate(false);
+              if (enabled) publishFleetListing({ skipPayoutsCheck: true });
+            }}
+          />
+        </div>
+      ) : (
       <form
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
-          setSubmitError(null);
-
-          if (items.length < 2) {
-            setSubmitError('A gear lot needs at least 2 items.');
-            return;
-          }
-          for (const it of items) {
-            if (!it.title.trim() || !(Number(it.price) > 0)) {
-              setSubmitError('Every item needs a title and a price greater than 0.');
-              return;
-            }
-          }
-
-          setSubmitting(true);
-          try {
-            const photoUrls: string[] = [];
-            for (const file of photoFiles) {
-              photoUrls.push(await uploadListingPhoto(user.id, file));
-            }
-
-            const itemInputs: FleetItemInput[] = items.map((it) => ({
-              title: it.title,
-              condition: it.condition,
-              price: Number(it.price),
-              sellableIndividually: it.sellableIndividually,
-              seatWidthCm: it.seatWidthCm ? Number(it.seatWidthCm) : null,
-              seatDepthCm: it.seatDepthCm ? Number(it.seatDepthCm) : null,
-            }));
-
-            const bundleId = await createFleetListing(
-              user.id,
-              {
-                title,
-                description,
-                sport,
-                category: CATEGORY_LABEL[sport],
-                currency,
-                location,
-                country,
-                shipsInternationally,
-                photos: photoUrls,
-              },
-              itemInputs,
-            );
-
-            navigate(`/club-gear/${bundleId}`);
-          } catch (err) {
-            setSubmitError(err instanceof Error ? err.message : 'Something went wrong.');
-            setSubmitting(false);
-          }
+          publishFleetListing();
         }}
         className="mt-8 space-y-8"
       >
@@ -458,6 +479,7 @@ export function CreateFleetListing() {
           Publish gear lot
         </button>
       </form>
+      )}
     </div>
   );
 }

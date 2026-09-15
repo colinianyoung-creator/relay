@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
+import type { StripeConnectInstance } from '@stripe/connect-js';
 import {
   ConnectComponentsProvider,
   ConnectAccountOnboarding,
@@ -8,7 +8,8 @@ import {
 } from '@stripe/react-connect-js';
 import { BadgeCheck, ChevronDown, CircleDollarSign, Loader2, Settings, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { createConnectAccountSession, refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
+import { refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
+import { getConnectInstance } from '@/lib/stripeConnect';
 import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { RefundPanel } from '@/components/RefundPanel';
@@ -20,27 +21,6 @@ function transferTone(status: MyOrder['transferStatus']): 'brand' | 'moss' | 'ne
   if (status === 'released') return 'moss';
   if (status === 'pending') return 'brand';
   return 'neutral';
-}
-
-// Embedded rather than a redirect to a Stripe-hosted page — the seller never
-// leaves Relay, and the UI is themed to match via the appearance option
-// below, mirroring src/index.css's own tokens.
-function getConnectInstance(): StripeConnectInstance {
-  return loadConnectAndInitialize({
-    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string,
-    fetchClientSecret: createConnectAccountSession,
-    appearance: {
-      variables: {
-        colorPrimary: '#ff4d2e',
-        colorText: '#12131a',
-        colorBackground: '#ffffff',
-        fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',
-        borderRadius: '12px',
-        buttonPrimaryColorBackground: '#12131a',
-        buttonPrimaryColorText: '#ffffff',
-      },
-    },
-  });
 }
 
 export function PayoutsPanel({
