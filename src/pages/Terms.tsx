@@ -43,7 +43,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         <p>
           Sellers must describe items accurately, including condition, dimensions, and any
           damage or safety-relevant defects. Photos should be of the actual item where
-          reasonably possible. Relay may remove a listing, or ask a seller to amend it, at any
+          reasonably possible, and must not contain any people, including children — photos are
+          checked automatically at upload and a photo that appears to show a minor will be
+          rejected. Relay may remove a listing, or ask a seller to amend it, at any
           time — including in response to a safety report — without that being an admission the
           listing was actually unlawful or unsafe.
         </p>
