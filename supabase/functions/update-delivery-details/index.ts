@@ -3,6 +3,7 @@
 // involved; see request-shipping-quote for the nudge that leads here.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { notifyUser } from '../_shared/notify.ts';
 
 const METHODS = ['collection', 'courier', 'freight'];
 
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, status')
+      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids')
       .eq('id', orderId)
       .single();
     if (orderError || !order) {
@@ -143,6 +144,21 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Only the first time shipped_at is actually set — not on every edit to
+    // an already-shipped order's tracking details.
+    if (update.shipped_at) {
+      const listingIds = order.listing_id ? [order.listing_id] : (order.bundle_listing_ids ?? []);
+      const { data: listings } = await supabase.from('listings').select('title').in('id', listingIds);
+      const itemNote =
+        listings && listings.length === 1 ? listings[0].title : `${listings?.length ?? 0} items`;
+      await notifyUser(
+        supabase,
+        order.buyer_id,
+        'Your order has shipped',
+        `<p>${itemNote} — the seller has marked your order as shipped. Check the order's Delivery section for tracking details.</p>`,
+      );
     }
 
     return new Response(JSON.stringify({ ok: true }), {
