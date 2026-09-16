@@ -1,9 +1,10 @@
-// Buyer-only: redeems a handover token scanned from the seller's QR code at
-// local collection, releasing the held transfer immediately — the
-// collection equivalent of confirm-receipt, just triggered by a scan
-// instead of a plain button tap. The token is single-use: it's cleared as
-// soon as it's redeemed, so a second submission (or someone else who saw
-// the code) can't replay it.
+// Buyer-only: redeems a handover token scanned from the seller's QR code —
+// shown on screen at local collection, or printed on the parcel for
+// courier/freight — releasing the held transfer immediately. The scan-based
+// equivalent of confirm-receipt, just triggered by a scan instead of a plain
+// button tap. The token is single-use: it's cleared as soon as it's
+// redeemed, so a second submission (or someone else who saw the code) can't
+// replay it.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';

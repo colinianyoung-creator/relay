@@ -1,11 +1,19 @@
-// Seller-only: generates a short-lived opaque token for a local-collection
-// order, which the frontend renders as a QR code for the buyer to scan at
-// handover (see confirm-handover). Regenerating overwrites — and so
-// invalidates — any previous token for this order.
+// Seller-only: generates an opaque token for an order, which the frontend
+// renders as a QR code for the buyer to scan (see confirm-handover) — shown
+// on screen at in-person collection, or printed and attached to the parcel
+// for courier/freight. Regenerating overwrites — and so invalidates — any
+// previous token for this order.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const TOKEN_TTL_MS = 15 * 60 * 1000;
+// Collection is scanned in the same moment it's shown, so a short window is
+// fine. A courier/freight code is printed onto the parcel and may not be
+// scanned for days, so it needs to span a realistic delivery window.
+const TOKEN_TTL_MS: Record<string, number> = {
+  collection: 15 * 60 * 1000,
+  courier: 30 * 24 * 60 * 60 * 1000,
+  freight: 30 * 24 * 60 * 60 * 1000,
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -74,20 +82,15 @@ Deno.serve(async (req) => {
       .select('method')
       .eq('order_id', orderId)
       .maybeSingle();
-    if (delivery?.method && delivery.method !== 'collection') {
-      return new Response(
-        JSON.stringify({ error: 'A handover code is only for local-collection orders.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
+    const method = delivery?.method ?? 'courier';
 
     const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
-    const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
+    const expiresAt = new Date(Date.now() + (TOKEN_TTL_MS[method] ?? TOKEN_TTL_MS.courier)).toISOString();
 
     const { error: upsertError } = await supabase.from('order_deliveries').upsert(
       {
         order_id: orderId,
-        method: 'collection',
+        method,
         handover_token: token,
         handover_token_expires_at: expiresAt,
         updated_at: new Date().toISOString(),

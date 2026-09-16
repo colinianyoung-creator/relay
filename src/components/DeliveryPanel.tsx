@@ -228,6 +228,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   }
 
   const hasArranged = Boolean(order.deliveryMethod || order.trackingReference || order.trackingUrl);
+  const isCollection = order.deliveryMethod === 'collection' || !order.deliveryMethod;
 
   return (
     <div className="col-span-full border-t border-[var(--color-line)] pt-3">
@@ -344,28 +345,28 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 Confirm receipt
               </button>
             )}
-            {order.role === 'seller' &&
-              (order.deliveryMethod === 'collection' || !order.deliveryMethod) &&
-              order.transferStatus === 'pending' && (
-                <button
-                  onClick={handleGenerateHandoverCode}
-                  disabled={busy}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
-                >
-                  {busy ? <Loader2 size={12} className="animate-spin" /> : <QrCode size={12} />}
-                  {handoverQr ? 'Regenerate handover code' : 'Generate handover QR code'}
-                </button>
-              )}
-            {order.role === 'buyer' &&
-              (order.deliveryMethod === 'collection' || !order.deliveryMethod) &&
-              order.transferStatus === 'pending' && (
-                <button
-                  onClick={() => scanInputRef.current?.click()}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-                >
-                  <Camera size={12} /> Scan to accept item
-                </button>
-              )}
+            {order.role === 'seller' && order.transferStatus === 'pending' && (
+              <button
+                onClick={handleGenerateHandoverCode}
+                disabled={busy}
+                className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+              >
+                {busy ? <Loader2 size={12} className="animate-spin" /> : <QrCode size={12} />}
+                {handoverQr
+                  ? 'Regenerate handover code'
+                  : isCollection
+                    ? 'Generate handover QR code'
+                    : 'Generate QR to print on parcel'}
+              </button>
+            )}
+            {order.role === 'buyer' && order.transferStatus === 'pending' && (
+              <button
+                onClick={() => scanInputRef.current?.click()}
+                className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+              >
+                <Camera size={12} /> {isCollection ? 'Scan to accept item' : 'Scan the QR on your parcel'}
+              </button>
+            )}
             <input
               ref={scanInputRef}
               type="file"
@@ -386,7 +387,10 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
             <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
               <img src={handoverQr.dataUrl} alt="Handover QR code" className="mx-auto h-40 w-40" />
               <p className="mt-2 text-center text-[var(--color-ink-soft)]">
-                Show this to the buyer at handover. Expires {formatDateTime(handoverQr.expiresAt)}.
+                {isCollection
+                  ? 'Show this to the buyer at handover.'
+                  : 'Print this and stick it on the parcel before you send it — the buyer scans it when it arrives.'}{' '}
+                Expires {formatDateTime(handoverQr.expiresAt)}.
               </p>
             </div>
           )}
