@@ -19,6 +19,7 @@ import {
   fetchMessageThreads,
   fetchMyOrders,
   payCustomOrder,
+  fetchOrderDeliveryOptions,
   cancelCustomOrder,
   fetchMyOffers,
   acceptOffer,
@@ -36,6 +37,7 @@ import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
 import { RefundPanel } from '@/components/RefundPanel';
 import { TransactionDetails } from '@/components/TransactionDetails';
+import { PurchaseReviewModal } from '@/components/PurchaseReviewModal';
 import { SavedSearches } from '@/components/SavedSearches';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
@@ -157,20 +159,24 @@ export function Account() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [payReview, setPayReview] = useState<{
+    invoice: MyOrder;
+    deliveryMethods: ('collection' | 'courier' | 'freight')[];
+  } | null>(null);
 
   function refreshOrders() {
     if (user) fetchMyOrders(user.id).then(setOrders);
   }
 
-  async function handlePayInvoice(invoiceId: string) {
+  async function handlePayInvoice(invoice: MyOrder) {
     setInvoiceError(null);
-    setInvoiceBusyId(invoiceId);
+    setInvoiceBusyId(invoice.id);
     try {
-      const origin = window.location.origin;
-      const url = await payCustomOrder(invoiceId, `${origin}/account?tab=orders`, `${origin}/account?tab=orders`);
-      window.location.href = url;
+      const deliveryMethods = await fetchOrderDeliveryOptions(invoice.id);
+      setPayReview({ invoice, deliveryMethods });
     } catch (err) {
       setInvoiceError(err instanceof Error ? err.message : 'Something went wrong starting payment.');
+    } finally {
       setInvoiceBusyId(null);
     }
   }
@@ -477,7 +483,7 @@ export function Account() {
                                 {viewRole === 'buyer' ? (
                                   <div className="flex shrink-0 gap-2">
                                     <button
-                                      onClick={() => handlePayInvoice(inv.id)}
+                                      onClick={() => handlePayInvoice(inv)}
                                       disabled={invoiceBusyId === inv.id}
                                       className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
                                     >
@@ -864,6 +870,27 @@ export function Account() {
 
         {tab === 'Fit profile' && <FitProfileForm userId={user.id} />}
       </div>
+
+      {payReview && (
+        <PurchaseReviewModal
+          title={payReview.invoice.title}
+          price={payReview.invoice.amount}
+          currency={payReview.invoice.currency}
+          sellerName={payReview.invoice.counterpartyName}
+          deliveryMethods={payReview.deliveryMethods}
+          onConfirm={(method, shippingAddress) => {
+            const origin = window.location.origin;
+            return payCustomOrder(
+              payReview.invoice.id,
+              method,
+              shippingAddress,
+              `${origin}/account?tab=orders`,
+              `${origin}/account?tab=orders`,
+            );
+          }}
+          onClose={() => setPayReview(null)}
+        />
+      )}
     </div>
   );
 }

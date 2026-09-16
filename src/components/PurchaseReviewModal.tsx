@@ -2,35 +2,38 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import { COUNTRIES } from '@/types';
-import { createPurchaseCheckout, type CheckoutShippingAddress } from '@/lib/supabaseData';
+import type { CheckoutShippingAddress } from '@/lib/supabaseData';
 import { METHOD_LABEL } from '@/components/DeliveryPanel';
 import { formatPrice } from '@/lib/format';
 import type { Currency } from '@/types';
 
 type DeliveryMethod = 'collection' | 'courier' | 'freight';
 
-// Shown before Stripe Checkout for a direct Buy Now purchase — until now
-// delivery method was never chosen by the buyer at all (only set by the
-// seller after the sale), and address only got collected inside Stripe's
-// own generic page. This captures both in Relay's own UI first.
+// Shown before Stripe Checkout for any direct purchase — Buy Now
+// (create-purchase-checkout) or paying an accepted offer/custom invoice
+// (pay-custom-order). Delivery method used to be chosen by neither buyer nor
+// this step at all (only ever set by the seller after the sale), and
+// address only got collected inside Stripe's own generic page. This
+// captures both in Relay's own UI first; the caller supplies `onConfirm`
+// so this component doesn't need to know which of the two flows it's in.
 export function PurchaseReviewModal({
-  listingId,
-  listingTitle,
-  listingPrice,
+  title,
+  price,
   currency,
   sellerName,
   deliveryMethods,
+  onConfirm,
   onClose,
 }: {
-  listingId: string;
-  listingTitle: string;
-  listingPrice: number;
+  title: string;
+  price: number;
   currency: Currency;
   sellerName: string;
   deliveryMethods: DeliveryMethod[];
+  onConfirm: (method: DeliveryMethod, shippingAddress: CheckoutShippingAddress | null) => Promise<string>;
   onClose: () => void;
 }) {
-  const [method, setMethod] = useState<DeliveryMethod>(deliveryMethods[0]);
+  const [method, setMethod] = useState<DeliveryMethod | null>(deliveryMethods[0] ?? null);
   const [line1, setLine1] = useState('');
   const [line2, setLine2] = useState('');
   const [city, setCity] = useState('');
@@ -40,11 +43,12 @@ export function PurchaseReviewModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const needsAddress = method !== 'collection';
+  const needsAddress = method !== null && method !== 'collection';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!method) return;
     if (needsAddress && (!line1.trim() || !city.trim() || !postalCode.trim())) {
       setError('Fill in an address so the seller knows where to send it.');
       return;
@@ -61,14 +65,7 @@ export function PurchaseReviewModal({
             country,
           }
         : null;
-      const origin = window.location.origin;
-      const url = await createPurchaseCheckout(
-        listingId,
-        method,
-        shippingAddress,
-        `${origin}/purchase/confirm?listing_id=${listingId}`,
-        `${origin}/listing/${listingId}`,
-      );
+      const url = await onConfirm(method, shippingAddress);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong starting checkout.');
@@ -92,13 +89,18 @@ export function PurchaseReviewModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex items-center justify-between rounded-xl bg-[var(--color-paper)] p-3 text-sm">
-            <span className="text-[var(--color-ink-soft)]">{listingTitle}</span>
-            <span className="font-medium">{formatPrice(listingPrice, currency)}</span>
+            <span className="text-[var(--color-ink-soft)]">{title}</span>
+            <span className="font-medium">{formatPrice(price, currency)}</span>
           </div>
 
           <div>
             <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Delivery</label>
-            {deliveryMethods.length === 1 ? (
+            {deliveryMethods.length === 0 ? (
+              <p className="rounded-xl border border-[var(--color-brand)] bg-[var(--color-brand-soft)] px-3.5 py-2 text-sm text-[var(--color-brand-dark)]">
+                These items don't share a common delivery method — message {sellerName.split(' ')[0]} to
+                sort out delivery before paying.
+              </p>
+            ) : deliveryMethods.length === 1 ? (
               <p className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm">
                 {METHOD_LABEL[deliveryMethods[0]]}
               </p>
@@ -187,7 +189,7 @@ export function PurchaseReviewModal({
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !method}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}

@@ -9,6 +9,7 @@ import {
   hasMessaged,
   sendMessage,
   fetchFitProfile,
+  createPurchaseCheckout,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasFitSignal, hasAnyProfileData } from '@/lib/fitMatch';
@@ -471,12 +472,21 @@ export function ListingDetail() {
       )}
       {showPurchaseReview && listing.price !== null && (
         <PurchaseReviewModal
-          listingId={listing.id}
-          listingTitle={listing.title}
-          listingPrice={listing.price}
+          title={listing.title}
+          price={listing.price}
           currency={listing.currency}
           sellerName={listing.seller.name}
           deliveryMethods={listing.deliveryMethods?.length ? listing.deliveryMethods : ['courier']}
+          onConfirm={(method, shippingAddress) => {
+            const origin = window.location.origin;
+            return createPurchaseCheckout(
+              listing!.id,
+              method,
+              shippingAddress,
+              `${origin}/purchase/confirm?listing_id=${listing!.id}`,
+              `${origin}/listing/${listing!.id}`,
+            );
+          }}
           onClose={() => setShowPurchaseReview(false)}
         />
       )}

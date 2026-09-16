@@ -1232,15 +1232,56 @@ export async function createCustomOrder(
 
 export async function payCustomOrder(
   orderId: string,
+  deliveryMethod: 'collection' | 'courier' | 'freight',
+  shippingAddress: CheckoutShippingAddress | null,
   successUrl: string,
   cancelUrl: string,
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('pay-custom-order', {
-    body: { orderId, successUrl, cancelUrl },
+    body: { orderId, deliveryMethod, shippingAddress, successUrl, cancelUrl },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data?.error) throw new Error(data.error);
   return data.url as string;
+}
+
+const ALL_DELIVERY_METHODS: ('collection' | 'courier' | 'freight')[] = ['collection', 'courier', 'freight'];
+
+// A pay-custom-order order (accepted offer or seller-sent invoice) can cover
+// more than one listing (club gear). The buyer's delivery choice has to be
+// something every listing on the order actually supports — the
+// intersection, not any single listing's own methods. Returns [] if the
+// listings genuinely share nothing in common.
+export async function fetchOrderDeliveryOptions(
+  orderId: string,
+): Promise<('collection' | 'courier' | 'freight')[]> {
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('listing_id, bundle_listing_ids')
+    .eq('id', orderId)
+    .single();
+  if (orderError || !order) throw orderError ?? new Error('Order not found');
+
+  const listingIds: string[] = order.listing_id ? [order.listing_id] : (order.bundle_listing_ids ?? []);
+  if (listingIds.length === 0) return ALL_DELIVERY_METHODS;
+
+  const { data: listings, error: listingsError } = await supabase
+    .from('listings')
+    .select('delivery_methods')
+    .in('id', listingIds);
+  if (listingsError) throw listingsError;
+
+  return (listings ?? []).reduce<('collection' | 'courier' | 'freight')[]>((acc, l) => {
+    const methods = l.delivery_methods?.length ? l.delivery_methods : ['courier'];
+    return acc.filter((m) => methods.includes(m));
+  }, ALL_DELIVERY_METHODS);
 }
 
 export async function cancelCustomOrder(orderId: string): Promise<void> {

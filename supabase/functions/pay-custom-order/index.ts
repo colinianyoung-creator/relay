@@ -37,12 +37,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { orderId, successUrl, cancelUrl } = await req.json();
-    if (!orderId || !successUrl || !cancelUrl) {
-      return new Response(JSON.stringify({ error: 'Missing orderId, successUrl or cancelUrl' }), {
+    const { orderId, deliveryMethod, shippingAddress, successUrl, cancelUrl } = await req.json();
+    if (!orderId || !deliveryMethod || !successUrl || !cancelUrl) {
+      return new Response(
+        JSON.stringify({ error: 'Missing orderId, deliveryMethod, successUrl or cancelUrl' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    if (!['collection', 'courier', 'freight'].includes(deliveryMethod)) {
+      return new Response(JSON.stringify({ error: 'Invalid delivery method' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    if (deliveryMethod !== 'collection') {
+      if (!shippingAddress?.line1 || !shippingAddress?.city || !shippingAddress?.postal_code || !shippingAddress?.country) {
+        return new Response(JSON.stringify({ error: 'A full shipping address is required for this delivery method.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const { data: order, error: orderError } = await supabase
@@ -79,7 +93,7 @@ Deno.serve(async (req) => {
     // being sent and the buyer getting round to paying it.
     const { data: listings, error: listingsError } = await supabase
       .from('listings')
-      .select('id, title, sold_at')
+      .select('id, title, sold_at, delivery_methods')
       .in('id', order.bundle_listing_ids ?? []);
     if (listingsError || !listings || listings.length === 0) {
       return new Response(JSON.stringify({ error: 'The listings on this invoice could not be found' }), {
@@ -90,6 +104,21 @@ Deno.serve(async (req) => {
     if (listings.some((l) => l.sold_at)) {
       return new Response(
         JSON.stringify({ error: 'One or more items on this invoice has already sold — ask the seller for an updated invoice.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    // The buyer's choice has to be something every listing on this order
+    // actually supports — the intersection, not any single listing's own
+    // methods (an order can cover more than one listing for a club-gear
+    // invoice). A listing with no methods set defaults to courier, same
+    // fallback used everywhere else this applies.
+    const supportedMethods = listings.reduce(
+      (acc: string[], l) => acc.filter((m) => (l.delivery_methods?.length ? l.delivery_methods : ['courier']).includes(m)),
+      ['collection', 'courier', 'freight'],
+    );
+    if (!supportedMethods.includes(deliveryMethod)) {
+      return new Response(
+        JSON.stringify({ error: "These items don't share that delivery method." }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -105,6 +134,26 @@ Deno.serve(async (req) => {
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    const { data: buyerProfile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single();
+
+    // Seed delivery info immediately from what the buyer just chose, rather
+    // than waiting on Stripe's own (now-unused) shipping collection.
+    const { error: deliveryError } = await supabase.from('order_deliveries').upsert(
+      {
+        order_id: order.id,
+        method: deliveryMethod,
+        shipping_address: deliveryMethod === 'collection' ? null : shippingAddress,
+        shipping_recipient_name: deliveryMethod === 'collection' ? null : buyerProfile?.name ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'order_id' },
+    );
+    if (deliveryError) console.error(deliveryError);
 
     const amountPence = Math.round(Number(order.amount) * 100);
     const itemNote = listings.length === 1 ? listings[0].title : `${listings.length} items`;
@@ -131,7 +180,6 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] },
       metadata: { order_id: order.id },
       success_url: successUrl,
       cancel_url: cancelUrl,
