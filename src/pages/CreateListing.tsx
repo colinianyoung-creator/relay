@@ -42,6 +42,8 @@ export function CreateListing() {
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState<string>('United Kingdom');
   const [shipsInternationally, setShipsInternationally] = useState(false);
+  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier' | 'freight')[]>(['courier']);
+  const [deliveryMethodsError, setDeliveryMethodsError] = useState<string | null>(null);
   const [measurementValues, setMeasurementValues] = useState<Record<string, string>>({});
   const [seatWidthCm, setSeatWidthCm] = useState('');
   const [seatDepthCm, setSeatDepthCm] = useState('');
@@ -84,6 +86,7 @@ export function CreateListing() {
       setLocation(source.location);
       setCountry(source.country);
       setShipsInternationally(source.shipsInternationally);
+      setDeliveryMethods(source.deliveryMethods?.length ? source.deliveryMethods : ['courier']);
       setMeasurementValues(Object.fromEntries(source.measurements.map((m) => [m.label, m.value])));
       setSeatWidthCm(source.seatWidthCm?.toString() ?? '');
       setSeatDepthCm(source.seatDepthCm?.toString() ?? '');
@@ -169,6 +172,11 @@ export function CreateListing() {
       setShowPayoutsGate(true);
       return;
     }
+    setDeliveryMethodsError(null);
+    if (deliveryMethods.length === 0) {
+      setDeliveryMethodsError('Pick at least one way buyers can get this from you.');
+      return;
+    }
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -191,6 +199,7 @@ export function CreateListing() {
         location,
         country,
         shipsInternationally,
+        deliveryMethods,
         seatWidthCm: seatWidthCm ? Number(seatWidthCm) : null,
         seatDepthCm: seatDepthCm ? Number(seatDepthCm) : null,
         weightCapacityKg: weightCapacityKg ? Number(weightCapacityKg) : null,
@@ -593,6 +602,38 @@ export function CreateListing() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium">
+              How can buyers get this from you?
+            </label>
+            <div className="flex flex-wrap gap-4">
+              {(
+                [
+                  { value: 'collection', label: 'Local collection' },
+                  { value: 'courier', label: 'Courier or parcel' },
+                  { value: 'freight', label: 'Freight' },
+                ] as const
+              ).map((opt) => (
+                <label key={opt.value} className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+                  <input
+                    type="checkbox"
+                    checked={deliveryMethods.includes(opt.value)}
+                    onChange={(e) =>
+                      setDeliveryMethods((prev) =>
+                        e.target.checked ? [...prev, opt.value] : prev.filter((m) => m !== opt.value),
+                      )
+                    }
+                    className="h-4 w-4 rounded border-[var(--color-line)]"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            {deliveryMethodsError && (
+              <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">

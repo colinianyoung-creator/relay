@@ -45,17 +45,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { listingId, successUrl, cancelUrl } = await req.json();
-    if (!listingId || !successUrl || !cancelUrl) {
-      return new Response(JSON.stringify({ error: 'Missing listingId, successUrl or cancelUrl' }), {
+    const { listingId, deliveryMethod, shippingAddress, successUrl, cancelUrl } = await req.json();
+    if (!listingId || !deliveryMethod || !successUrl || !cancelUrl) {
+      return new Response(
+        JSON.stringify({ error: 'Missing listingId, deliveryMethod, successUrl or cancelUrl' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    if (!['collection', 'courier', 'freight'].includes(deliveryMethod)) {
+      return new Response(JSON.stringify({ error: 'Invalid delivery method' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (deliveryMethod !== 'collection') {
+      if (!shippingAddress?.line1 || !shippingAddress?.city || !shippingAddress?.postal_code || !shippingAddress?.country) {
+        return new Response(JSON.stringify({ error: 'A full shipping address is required for this delivery method.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const { data: listing, error: listingError } = await supabase
       .from('listings')
-      .select('id, seller_id, title, price, currency, fee_status, sold_at, bundle_id, sellable_individually')
+      .select('id, seller_id, title, price, currency, fee_status, sold_at, bundle_id, sellable_individually, delivery_methods')
       .eq('id', listingId)
       .single();
     if (listingError || !listing) {
@@ -99,10 +113,19 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+    // A listing with no methods set defaults to courier (matches the
+    // client-side fallback and the migration backfill for older listings).
+    const supportedMethods = listing.delivery_methods?.length ? listing.delivery_methods : ['courier'];
+    if (!supportedMethods.includes(deliveryMethod)) {
+      return new Response(
+        JSON.stringify({ error: 'This seller does not offer that delivery method for this item.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const { data: seller, error: sellerError } = await supabase
       .from('profiles')
-      .select('stripe_connect_account_id, stripe_connect_charges_enabled')
+      .select('name, stripe_connect_account_id, stripe_connect_charges_enabled')
       .eq('id', listing.seller_id)
       .single();
     if (sellerError || !seller?.stripe_connect_account_id || !seller.stripe_connect_charges_enabled) {
@@ -111,6 +134,12 @@ Deno.serve(async (req) => {
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
+
+    const { data: buyerProfile } = await supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .single();
 
     const amountPence = Math.round(listing.price * 100);
     const platformFeePence = Math.round((amountPence * PLATFORM_FEE_PERCENT) / 100);
@@ -136,6 +165,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Seed delivery info immediately from what the buyer just chose, rather
+    // than waiting on Stripe's own (now-unused) shipping collection — see
+    // stripe-webhook.ts, whose equivalent upsert simply becomes a no-op here.
+    const { error: deliveryError } = await supabase.from('order_deliveries').upsert(
+      {
+        order_id: order.id,
+        method: deliveryMethod,
+        shipping_address: deliveryMethod === 'collection' ? null : shippingAddress,
+        shipping_recipient_name: deliveryMethod === 'collection' ? null : buyerProfile?.name ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'order_id' },
+    );
+    if (deliveryError) console.error(deliveryError);
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
       apiVersion: '2024-12-18.acacia',
       httpClient: Stripe.createFetchHttpClient(),
@@ -154,7 +198,6 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] },
       metadata: { order_id: order.id },
       success_url: successUrl,
       cancel_url: cancelUrl,

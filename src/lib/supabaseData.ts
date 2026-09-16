@@ -29,6 +29,7 @@ interface ListingRow {
   sold_at: string | null;
   bundle_id: string | null;
   sellable_individually: boolean;
+  delivery_methods: ('collection' | 'courier' | 'freight')[] | null;
   profiles: {
     id: string;
     name: string;
@@ -71,6 +72,7 @@ function mapListing(row: ListingRow): Listing {
     soldAt: row.sold_at,
     bundleId: row.bundle_id,
     sellableIndividually: row.sellable_individually,
+    deliveryMethods: row.delivery_methods?.length ? row.delivery_methods : ['courier'],
     seller: {
       id: seller?.id ?? row.seller_id,
       name: seller?.name ?? 'Relay member',
@@ -140,6 +142,7 @@ export interface NewListingInput {
   location: string;
   country: string;
   shipsInternationally: boolean;
+  deliveryMethods: ('collection' | 'courier' | 'freight')[];
   seatWidthCm?: number | null;
   seatDepthCm?: number | null;
   weightCapacityKg?: number | null;
@@ -179,6 +182,7 @@ export async function createListing(sellerId: string, input: NewListingInput): P
       location: input.location,
       country: input.country,
       ships_internationally: input.shipsInternationally,
+      delivery_methods: input.deliveryMethods,
       seat_width_cm: input.seatWidthCm ?? null,
       seat_depth_cm: input.seatDepthCm ?? null,
       weight_capacity_kg: input.weightCapacityKg ?? null,
@@ -243,6 +247,7 @@ export interface FleetSharedFields {
   location: string;
   country: string;
   shipsInternationally: boolean;
+  deliveryMethods: ('collection' | 'courier' | 'freight')[];
   photos?: string[];
 }
 
@@ -284,6 +289,7 @@ export async function createFleetListing(
         location: shared.location,
         country: shared.country,
         ships_internationally: shared.shipsInternationally,
+        delivery_methods: shared.deliveryMethods,
         seat_width_cm: item.seatWidthCm ?? null,
         seat_depth_cm: item.seatDepthCm ?? null,
         photos: shared.photos ?? [],
@@ -326,15 +332,33 @@ export async function refreshConnectStatus(): Promise<boolean> {
   return !!data.chargesEnabled;
 }
 
+export interface CheckoutShippingAddress {
+  line1: string;
+  line2?: string;
+  city: string;
+  state?: string;
+  postal_code: string;
+  country: string;
+}
+
 export async function createPurchaseCheckout(
   listingId: string,
+  deliveryMethod: 'collection' | 'courier' | 'freight',
+  shippingAddress: CheckoutShippingAddress | null,
   successUrl: string,
   cancelUrl: string,
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('create-purchase-checkout', {
-    body: { listingId, successUrl, cancelUrl },
+    body: { listingId, deliveryMethod, shippingAddress, successUrl, cancelUrl },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data?.error) throw new Error(data.error);
   return data.url as string;
 }

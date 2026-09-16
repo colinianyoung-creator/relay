@@ -64,6 +64,8 @@ export interface Listing extends StructuredSpec {
   bundleId?: string | null;
   /** Defaults true (treat missing as true) — demo listings don't set it. */
   sellableIndividually?: boolean;
+  /** Defaults to ['courier'] if missing/empty — demo listings don't set it. */
+  deliveryMethods?: ('collection' | 'courier' | 'freight')[];
 }
 
 export interface FleetBundle {

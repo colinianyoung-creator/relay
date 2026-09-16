@@ -52,6 +52,8 @@ export function CreateFleetListing() {
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState<string>('United Kingdom');
   const [shipsInternationally, setShipsInternationally] = useState(false);
+  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier' | 'freight')[]>(['courier']);
+  const [deliveryMethodsError, setDeliveryMethodsError] = useState<string | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -122,6 +124,11 @@ export function CreateFleetListing() {
         return;
       }
     }
+    setDeliveryMethodsError(null);
+    if (deliveryMethods.length === 0) {
+      setDeliveryMethodsError('Pick at least one way buyers can get these from you.');
+      return;
+    }
 
     if (!opts?.skipPayoutsCheck && !profile?.stripe_connect_charges_enabled) {
       setShowPayoutsGate(true);
@@ -155,6 +162,7 @@ export function CreateFleetListing() {
           location,
           country,
           shipsInternationally,
+          deliveryMethods,
           photos: photoUrls,
         },
         itemInputs,
@@ -349,6 +357,38 @@ export function CreateFleetListing() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium">
+            How can buyers get these from you?
+          </label>
+          <div className="flex flex-wrap gap-4">
+            {(
+              [
+                { value: 'collection', label: 'Local collection' },
+                { value: 'courier', label: 'Courier or parcel' },
+                { value: 'freight', label: 'Freight' },
+              ] as const
+            ).map((opt) => (
+              <label key={opt.value} className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+                <input
+                  type="checkbox"
+                  checked={deliveryMethods.includes(opt.value)}
+                  onChange={(e) =>
+                    setDeliveryMethods((prev) =>
+                      e.target.checked ? [...prev, opt.value] : prev.filter((m) => m !== opt.value),
+                    )
+                  }
+                  className="h-4 w-4 rounded border-[var(--color-line)]"
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          {deliveryMethodsError && (
+            <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">

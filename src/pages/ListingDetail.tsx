@@ -9,7 +9,6 @@ import {
   hasMessaged,
   sendMessage,
   fetchFitProfile,
-  createPurchaseCheckout,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasFitSignal, hasAnyProfileData } from '@/lib/fitMatch';
@@ -19,6 +18,7 @@ import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
 import { MakeOfferModal } from '@/components/MakeOfferModal';
+import { PurchaseReviewModal } from '@/components/PurchaseReviewModal';
 import { DeliverySuggestion } from '@/components/DeliverySuggestion';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, FitProfile } from '@/types';
@@ -59,8 +59,7 @@ export function ListingDetail() {
 
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [buying, setBuying] = useState(false);
-  const [buyError, setBuyError] = useState<string | null>(null);
+  const [showPurchaseReview, setShowPurchaseReview] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
 
@@ -126,23 +125,6 @@ export function ListingDetail() {
   // paying an offer does (same reasoning as the custom-invoice flow).
   const canOffer =
     !isDemo && !isSold && !isFleetOnly && listing.price !== null && user?.id !== listing.seller.id;
-
-  async function handleBuyNow() {
-    setBuyError(null);
-    setBuying(true);
-    try {
-      const origin = window.location.origin;
-      const url = await createPurchaseCheckout(
-        listing!.id,
-        `${origin}/purchase/confirm?listing_id=${listing!.id}`,
-        `${origin}/listing/${listing!.id}`,
-      );
-      window.location.href = url;
-    } catch (err) {
-      setBuyError(err instanceof Error ? err.message : 'Something went wrong starting checkout.');
-      setBuying(false);
-    }
-  }
 
   function requireAuth(action: () => void) {
     if (!user) {
@@ -366,14 +348,12 @@ export function ListingDetail() {
                 {canBuyInApp && (
                   <>
                     <button
-                      onClick={() => requireAuth(handleBuyNow)}
-                      disabled={buying}
+                      onClick={() => requireAuth(() => setShowPurchaseReview(true))}
                       className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
                     >
-                      {buying ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                      <CreditCard size={16} />
                       Buy now — pay securely
                     </button>
-                    {buyError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{buyError}</p>}
                   </>
                 )}
                 {canOffer && (
@@ -487,6 +467,17 @@ export function ListingDetail() {
           currency={listing.currency}
           sellerName={listing.seller.name}
           onClose={() => setShowOfferModal(false)}
+        />
+      )}
+      {showPurchaseReview && listing.price !== null && (
+        <PurchaseReviewModal
+          listingId={listing.id}
+          listingTitle={listing.title}
+          listingPrice={listing.price}
+          currency={listing.currency}
+          sellerName={listing.seller.name}
+          deliveryMethods={listing.deliveryMethods?.length ? listing.deliveryMethods : ['courier']}
+          onClose={() => setShowPurchaseReview(false)}
         />
       )}
     </div>
