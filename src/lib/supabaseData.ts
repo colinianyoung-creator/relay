@@ -206,7 +206,17 @@ export async function createListingCheckout(
   const { data, error } = await supabase.functions.invoke('create-listing-checkout', {
     body: { listingId, successUrl, cancelUrl },
   });
-  if (error) throw error;
+  if (error) {
+    // A non-2xx response doesn't populate `data` with the function's JSON
+    // body — supabase-js puts it on `error.context` (the raw fetch
+    // Response) instead, so the specific message has to be read from there.
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data?.error) throw new Error(data.error);
   return data.url as string;
 }

@@ -73,6 +73,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Server-side backstop for the client-side gate in CreateListing.tsx: a
+    // stale page, an old pending listing from before that gate existed, or
+    // any other bypass shouldn't be able to take a paid listing live while
+    // the seller still can't actually be paid.
+    const { data: seller } = await supabase
+      .from('profiles')
+      .select('stripe_connect_charges_enabled')
+      .eq('id', user.id)
+      .single();
+    if (!seller?.stripe_connect_charges_enabled) {
+      return new Response(
+        JSON.stringify({ error: 'Set up payouts with Stripe before publishing a paid listing.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
       apiVersion: '2024-12-18.acacia',
       httpClient: Stripe.createFetchHttpClient(),
