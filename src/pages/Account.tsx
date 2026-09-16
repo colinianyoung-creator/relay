@@ -744,22 +744,37 @@ export function Account() {
 
         {tab === 'Orders' && (
           <div>
+            <RoleToggle value={viewRole} onChange={setViewRole} />
+
             {orders === null ? (
               <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-            ) : orders.filter((o) => o.role === 'buyer' && (o.status === 'paid' || o.status === 'refunded')).length === 0 ? (
+            ) : orders.filter(
+                (o) =>
+                  o.role === viewRole &&
+                  (o.status === 'paid' || o.status === 'refunded') &&
+                  (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt)),
+              ).length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                Nothing bought yet.
+                {viewRole === 'buyer'
+                  ? 'Nothing bought yet.'
+                  : 'Nothing awaiting dispatch — sold items move to Payouts once sent or delivered.'}
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
                 {orders
-                  .filter((o) => o.role === 'buyer' && (o.status === 'paid' || o.status === 'refunded'))
+                  .filter(
+                    (o) =>
+                      o.role === viewRole &&
+                      (o.status === 'paid' || o.status === 'refunded') &&
+                      (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt)),
+                  )
                   .map((inv) => {
                     const link = inv.listingId
                       ? `/listing/${inv.listingId}`
                       : inv.bundleId
                         ? `/club-gear/${inv.bundleId}`
                         : null;
+                    const payout = inv.amount - inv.platformFeeAmount;
                     const expanded = expandedId === inv.id;
                     return (
                       <div key={inv.id} className="p-4">
@@ -781,6 +796,14 @@ export function Account() {
                               location={inv.location}
                               country={inv.country}
                             />
+                            {viewRole === 'seller' && (
+                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
+                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
+                                <span className="font-medium text-[var(--color-moss)]">
+                                  {formatPrice(payout, inv.currency)} payout
+                                </span>
+                              </p>
+                            )}
                             <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
                               <Truck size={11} className="shrink-0" />
                               {inv.deliveryMethod
@@ -802,7 +825,8 @@ export function Account() {
                               )}
                             </p>
                             <p className="text-xs text-[var(--color-ink-soft)]">
-                              from {inv.counterpartyName} · {timeAgo(inv.createdAt.slice(0, 10))}
+                              {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                              {timeAgo(inv.createdAt.slice(0, 10))}
                             </p>
                           </div>
                         </button>
@@ -813,17 +837,17 @@ export function Account() {
                             amount={inv.amount}
                             currency={inv.currency}
                             counterpartyName={inv.counterpartyName}
-                            role="buyer"
+                            role={viewRole}
                             statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
                             platformFeeAmount={inv.platformFeeAmount}
                             listingLink={link}
                             extra={
                               <>
-                                {inv.status === 'paid' && (
+                                {viewRole === 'buyer' && inv.status === 'paid' && (
                                   <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
                                 )}
                                 <DeliveryPanel order={inv} onChanged={refreshOrders} />
-                                <RefundPanel order={inv} viewRole="buyer" onChanged={refreshOrders} />
+                                <RefundPanel order={inv} viewRole={viewRole} onChanged={refreshOrders} />
                               </>
                             }
                           />
