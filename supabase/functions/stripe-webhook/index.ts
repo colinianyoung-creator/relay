@@ -266,12 +266,17 @@ Deno.serve(async (req) => {
 
         // Buyer's shipping address, if Checkout collected one — sits
         // alongside the delivery-method/tracking info a seller records later.
-        if (session.shipping_details?.address) {
+        // Re-fetched rather than read off the webhook payload's own session
+        // snapshot: shipping_details is sometimes still empty on the
+        // embedded object even though Checkout genuinely collected it, but
+        // is reliably present on a fresh retrieve() right after completion.
+        const freshSession = await stripe.checkout.sessions.retrieve(session.id);
+        if (freshSession.shipping_details?.address) {
           const { error: shippingError } = await supabase.from('order_deliveries').upsert(
             {
               order_id: orderId,
-              shipping_address: session.shipping_details.address,
-              shipping_recipient_name: session.shipping_details.name ?? null,
+              shipping_address: freshSession.shipping_details.address,
+              shipping_recipient_name: freshSession.shipping_details.name ?? null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'order_id' },

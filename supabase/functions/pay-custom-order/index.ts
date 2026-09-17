@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { orderId, deliveryMethod, shippingAddress, successUrl, cancelUrl } = await req.json();
+    const { orderId, deliveryMethod, successUrl, cancelUrl } = await req.json();
     if (!orderId || !deliveryMethod || !successUrl || !cancelUrl) {
       return new Response(
         JSON.stringify({ error: 'Missing orderId, deliveryMethod, successUrl or cancelUrl' }),
@@ -49,14 +49,6 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-    if (deliveryMethod !== 'collection') {
-      if (!shippingAddress?.line1 || !shippingAddress?.city || !shippingAddress?.postal_code || !shippingAddress?.country) {
-        return new Response(JSON.stringify({ error: 'A full shipping address is required for this delivery method.' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
     }
 
     const { data: order, error: orderError } = await supabase
@@ -135,20 +127,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: buyerProfile } = await supabase
-      .from('profiles')
-      .select('name')
-      .eq('id', user.id)
-      .single();
-
-    // Seed delivery info immediately from what the buyer just chose, rather
-    // than waiting on Stripe's own (now-unused) shipping collection.
+    // Seed the chosen method now; the actual address (when this method
+    // needs one) is collected by Stripe's own checkout page below and
+    // written back here by stripe-webhook.ts once payment completes.
     const { error: deliveryError } = await supabase.from('order_deliveries').upsert(
       {
         order_id: order.id,
         method: deliveryMethod,
-        shipping_address: deliveryMethod === 'collection' ? null : shippingAddress,
-        shipping_recipient_name: deliveryMethod === 'collection' ? null : buyerProfile?.name ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'order_id' },
@@ -170,6 +155,9 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer_email: user.email,
+      ...(deliveryMethod !== 'collection'
+        ? { shipping_address_collection: { allowed_countries: ['GB', 'US', 'CA', 'AU', 'NL', 'IE'] as const } }
+        : {}),
       line_items: [
         {
           price_data: {

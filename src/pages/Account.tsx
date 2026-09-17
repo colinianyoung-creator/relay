@@ -878,12 +878,11 @@ export function Account() {
           currency={payReview.invoice.currency}
           sellerName={payReview.invoice.counterpartyName}
           deliveryMethods={payReview.deliveryMethods}
-          onConfirm={(method, shippingAddress) => {
+          onConfirm={(method) => {
             const origin = window.location.origin;
             return payCustomOrder(
               payReview.invoice.id,
               method,
-              shippingAddress,
               `${origin}/account?tab=orders`,
               `${origin}/account?tab=orders`,
             );

@@ -332,24 +332,14 @@ export async function refreshConnectStatus(): Promise<boolean> {
   return !!data.chargesEnabled;
 }
 
-export interface CheckoutShippingAddress {
-  line1: string;
-  line2?: string;
-  city: string;
-  state?: string;
-  postal_code: string;
-  country: string;
-}
-
 export async function createPurchaseCheckout(
   listingId: string,
   deliveryMethod: 'collection' | 'courier' | 'freight',
-  shippingAddress: CheckoutShippingAddress | null,
   successUrl: string,
   cancelUrl: string,
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('create-purchase-checkout', {
-    body: { listingId, deliveryMethod, shippingAddress, successUrl, cancelUrl },
+    body: { listingId, deliveryMethod, successUrl, cancelUrl },
   });
   if (error) {
     const context = (error as { context?: Response }).context;
@@ -1233,12 +1223,11 @@ export async function createCustomOrder(
 export async function payCustomOrder(
   orderId: string,
   deliveryMethod: 'collection' | 'courier' | 'freight',
-  shippingAddress: CheckoutShippingAddress | null,
   successUrl: string,
   cancelUrl: string,
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('pay-custom-order', {
-    body: { orderId, deliveryMethod, shippingAddress, successUrl, cancelUrl },
+    body: { orderId, deliveryMethod, successUrl, cancelUrl },
   });
   if (error) {
     const context = (error as { context?: Response }).context;

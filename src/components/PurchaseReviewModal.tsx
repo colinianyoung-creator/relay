@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
-import { COUNTRIES } from '@/types';
-import type { CheckoutShippingAddress } from '@/lib/supabaseData';
 import { METHOD_LABEL } from '@/components/DeliveryPanel';
 import { formatPrice } from '@/lib/format';
 import type { Currency } from '@/types';
@@ -12,10 +10,13 @@ type DeliveryMethod = 'collection' | 'courier' | 'freight';
 // Shown before Stripe Checkout for any direct purchase — Buy Now
 // (create-purchase-checkout) or paying an accepted offer/custom invoice
 // (pay-custom-order). Delivery method used to be chosen by neither buyer nor
-// this step at all (only ever set by the seller after the sale), and
-// address only got collected inside Stripe's own generic page. This
-// captures both in Relay's own UI first; the caller supplies `onConfirm`
-// so this component doesn't need to know which of the two flows it's in.
+// this step at all (only ever set by the seller after the sale) — this
+// captures it in Relay's own UI first, since Stripe's checkout page has no
+// concept of "collection vs courier" and the seller's supported methods
+// need validating either way. The actual shipping address, when one's
+// needed, is still collected on Stripe's own checkout page. The caller
+// supplies `onConfirm` so this component doesn't need to know which of the
+// two flows it's in.
 export function PurchaseReviewModal({
   title,
   price,
@@ -30,42 +31,20 @@ export function PurchaseReviewModal({
   currency: Currency;
   sellerName: string;
   deliveryMethods: DeliveryMethod[];
-  onConfirm: (method: DeliveryMethod, shippingAddress: CheckoutShippingAddress | null) => Promise<string>;
+  onConfirm: (method: DeliveryMethod) => Promise<string>;
   onClose: () => void;
 }) {
   const [method, setMethod] = useState<DeliveryMethod | null>(deliveryMethods[0] ?? null);
-  const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState<string>(COUNTRIES[0]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const needsAddress = method !== null && method !== 'collection';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!method) return;
-    if (needsAddress && (!line1.trim() || !city.trim() || !postalCode.trim())) {
-      setError('Fill in an address so the seller knows where to send it.');
-      return;
-    }
     setSubmitting(true);
     try {
-      const shippingAddress: CheckoutShippingAddress | null = needsAddress
-        ? {
-            line1: line1.trim(),
-            line2: line2.trim() || undefined,
-            city: city.trim(),
-            state: state.trim() || undefined,
-            postal_code: postalCode.trim(),
-            country,
-          }
-        : null;
-      const url = await onConfirm(method, shippingAddress);
+      const url = await onConfirm(method);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong starting checkout.');
@@ -125,58 +104,10 @@ export function PurchaseReviewModal({
             )}
           </div>
 
-          {needsAddress && (
-            <div className="space-y-2.5">
-              <label className="block text-xs text-[var(--color-ink-soft)]">Shipping address</label>
-              <input
-                required
-                value={line1}
-                onChange={(e) => setLine1(e.target.value)}
-                placeholder="Address line 1"
-                className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-              />
-              <input
-                value={line2}
-                onChange={(e) => setLine2(e.target.value)}
-                placeholder="Address line 2 (optional)"
-                className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-              />
-              <div className="grid grid-cols-2 gap-2.5">
-                <input
-                  required
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Town or city"
-                  className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <input
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  placeholder="County/state (optional)"
-                  className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <input
-                  required
-                  value={postalCode}
-                  onChange={(e) => setPostalCode(e.target.value)}
-                  placeholder="Postcode"
-                  className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          {method !== null && method !== 'collection' && (
+            <p className="text-xs text-[var(--color-ink-soft)]">
+              You'll enter your shipping address on the next step, at checkout.
+            </p>
           )}
 
           {method === 'collection' && (
