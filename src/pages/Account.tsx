@@ -11,6 +11,8 @@ import {
   Check,
   ChevronDown,
   Truck,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -27,6 +29,12 @@ import {
   counterOffer,
   withdrawOffer,
   uploadAvatar,
+  fetchArchivedListingIds,
+  archiveListing,
+  unarchiveListing,
+  fetchArchivedOrderIds,
+  archiveOrder,
+  unarchiveOrder,
   type MessageThread,
   type MyOrder,
   type Offer,
@@ -146,6 +154,11 @@ export function Account() {
   const [saved, setSaved] = useState<Listing[] | null>(null);
   const [messages, setMessages] = useState<MessageThread[] | null>(null);
   const [orders, setOrders] = useState<MyOrder[] | null>(null);
+  const [archivedListingIds, setArchivedListingIds] = useState<Set<string>>(new Set());
+  const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(new Set());
+  const [showArchivedListings, setShowArchivedListings] = useState(false);
+  const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [offers, setOffers] = useState<Offer[] | null>(null);
@@ -166,6 +179,58 @@ export function Account() {
 
   function refreshOrders() {
     if (user) fetchMyOrders(user.id).then(setOrders);
+  }
+
+  async function handleArchiveListing(listingId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await archiveListing(user.id, listingId);
+      setArchivedListingIds((prev) => new Set(prev).add(listingId));
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not archive that listing.');
+    }
+  }
+
+  async function handleUnarchiveListing(listingId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await unarchiveListing(user.id, listingId);
+      setArchivedListingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(listingId);
+        return next;
+      });
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not unarchive that listing.');
+    }
+  }
+
+  async function handleArchiveOrder(orderId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await archiveOrder(user.id, orderId);
+      setArchivedOrderIds((prev) => new Set(prev).add(orderId));
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not archive that order.');
+    }
+  }
+
+  async function handleUnarchiveOrder(orderId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await unarchiveOrder(user.id, orderId);
+      setArchivedOrderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not unarchive that order.');
+    }
   }
 
   async function handlePayInvoice(invoice: MyOrder) {
@@ -284,6 +349,8 @@ export function Account() {
     fetchMyOrders(user.id).then(setOrders);
     fetchMyOffers(user.id).then(setOffers);
     fetchMessageThreads(user.id).then(setMessages);
+    fetchArchivedListingIds(user.id).then(setArchivedListingIds);
+    fetchArchivedOrderIds(user.id).then(setArchivedOrderIds);
   }, [user]);
 
   if (authLoading) {
@@ -388,11 +455,57 @@ export function Account() {
                   <Boxes size={13} /> List club gear
                 </Link>
               </div>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {myListings.map((l) => (
-                  <ListingCard key={l.id} listing={l} />
-                ))}
-              </div>
+              {archiveError && <p className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
+              {(() => {
+                const visible = myListings.filter((l) => !archivedListingIds.has(l.id));
+                const archived = myListings.filter((l) => archivedListingIds.has(l.id));
+                return (
+                  <>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {visible.map((l) => (
+                        <div key={l.id} className="relative">
+                          <ListingCard listing={l} />
+                          {l.soldAt && (
+                            <button
+                              onClick={() => handleArchiveListing(l.id)}
+                              title="Archive — hides it from this list, keeps the record"
+                              className="absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] shadow-sm hover:text-[var(--color-ink)]"
+                            >
+                              <Archive size={13} /> Archive
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {archived.length > 0 && (
+                      <div className="mt-6">
+                        <button
+                          onClick={() => setShowArchivedListings((v) => !v)}
+                          className="text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                        >
+                          {showArchivedListings ? 'Hide' : 'Show'} archived ({archived.length})
+                        </button>
+                        {showArchivedListings && (
+                          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {archived.map((l) => (
+                              <div key={l.id} className="relative opacity-70">
+                                <ListingCard listing={l} />
+                                <button
+                                  onClick={() => handleUnarchiveListing(l.id)}
+                                  title="Unarchive — bring it back to My listings"
+                                  className="absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] shadow-sm hover:text-[var(--color-ink)]"
+                                >
+                                  <ArchiveRestore size={13} /> Unarchive
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           ))}
 
@@ -748,125 +861,165 @@ export function Account() {
           </div>
         )}
 
-        {tab === 'Orders' && (
-          <div>
-            <RoleToggle value={viewRole} onChange={setViewRole} />
+        {tab === 'Orders' &&
+          (() => {
+            const baseEligible = (o: MyOrder) =>
+              o.role === viewRole &&
+              (o.status === 'paid' || o.status === 'refunded') &&
+              (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt));
+            const eligible = orders?.filter(baseEligible) ?? [];
+            const visible = eligible.filter((o) => !archivedOrderIds.has(o.id));
+            const archivedCount = eligible.length - visible.length;
+            const shown = showArchivedOrders ? eligible : visible;
+            return (
+              <div>
+                <RoleToggle value={viewRole} onChange={setViewRole} />
 
-            {orders === null ? (
-              <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-            ) : orders.filter(
-                (o) =>
-                  o.role === viewRole &&
-                  (o.status === 'paid' || o.status === 'refunded') &&
-                  (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt)),
-              ).length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
-                {viewRole === 'buyer'
-                  ? 'Nothing bought yet.'
-                  : 'Nothing awaiting dispatch — sold items move to Payouts once sent or delivered.'}
-              </div>
-            ) : (
-              <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                {orders
-                  .filter(
-                    (o) =>
-                      o.role === viewRole &&
-                      (o.status === 'paid' || o.status === 'refunded') &&
-                      (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt)),
-                  )
-                  .map((inv) => {
-                    const link = inv.listingId
-                      ? `/listing/${inv.listingId}`
-                      : inv.bundleId
-                        ? `/club-gear/${inv.bundleId}`
-                        : null;
-                    const payout = inv.amount - inv.platformFeeAmount;
-                    const expanded = expandedId === inv.id;
-                    return (
-                      <div key={inv.id} className="p-4">
-                        <button
-                          onClick={() => setExpandedId(expanded ? null : inv.id)}
-                          className="flex w-full items-center gap-4 text-left"
-                        >
-                          <ChevronDown
-                            size={14}
-                            className={`shrink-0 text-[var(--color-ink-soft)] transition-transform ${
-                              expanded ? 'rotate-180' : ''
-                            }`}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <ListingRefRow
-                              title={inv.title}
-                              photos={inv.photos}
-                              sport={inv.sport}
-                              location={inv.location}
-                              country={inv.country}
+                {archiveError && <p className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
+
+                {orders === null ? (
+                  <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
+                ) : shown.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
+                    {viewRole === 'buyer'
+                      ? 'Nothing bought yet.'
+                      : 'Nothing awaiting dispatch — sold items move to Payouts once sent or delivered.'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+                    {shown.map((inv) => {
+                      const link = inv.listingId
+                        ? `/listing/${inv.listingId}`
+                        : inv.bundleId
+                          ? `/club-gear/${inv.bundleId}`
+                          : null;
+                      const payout = inv.amount - inv.platformFeeAmount;
+                      const expanded = expandedId === inv.id;
+                      const isArchived = archivedOrderIds.has(inv.id);
+                      // A refund issued before any payout leaves transferStatus
+                      // stuck at 'pending' forever — status alone settles it.
+                      const canArchive = inv.transferStatus !== 'pending' || inv.status === 'refunded';
+                      return (
+                        <div key={inv.id} className={`relative p-4 ${isArchived ? 'opacity-70' : ''}`}>
+                          <button
+                            onClick={() => setExpandedId(expanded ? null : inv.id)}
+                            className="flex w-full items-center gap-4 pr-20 text-left"
+                          >
+                            <ChevronDown
+                              size={14}
+                              className={`shrink-0 text-[var(--color-ink-soft)] transition-transform ${
+                                expanded ? 'rotate-180' : ''
+                              }`}
                             />
-                            {viewRole === 'seller' && (
-                              <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
-                                −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
-                                <span className="font-medium text-[var(--color-moss)]">
-                                  {formatPrice(payout, inv.currency)} payout
-                                </span>
-                              </p>
-                            )}
-                            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
-                              <Truck size={11} className="shrink-0" />
-                              {inv.deliveryMethod
-                                ? `${METHOD_LABEL[inv.deliveryMethod]}${inv.trackingReference ? ` · ${inv.trackingReference}` : ''}`
-                                : inv.deliveryNotes
-                                  ? inv.deliveryNotes.length > 40
-                                    ? `${inv.deliveryNotes.slice(0, 40)}…`
-                                    : inv.deliveryNotes
-                                  : 'Delivery not yet arranged'}
-                            </p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-sm font-medium">
-                              {formatPrice(inv.amount, inv.currency)}
-                              {inv.status === 'refunded' && (
-                                <span className="ml-1.5 text-xs font-normal text-[var(--color-brand-dark)]">
-                                  Refunded
-                                </span>
+                            <div className="min-w-0 flex-1">
+                              <ListingRefRow
+                                title={inv.title}
+                                photos={inv.photos}
+                                sport={inv.sport}
+                                location={inv.location}
+                                country={inv.country}
+                              />
+                              {viewRole === 'seller' && (
+                                <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
+                                  −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
+                                  <span className="font-medium text-[var(--color-moss)]">
+                                    {formatPrice(payout, inv.currency)} payout
+                                  </span>
+                                </p>
                               )}
-                            </p>
-                            <p className="text-xs text-[var(--color-ink-soft)]">
-                              {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
-                              {timeAgo(inv.createdAt.slice(0, 10))}
-                            </p>
-                          </div>
-                        </button>
-                        {expanded && (
-                          <TransactionDetails
-                            id={inv.id}
-                            createdAt={inv.createdAt}
-                            amount={inv.amount}
-                            currency={inv.currency}
-                            counterpartyName={inv.counterpartyName}
-                            role={viewRole}
-                            statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
-                            platformFeeAmount={inv.platformFeeAmount}
-                            listingLink={link}
-                            extra={
-                              <>
-                                {viewRole === 'buyer' && inv.status === 'paid' && (
-                                  <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
+                              <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-ink-soft)]/80">
+                                <Truck size={11} className="shrink-0" />
+                                {inv.deliveryMethod
+                                  ? `${METHOD_LABEL[inv.deliveryMethod]}${inv.trackingReference ? ` · ${inv.trackingReference}` : ''}`
+                                  : inv.deliveryNotes
+                                    ? inv.deliveryNotes.length > 40
+                                      ? `${inv.deliveryNotes.slice(0, 40)}…`
+                                      : inv.deliveryNotes
+                                    : 'Delivery not yet arranged'}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-sm font-medium">
+                                {formatPrice(inv.amount, inv.currency)}
+                                {inv.status === 'refunded' && (
+                                  <span className="ml-1.5 text-xs font-normal text-[var(--color-brand-dark)]">
+                                    Refunded
+                                  </span>
                                 )}
-                                <DeliveryPanel order={inv} onChanged={refreshOrders} />
-                                <RefundPanel order={inv} viewRole={viewRole} onChanged={refreshOrders} />
-                              </>
-                            }
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
+                              </p>
+                              <p className="text-xs text-[var(--color-ink-soft)]">
+                                {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
+                                {timeAgo(inv.createdAt.slice(0, 10))}
+                              </p>
+                            </div>
+                          </button>
+                          {isArchived ? (
+                            <button
+                              onClick={() => handleUnarchiveOrder(inv.id)}
+                              title="Unarchive — bring it back to Orders"
+                              className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                            >
+                              <ArchiveRestore size={12} />
+                            </button>
+                          ) : (
+                            canArchive && (
+                              <button
+                                onClick={() => handleArchiveOrder(inv.id)}
+                                title="Archive — hides it from this list, keeps the record"
+                                className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                              >
+                                <Archive size={12} />
+                              </button>
+                            )
+                          )}
+                          {expanded && (
+                            <TransactionDetails
+                              id={inv.id}
+                              createdAt={inv.createdAt}
+                              amount={inv.amount}
+                              currency={inv.currency}
+                              counterpartyName={inv.counterpartyName}
+                              role={viewRole}
+                              statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
+                              platformFeeAmount={inv.platformFeeAmount}
+                              listingLink={link}
+                              extra={
+                                <>
+                                  {viewRole === 'buyer' && inv.status === 'paid' && (
+                                    <OrderReviewSection order={inv} reviewerId={user.id} onSubmitted={refreshOrders} />
+                                  )}
+                                  <DeliveryPanel order={inv} onChanged={refreshOrders} />
+                                  <RefundPanel order={inv} viewRole={viewRole} onChanged={refreshOrders} />
+                                </>
+                              }
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {archivedCount > 0 && (
+                  <button
+                    onClick={() => setShowArchivedOrders((v) => !v)}
+                    className="mt-4 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                  >
+                    {showArchivedOrders ? 'Hide' : 'Show'} archived ({archivedCount})
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            );
+          })()}
 
-        {tab === 'Payouts' && <PayoutsPanel orders={orders} onOrdersChanged={refreshOrders} />}
+        {tab === 'Payouts' && (
+          <PayoutsPanel
+            orders={orders}
+            onOrdersChanged={refreshOrders}
+            archivedOrderIds={archivedOrderIds}
+            onArchive={handleArchiveOrder}
+            onUnarchive={handleUnarchiveOrder}
+          />
+        )}
 
         {tab === 'Fit profile' && <FitProfileForm userId={user.id} />}
       </div>

@@ -6,7 +6,7 @@ import {
   ConnectAccountManagement,
   ConnectPayouts,
 } from '@stripe/react-connect-js';
-import { BadgeCheck, ChevronDown, CircleDollarSign, Loader2, Settings, Truck, Wallet } from 'lucide-react';
+import { Archive, ArchiveRestore, BadgeCheck, ChevronDown, CircleDollarSign, Loader2, Settings, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
 import { getConnectInstance } from '@/lib/stripeConnect';
@@ -26,9 +26,15 @@ function transferTone(status: MyOrder['transferStatus']): 'brand' | 'moss' | 'ne
 export function PayoutsPanel({
   orders,
   onOrdersChanged,
+  archivedOrderIds,
+  onArchive,
+  onUnarchive,
 }: {
   orders: MyOrder[] | null;
   onOrdersChanged: () => void;
+  archivedOrderIds: Set<string>;
+  onArchive: (orderId: string) => void;
+  onUnarchive: (orderId: string) => void;
 }) {
   const { profile, refreshProfile } = useAuth();
   const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(null);
@@ -36,11 +42,15 @@ export function PayoutsPanel({
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const chargesEnabled = !!profile?.stripe_connect_charges_enabled;
-  const soldOrders = (orders ?? []).filter(
+  const allSoldOrders = (orders ?? []).filter(
     (o) => o.role === 'seller' && (o.status === 'paid' || o.status === 'refunded'),
   );
+  const visibleSoldOrders = allSoldOrders.filter((o) => !archivedOrderIds.has(o.id));
+  const archivedCount = allSoldOrders.length - visibleSoldOrders.length;
+  const soldOrders = showArchived ? allSoldOrders : visibleSoldOrders;
 
   function openEmbedded(nextMode: 'onboarding' | 'payouts' | 'management') {
     setError(null);
@@ -160,11 +170,15 @@ export function PayoutsPanel({
                   const link = o.listingId ? `/listing/${o.listingId}` : o.bundleId ? `/club-gear/${o.bundleId}` : null;
                   const payout = o.amount - o.platformFeeAmount;
                   const expanded = expandedId === o.id;
+                  const isArchived = archivedOrderIds.has(o.id);
+                  // A refund issued before any payout leaves transferStatus
+                  // stuck at 'pending' forever — status alone settles it.
+                  const canArchive = o.transferStatus !== 'pending' || o.status === 'refunded';
                   return (
-                    <div key={o.id} className="p-4">
+                    <div key={o.id} className={`relative p-4 ${isArchived ? 'opacity-70' : ''}`}>
                       <button
                         onClick={() => setExpandedId(expanded ? null : o.id)}
-                        className="flex w-full items-center gap-4 text-left"
+                        className="flex w-full items-center gap-4 pr-16 text-left"
                       >
                         <ChevronDown
                           size={14}
@@ -200,6 +214,25 @@ export function PayoutsPanel({
                           </Badge>
                         </div>
                       </button>
+                      {isArchived ? (
+                        <button
+                          onClick={() => onUnarchive(o.id)}
+                          title="Unarchive — bring it back to Sold items"
+                          className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                        >
+                          <ArchiveRestore size={12} />
+                        </button>
+                      ) : (
+                        canArchive && (
+                          <button
+                            onClick={() => onArchive(o.id)}
+                            title="Archive — hides it from this list, keeps the record"
+                            className="absolute right-4 top-4 flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2 py-1 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                          >
+                            <Archive size={12} />
+                          </button>
+                        )
+                      )}
                       {expanded && (
                         <TransactionDetails
                           id={o.id}
@@ -223,6 +256,14 @@ export function PayoutsPanel({
                   );
                 })}
               </div>
+            )}
+            {archivedCount > 0 && (
+              <button
+                onClick={() => setShowArchived((v) => !v)}
+                className="mt-3 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+              >
+                {showArchived ? 'Hide' : 'Show'} archived ({archivedCount})
+              </button>
             )}
           </div>
         ) : (

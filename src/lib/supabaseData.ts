@@ -565,6 +565,44 @@ export async function fetchSavedListings(userId: string): Promise<Listing[]> {
     .map((row) => mapListing(row.listings));
 }
 
+/** Hides a sold listing from the seller's own "My listings" view — the row itself is untouched. */
+export async function fetchArchivedListingIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('archived_listings').select('listing_id').eq('user_id', userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.listing_id as string));
+}
+
+export async function archiveListing(userId: string, listingId: string): Promise<void> {
+  const { error } = await supabase.from('archived_listings').insert({ user_id: userId, listing_id: listingId });
+  if (error) throw error;
+}
+
+export async function unarchiveListing(userId: string, listingId: string): Promise<void> {
+  const { error } = await supabase
+    .from('archived_listings')
+    .delete()
+    .eq('user_id', userId)
+    .eq('listing_id', listingId);
+  if (error) throw error;
+}
+
+/** Hides a completed order from the buyer's or seller's own order history — the row itself is untouched. */
+export async function fetchArchivedOrderIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('archived_orders').select('order_id').eq('user_id', userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.order_id as string));
+}
+
+export async function archiveOrder(userId: string, orderId: string): Promise<void> {
+  const { error } = await supabase.from('archived_orders').insert({ user_id: userId, order_id: orderId });
+  if (error) throw error;
+}
+
+export async function unarchiveOrder(userId: string, orderId: string): Promise<void> {
+  const { error } = await supabase.from('archived_orders').delete().eq('user_id', userId).eq('order_id', orderId);
+  if (error) throw error;
+}
+
 export interface SavedSearch {
   id: string;
   sport: Sport | null;
