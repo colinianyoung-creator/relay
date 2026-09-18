@@ -32,6 +32,7 @@ import {
   fetchArchivedListingIds,
   archiveListing,
   unarchiveListing,
+  deleteListing,
   fetchArchivedOrderIds,
   archiveOrder,
   unarchiveOrder,
@@ -40,6 +41,7 @@ import {
   type Offer,
 } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
+import { ListingActionsMenu } from '@/components/ListingActionsMenu';
 import { ListingRefRow } from '@/components/ListingRefRow';
 import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
@@ -179,6 +181,17 @@ export function Account() {
 
   function refreshOrders() {
     if (user) fetchMyOrders(user.id).then(setOrders);
+  }
+
+  async function handleDeleteListing(listingId: string) {
+    if (!confirm("Delete this listing? This can't be undone.")) return;
+    setArchiveError(null);
+    try {
+      await deleteListing(listingId);
+      setMyListings((prev) => prev?.filter((l) => l.id !== listingId) ?? prev);
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not delete that listing.');
+    }
   }
 
   async function handleArchiveListing(listingId: string) {
@@ -465,15 +478,13 @@ export function Account() {
                       {visible.map((l) => (
                         <div key={l.id} className="relative">
                           <ListingCard listing={l} />
-                          {l.soldAt && (
-                            <button
-                              onClick={() => handleArchiveListing(l.id)}
-                              title="Archive — hides it from this list, keeps the record"
-                              className="absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] shadow-sm hover:text-[var(--color-ink)]"
-                            >
-                              <Archive size={13} /> Archive
-                            </button>
-                          )}
+                          <ListingActionsMenu
+                            listing={l}
+                            isArchived={false}
+                            onArchive={handleArchiveListing}
+                            onUnarchive={handleUnarchiveListing}
+                            onDelete={handleDeleteListing}
+                          />
                         </div>
                       ))}
                     </div>
@@ -490,13 +501,13 @@ export function Account() {
                             {archived.map((l) => (
                               <div key={l.id} className="relative opacity-70">
                                 <ListingCard listing={l} />
-                                <button
-                                  onClick={() => handleUnarchiveListing(l.id)}
-                                  title="Unarchive — bring it back to My listings"
-                                  className="absolute right-3 bottom-3 z-10 flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] shadow-sm hover:text-[var(--color-ink)]"
-                                >
-                                  <ArchiveRestore size={13} /> Unarchive
-                                </button>
+                                <ListingActionsMenu
+                                  listing={l}
+                                  isArchived
+                                  onArchive={handleArchiveListing}
+                                  onUnarchive={handleUnarchiveListing}
+                                  onDelete={handleDeleteListing}
+                                />
                               </div>
                             ))}
                           </div>
