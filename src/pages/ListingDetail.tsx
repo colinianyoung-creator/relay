@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy, Pencil } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
@@ -330,10 +330,19 @@ export function ListingDetail() {
                   </p>
                 )}
 
+                {!isDemo && !isSold && !listing.bundleId && listing.feeStatus !== 'pending' && (
+                  <Link
+                    to={`/sell?edit=${listing.id}`}
+                    className="mt-3 flex items-center justify-center gap-1.5 rounded-full bg-[var(--color-ink)] px-4 py-2 text-xs font-medium text-white hover:bg-black"
+                  >
+                    <Pencil size={12} /> Edit listing
+                  </Link>
+                )}
+
                 {!isDemo && (
                   <Link
                     to={`/sell?duplicate=${listing.id}`}
-                    className="mt-3 flex items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                    className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                   >
                     <Copy size={12} /> Duplicate this listing
                   </Link>

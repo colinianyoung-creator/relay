@@ -230,6 +230,47 @@ export async function deletePendingListing(listingId: string): Promise<void> {
   await supabase.from('listings').delete().eq('id', listingId).eq('fee_status', 'pending');
 }
 
+// Everything a seller can change after a listing has already gone live.
+// Deliberately excludes fee_status/sold_at/buyer_id/bundle_id/seller_id/
+// stripe_checkout_session_id/sellable_individually — those are set by the
+// payment/sale flow, never by the seller editing their own listing. Price
+// must stay in whatever free/paid category the listing started in (enforced
+// by the caller); this function itself is just an explicit column
+// allowlist, same trust model as createListing's insert. The `.is('sold_at',
+// null)` guard stops a stale edit form from slipping a change through after
+// the listing sells mid-edit.
+export type EditableListingFields = Omit<NewListingInput, 'category'> & { category: string };
+
+export async function updateListing(listingId: string, input: EditableListingFields): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      title: input.title,
+      sport: input.sport,
+      category: input.category,
+      condition: input.condition,
+      price: input.price,
+      currency: input.currency,
+      description: input.description,
+      measurements: input.measurements,
+      location: input.location,
+      country: input.country,
+      ships_internationally: input.shipsInternationally,
+      delivery_methods: input.deliveryMethods,
+      seat_width_cm: input.seatWidthCm ?? null,
+      seat_depth_cm: input.seatDepthCm ?? null,
+      weight_capacity_kg: input.weightCapacityKg ?? null,
+      min_user_height_cm: input.minUserHeightCm ?? null,
+      max_user_height_cm: input.maxUserHeightCm ?? null,
+      min_user_weight_kg: input.minUserWeightKg ?? null,
+      max_user_weight_kg: input.maxUserWeightKg ?? null,
+      photos: input.photos ?? [],
+    })
+    .eq('id', listingId)
+    .is('sold_at', null);
+  if (error) throw error;
+}
+
 // --- Fleet listing (create a whole fleet's listings + the bundle together) ---
 // Distinct from createFleetBundle below, which groups listings a seller
 // already has up. This creates the listings and the bundle in one step, for
@@ -304,6 +345,46 @@ export async function createFleetListing(
   if (newListings && newListings.length > 0) checkSavedSearches(newListings.map((l) => l.id));
 
   return bundle.id;
+}
+
+export async function updateFleetBundleShared(
+  bundleId: string,
+  fields: { title: string; description: string },
+): Promise<void> {
+  const { error } = await supabase
+    .from('listing_bundles')
+    .update({ title: fields.title, description: fields.description })
+    .eq('id', bundleId);
+  if (error) throw error;
+}
+
+// Same allowlist reasoning as updateListing — a single item's own editable
+// fields within a lot, never fee_status/sold_at/bundle_id/seller_id. The
+// `.is('sold_at', null)` guard is the same stale-edit-form protection.
+export async function updateFleetItem(
+  listingId: string,
+  fields: {
+    title: string;
+    price: number;
+    condition: string;
+    sellableIndividually: boolean;
+    seatWidthCm: number | null;
+    seatDepthCm: number | null;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      title: fields.title,
+      price: fields.price,
+      condition: fields.condition,
+      sellable_individually: fields.sellableIndividually,
+      seat_width_cm: fields.seatWidthCm,
+      seat_depth_cm: fields.seatDepthCm,
+    })
+    .eq('id', listingId)
+    .is('sold_at', null);
+  if (error) throw error;
 }
 
 export async function fetchListingFeeStatus(listingId: string): Promise<string | null> {

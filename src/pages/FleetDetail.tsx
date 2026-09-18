@@ -1,15 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Boxes, Loader2, MessageCircle, Send, Star, CheckCircle2 } from 'lucide-react';
-import { fetchBundle, findBuyerByEmail, createCustomOrder, hasMessaged, sendMessage, type BuyerLookup } from '@/lib/supabaseData';
+import { ArrowLeft, BadgeCheck, Boxes, Loader2, MessageCircle, Pencil, Send, Star, CheckCircle2 } from 'lucide-react';
+import {
+  fetchBundle,
+  findBuyerByEmail,
+  createCustomOrder,
+  hasMessaged,
+  sendMessage,
+  updateFleetBundleShared,
+  type BuyerLookup,
+} from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { ListingCard } from '@/components/ListingCard';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { DeliverySuggestion } from '@/components/DeliverySuggestion';
+import { EditFleetItemModal } from '@/components/EditFleetItemModal';
 import { formatPrice } from '@/lib/format';
-import type { FleetBundle } from '@/types';
+import type { FleetBundle, Listing } from '@/types';
 
 function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
   const [buyerEmail, setBuyerEmail] = useState('');
@@ -165,6 +174,34 @@ export function FleetDetail() {
   const pendingActionRef = useRef<(() => void) | null>(null);
   const [message, setMessage] = useState('');
   const [messageSent, setMessageSent] = useState(false);
+  const [editingBundle, setEditingBundle] = useState(false);
+  const [bundleTitleDraft, setBundleTitleDraft] = useState('');
+  const [bundleDescDraft, setBundleDescDraft] = useState('');
+  const [bundleSaving, setBundleSaving] = useState(false);
+  const [bundleSaveError, setBundleSaveError] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<Listing | null>(null);
+
+  function refreshBundle() {
+    if (!id) return;
+    fetchBundle(id)
+      .then(setBundle)
+      .catch(() => setBundle(null));
+  }
+
+  async function saveBundleShared() {
+    if (!bundle) return;
+    setBundleSaveError(null);
+    setBundleSaving(true);
+    try {
+      await updateFleetBundleShared(bundle.id, { title: bundleTitleDraft, description: bundleDescDraft });
+      setBundle({ ...bundle, title: bundleTitleDraft, description: bundleDescDraft });
+      setEditingBundle(false);
+    } catch (err) {
+      setBundleSaveError(err instanceof Error ? err.message : 'Something went wrong saving that.');
+    } finally {
+      setBundleSaving(false);
+    }
+  }
 
   // Runs a queued requireAuth() action once `user` actually reflects the new
   // session — not from AuthModal's success callback directly, since that can
@@ -241,15 +278,79 @@ export function FleetDetail() {
             {isSold && <Badge tone="brand">Sold</Badge>}
           </div>
 
-          <h1 className="mt-4 text-3xl leading-tight sm:text-4xl">{bundle.title}</h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[var(--color-ink)]">
-            {bundle.description}
-          </p>
+          {editingBundle ? (
+            <div className="mt-4 space-y-3">
+              <input
+                value={bundleTitleDraft}
+                onChange={(e) => setBundleTitleDraft(e.target.value)}
+                className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-2xl outline-none focus:border-[var(--color-ink-soft)]"
+              />
+              <textarea
+                value={bundleDescDraft}
+                onChange={(e) => setBundleDescDraft(e.target.value)}
+                rows={4}
+                className="w-full max-w-xl resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-[15px] outline-none focus:border-[var(--color-ink-soft)]"
+              />
+              {bundleSaveError && <p className="text-sm text-[var(--color-brand-dark)]">{bundleSaveError}</p>}
+              <div className="flex gap-2">
+                <button
+                  onClick={saveBundleShared}
+                  disabled={bundleSaving}
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+                >
+                  {bundleSaving && <Loader2 size={12} className="animate-spin" />}
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingBundle(false)}
+                  className="rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 flex items-start justify-between gap-3">
+                <h1 className="text-3xl leading-tight sm:text-4xl">{bundle.title}</h1>
+                {isOwner && (
+                  <button
+                    onClick={() => {
+                      setBundleTitleDraft(bundle.title);
+                      setBundleDescDraft(bundle.description);
+                      setEditingBundle(true);
+                    }}
+                    className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                )}
+              </div>
+              <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[var(--color-ink)]">
+                {bundle.description}
+              </p>
+            </>
+          )}
 
           <h2 className="mb-4 mt-10 text-lg">What's in this lot</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {bundle.listings.map((l) => (
-              <ListingCard key={l.id} listing={l} />
+              <div key={l.id} className="relative">
+                <ListingCard listing={l} />
+                {isOwner && !l.soldAt && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setEditingItem(l);
+                    }}
+                    aria-label={`Edit ${l.title}`}
+                    className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink)] shadow-sm hover:bg-white"
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -343,6 +444,14 @@ export function FleetDetail() {
             setShowAuth(false);
           }}
           onAuthenticated={() => setShowAuth(false)}
+        />
+      )}
+
+      {editingItem && (
+        <EditFleetItemModal
+          listing={editingItem}
+          onClose={() => setEditingItem(null)}
+          onSaved={refreshBundle}
         />
       )}
     </div>

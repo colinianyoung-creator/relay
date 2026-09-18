@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ImagePlus, CheckCircle2, Loader2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Currency } from '@/types';
 import { ListingPhoto } from '@/components/ListingPhoto';
 import {
   createListing,
   createListingCheckout,
+  deleteListingPhoto,
   deletePendingListing,
   fetchListing,
+  updateListing,
   uploadListingPhoto,
   LISTING_FEE_GBP,
 } from '@/lib/supabaseData';
@@ -25,6 +27,7 @@ import { PayoutsGate } from '@/components/PayoutsGate';
 
 export function CreateListing() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutCancelled, setCheckoutCancelled] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -32,6 +35,12 @@ export function CreateListing() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  // Set once the listing being edited has loaded — distinguishes "create"
+  // from "edit" for the rest of the form (hides the free/paid toggle,
+  // skips the payouts gate and Stripe redirect, saves in place instead).
+  const [editListingId, setEditListingId] = useState<string | null>(null);
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
+  const [removedExistingPhotoUrls, setRemovedExistingPhotoUrls] = useState<string[]>([]);
   const [sport, setSport] = useState<Sport>('basketball');
   const [condition, setCondition] = useState<Condition>('good');
   const [isFree, setIsFree] = useState(false);
@@ -103,11 +112,52 @@ export function CreateListing() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Edit mode: loads every field (including title/price/photos, which the
+  // duplicate flow above deliberately skips) from the existing listing so
+  // it can be saved back in place rather than creating a new one.
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId) return;
+    fetchListing(editId).then((source) => {
+      if (!source) return;
+      // A sold listing shouldn't be editable — the buyer paid based on
+      // what was posted. The entry point on ListingDetail already hides
+      // the link for a sold listing; this is the defensive backstop for
+      // someone hitting the URL directly.
+      if (source.soldAt) {
+        navigate(`/listing/${editId}`, { replace: true });
+        return;
+      }
+      setEditListingId(editId);
+      setTitle(source.title);
+      setIsFree(source.price === null);
+      setPrice(source.price !== null ? String(source.price) : '');
+      setSport(source.sport);
+      setCondition(source.condition);
+      setDescription(source.description);
+      setCurrency(source.currency);
+      setLocation(source.location);
+      setCountry(source.country);
+      setShipsInternationally(source.shipsInternationally);
+      setDeliveryMethods(source.deliveryMethods?.length ? source.deliveryMethods : ['courier']);
+      setMeasurementValues(Object.fromEntries(source.measurements.map((m) => [m.label, m.value])));
+      setSeatWidthCm(source.seatWidthCm?.toString() ?? '');
+      setSeatDepthCm(source.seatDepthCm?.toString() ?? '');
+      setWeightCapacityKg(source.weightCapacityKg?.toString() ?? '');
+      setMinUserHeightCm(source.minUserHeightCm?.toString() ?? '');
+      setMaxUserHeightCm(source.maxUserHeightCm?.toString() ?? '');
+      setMinUserWeightKg(source.minUserWeightKg?.toString() ?? '');
+      setMaxUserWeightKg(source.maxUserWeightKg?.toString() ?? '');
+      setExistingPhotoUrls(source.photos ?? []);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function addPhotoFiles(files: FileList | null) {
     if (!files) return;
     setPhotoError(null);
     const incoming = Array.from(files);
-    const room = MAX_PHOTOS - photoFiles.length;
+    const room = MAX_PHOTOS - photoFiles.length - existingPhotoUrls.length;
     if (incoming.length > room) {
       setPhotoError(`Up to ${MAX_PHOTOS} photos — added the first ${room}.`);
     }
@@ -120,6 +170,14 @@ export function CreateListing() {
     URL.revokeObjectURL(photoPreviews[index]);
     setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
     setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // Existing photos (edit mode only) aren't deleted from storage until save
+  // succeeds — just staged out of the visible/kept list, so closing the tab
+  // mid-edit doesn't lose them.
+  function removeExistingPhoto(url: string) {
+    setExistingPhotoUrls((prev) => prev.filter((u) => u !== url));
+    setRemovedExistingPhotoUrls((prev) => [...prev, url]);
   }
 
   if (submittedId) {
@@ -168,7 +226,10 @@ export function CreateListing() {
   }
 
   async function publishListing(opts?: { skipPayoutsCheck?: boolean }) {
-    if (!opts?.skipPayoutsCheck && !isFree && !profile?.stripe_connect_charges_enabled) {
+    const isEditMode = editListingId !== null;
+    // Reaching a paid listing already required payouts to be enabled, and a
+    // free one never needed them — so editing never needs this gate.
+    if (!isEditMode && !opts?.skipPayoutsCheck && !isFree && !profile?.stripe_connect_charges_enabled) {
       setShowPayoutsGate(true);
       return;
     }
@@ -180,16 +241,20 @@ export function CreateListing() {
     setSubmitError(null);
     setSubmitting(true);
     try {
-      const photoUrls: string[] = [];
+      const newPhotoUrls: string[] = [];
       for (const file of photoFiles) {
-        photoUrls.push(await uploadListingPhoto(user!.id, file));
+        newPhotoUrls.push(await uploadListingPhoto(user!.id, file));
       }
-      const id = await createListing(user!.id, {
-        photos: photoUrls,
+      const photos = [...existingPhotoUrls, ...newPhotoUrls];
+      const fields = {
+        photos,
         title,
         sport,
         category: CATEGORY_LABEL[sport],
         condition,
+        // Price stays in whatever free/paid category the listing already
+        // has in edit mode — the toggle is hidden, so `isFree` here just
+        // reflects that starting category, not a live user choice.
         price: isFree ? null : Number(price) || 0,
         currency,
         description,
@@ -207,7 +272,18 @@ export function CreateListing() {
         maxUserHeightCm: maxUserHeightCm ? Number(maxUserHeightCm) : null,
         minUserWeightKg: minUserWeightKg ? Number(minUserWeightKg) : null,
         maxUserWeightKg: maxUserWeightKg ? Number(maxUserWeightKg) : null,
-      });
+      };
+
+      if (isEditMode) {
+        await updateListing(editListingId!, fields);
+        for (const url of removedExistingPhotoUrls) {
+          await deleteListingPhoto(user!.id, url);
+        }
+        navigate(`/listing/${editListingId}`);
+        return;
+      }
+
+      const id = await createListing(user!.id, fields);
 
       if (isFree) {
         setSubmittedId(id);
@@ -232,12 +308,15 @@ export function CreateListing() {
     }
   }
 
+  const isEditMode = editListingId !== null;
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="text-3xl sm:text-4xl">List a piece of equipment</h1>
+      <h1 className="text-3xl sm:text-4xl">{isEditMode ? 'Edit your listing' : 'List a piece of equipment'}</h1>
       <p className="mt-2 max-w-lg text-[15px] text-[var(--color-ink-soft)]">
-        Give it good measurements and honest photos — that's what gets a fast, well-matched
-        buyer, not a lower price.
+        {isEditMode
+          ? "Changes save straight to your live listing — buyers who've already messaged or offered won't need to start over."
+          : "Give it good measurements and honest photos — that's what gets a fast, well-matched buyer, not a lower price."}
       </p>
 
       {checkoutCancelled && (
@@ -272,6 +351,20 @@ export function CreateListing() {
               </span>
             </label>
             <div className="flex flex-wrap gap-3">
+              {existingPhotoUrls.map((url) => (
+                <div key={url} className="group relative h-28 w-28 shrink-0">
+                  <img src={url} alt="" className="h-full w-full rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingPhoto(url)}
+                    aria-label="Remove photo"
+                    className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-ink)] text-white shadow-sm hover:bg-black"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+
               {photoPreviews.map((src, i) => (
                 <div key={src} className="group relative h-28 w-28 shrink-0">
                   <img
@@ -290,11 +383,11 @@ export function CreateListing() {
                 </div>
               ))}
 
-              {photoPreviews.length === 0 && (
+              {photoPreviews.length === 0 && existingPhotoUrls.length === 0 && (
                 <ListingPhoto sport={sport} className="h-28 w-28 shrink-0 rounded-xl opacity-60" />
               )}
 
-              {photoFiles.length < MAX_PHOTOS && (
+              {photoFiles.length + existingPhotoUrls.length < MAX_PHOTOS && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -319,7 +412,7 @@ export function CreateListing() {
             {photoError && (
               <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{photoError}</p>
             )}
-            {photoPreviews.length === 0 && (
+            {photoPreviews.length === 0 && existingPhotoUrls.length === 0 && (
               <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
                 No photos yet — we'll show a placeholder for your sport instead.
               </p>
@@ -554,20 +647,26 @@ export function CreateListing() {
                 placeholder="0"
                 className="flex-1 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)] disabled:opacity-40"
               />
-              <label className="flex items-center gap-2 whitespace-nowrap text-sm text-[var(--color-ink-soft)]">
-                <input
-                  type="checkbox"
-                  checked={isFree}
-                  onChange={(e) => setIsFree(e.target.checked)}
-                  className="h-4 w-4 rounded border-[var(--color-line)]"
-                />
-                Free / donation
-              </label>
+              {!isEditMode && (
+                <label className="flex items-center gap-2 whitespace-nowrap text-sm text-[var(--color-ink-soft)]">
+                  <input
+                    type="checkbox"
+                    checked={isFree}
+                    onChange={(e) => setIsFree(e.target.checked)}
+                    className="h-4 w-4 rounded border-[var(--color-line)]"
+                  />
+                  Free / donation
+                </label>
+              )}
             </div>
             <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
-              {isFree
-                ? "Free and donation listings don't pay a posting fee."
-                : `A flat £${LISTING_FEE_GBP} posting fee applies at checkout, whatever this listing's price or currency.`}
+              {isEditMode
+                ? isFree
+                  ? "This listing was posted free — it can't be switched to paid here."
+                  : "The price can be changed, but a free listing can't be switched to paid (or vice versa) after posting."
+                : isFree
+                  ? "Free and donation listings don't pay a posting fee."
+                  : `A flat £${LISTING_FEE_GBP} posting fee applies at checkout, whatever this listing's price or currency.`}
             </p>
           </div>
 
@@ -654,7 +753,7 @@ export function CreateListing() {
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60 sm:w-auto"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
-            {isFree ? 'Publish listing' : `Continue to payment (£${LISTING_FEE_GBP})`}
+            {isEditMode ? 'Save changes' : isFree ? 'Publish listing' : `Continue to payment (£${LISTING_FEE_GBP})`}
           </button>
         </form>
       )}
