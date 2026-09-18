@@ -19,6 +19,7 @@ import { FleetBoard } from '@/pages/FleetBoard';
 import { FleetDetail } from '@/pages/FleetDetail';
 import { CreateFleetBundle } from '@/pages/CreateFleetBundle';
 import { CreateFleetListing } from '@/pages/CreateFleetListing';
+import { ScanHandover } from '@/pages/ScanHandover';
 
 // Redirect the old /fleet(s) paths to their /club-gear equivalents, so any
 // existing bookmarks/shared links or emails already sent (which used the
@@ -43,6 +44,7 @@ function App() {
           <Route path="/purchase/confirm" element={<PurchaseCheckoutConfirm />} />
           <Route path="/club-gear" element={<FleetBoard />} />
           <Route path="/club-gear/:id" element={<FleetDetail />} />
+          <Route path="/scan/:token" element={<ScanHandover />} />
           {/* Old URLs — redirect rather than break existing links */}
           <Route path="/sell/fleet/new" element={<Navigate to="/sell/club-gear/new" replace />} />
           <Route path="/sell/fleet/existing" element={<Navigate to="/sell/club-gear/existing" replace />} />

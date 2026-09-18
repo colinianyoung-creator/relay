@@ -160,7 +160,8 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
     setBusy(true);
     try {
       const { token, expiresAt } = await generateHandoverCode(order.id);
-      const dataUrl = await QRCode.toDataURL(token, { width: 220, margin: 1 });
+      const scanUrl = `${window.location.origin}/scan/${token}`;
+      const dataUrl = await QRCode.toDataURL(scanUrl, { width: 220, margin: 1 });
       setHandoverQr({ dataUrl, expiresAt });
       onChanged();
     } catch (err) {
@@ -190,7 +191,17 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
         setScanError("Couldn't find a QR code in that photo — try again with the code clearly in frame.");
         return;
       }
-      setScannedToken(result.data);
+      // The QR now encodes a /scan/:token link (so scanning it with any
+      // camera app opens that page directly); pull the token back out for
+      // the in-app confirm flow below, which still works off the bare value.
+      let token = result.data;
+      try {
+        const url = new URL(result.data);
+        token = url.pathname.split('/').filter(Boolean).pop() || result.data;
+      } catch {
+        // Not a URL — must be a token from a code generated before this change.
+      }
+      setScannedToken(token);
     } catch {
       setScanError("Couldn't read that photo — try again.");
     }

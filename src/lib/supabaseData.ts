@@ -1687,8 +1687,41 @@ export async function confirmHandover(orderId: string, token: string): Promise<v
   const { data, error } = await supabase.functions.invoke('confirm-handover', {
     body: { orderId, token },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data?.error) throw new Error(data.error);
+}
+
+export interface HandoverLookup {
+  role: 'buyer' | 'seller';
+  orderId: string;
+  title: string;
+  settled: boolean;
+  receivedConfirmedAt: string | null;
+  expired: boolean;
+}
+
+/** Resolves a scanned/opened handover QR token — the landing page for /scan/:token. */
+export async function lookupHandoverToken(token: string): Promise<HandoverLookup> {
+  const { data, error } = await supabase.functions.invoke('lookup-handover-token', {
+    body: { token },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as HandoverLookup;
 }
 
 /** Admin-only: refunds a paid order directly, without a buyer having to request it first. */
