@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy, Pencil, Trash2 } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
@@ -38,6 +38,11 @@ const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string 
 export function ListingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // 'default' means this is the first entry in the tab's history (a direct
+  // link, a new tab, a page reload) — there's nothing to go back to, so fall
+  // back to browse instead of leaving the app or doing nothing.
+  const canGoBack = location.key !== 'default';
   const { user, profile } = useAuth();
   // Mirrors `user` so a resumed post-login action (see requireAuth) always
   // reads the current session, not the stale one captured when it was queued.
@@ -119,9 +124,12 @@ export function ListingDetail() {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
         <p className="text-[var(--color-ink-soft)]">Listing not found.</p>
-        <Link to="/" className="mt-4 inline-block text-[var(--color-brand)] underline">
-          Back to browse
-        </Link>
+        <button
+          onClick={() => (canGoBack ? navigate(-1) : navigate('/'))}
+          className="mt-4 inline-block text-[var(--color-brand)] underline"
+        >
+          Back
+        </button>
       </div>
     );
   }
@@ -158,12 +166,12 @@ export function ListingDetail() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
-      <Link
-        to="/"
+      <button
+        onClick={() => (canGoBack ? navigate(-1) : navigate('/'))}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
       >
-        <ArrowLeft size={15} /> Back to browse
-      </Link>
+        <ArrowLeft size={15} /> Back
+      </button>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.4fr_1fr]">
         <div>
