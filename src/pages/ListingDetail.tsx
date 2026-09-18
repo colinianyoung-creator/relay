@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy, Pencil } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy, Pencil, Trash2 } from 'lucide-react';
 import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
@@ -10,6 +10,7 @@ import {
   sendMessage,
   fetchFitProfile,
   createPurchaseCheckout,
+  deleteListing,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
 import { isLikelyFit, hasFitSignal, hasAnyProfileData } from '@/lib/fitMatch';
@@ -36,6 +37,7 @@ const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string 
 
 export function ListingDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   // Mirrors `user` so a resumed post-login action (see requireAuth) always
   // reads the current session, not the stale one captured when it was queued.
@@ -63,6 +65,24 @@ export function ListingDetail() {
   const [showPurchaseReview, setShowPurchaseReview] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (!listing) return;
+    if (!confirm(`Delete "${listing.title}"? This can't be undone — any messages or offers on it go too.`)) {
+      return;
+    }
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await deleteListing(listing.id);
+      navigate('/account');
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this listing.');
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -347,6 +367,18 @@ export function ListingDetail() {
                     <Copy size={12} /> Duplicate this listing
                   </Link>
                 )}
+
+                {!isDemo && !isSold && !listing.bundleId && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-dark)] disabled:opacity-60"
+                  >
+                    {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    Delete listing
+                  </button>
+                )}
+                {deleteError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deleteError}</p>}
 
               </div>
             ) : isSold ? (

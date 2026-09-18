@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Boxes, Loader2, MessageCircle, Pencil, Send, Star, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, BadgeCheck, Boxes, Loader2, MessageCircle, Pencil, Send, Star, CheckCircle2, Trash2 } from 'lucide-react';
 import {
   fetchBundle,
   findBuyerByEmail,
@@ -8,6 +8,7 @@ import {
   hasMessaged,
   sendMessage,
   updateFleetBundleShared,
+  cancelFleetBundle,
   type BuyerLookup,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
@@ -164,6 +165,7 @@ function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
 
 export function FleetDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   // Mirrors `user` so a resumed post-login action (see requireAuth) always
   // reads the current session, not the stale one captured when it was queued.
@@ -180,6 +182,28 @@ export function FleetDetail() {
   const [bundleSaving, setBundleSaving] = useState(false);
   const [bundleSaveError, setBundleSaveError] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<Listing | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function handleCancelLot() {
+    if (!bundle) return;
+    if (
+      !confirm(
+        `Cancel "${bundle.title}"? It'll come off Club Gear browse — items already sold or messaged about aren't affected. This can't be undone here.`,
+      )
+    ) {
+      return;
+    }
+    setCancelError(null);
+    setCancelling(true);
+    try {
+      await cancelFleetBundle(bundle.id);
+      navigate('/club-gear');
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Could not cancel this lot.');
+      setCancelling(false);
+    }
+  }
 
   function refreshBundle() {
     if (!id) return;
@@ -314,18 +338,31 @@ export function FleetDetail() {
               <div className="mt-4 flex items-start justify-between gap-3">
                 <h1 className="text-3xl leading-tight sm:text-4xl">{bundle.title}</h1>
                 {isOwner && (
-                  <button
-                    onClick={() => {
-                      setBundleTitleDraft(bundle.title);
-                      setBundleDescDraft(bundle.description);
-                      setEditingBundle(true);
-                    }}
-                    className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-                  >
-                    <Pencil size={12} /> Edit
-                  </button>
+                  <div className="mt-1 flex shrink-0 gap-2">
+                    <button
+                      onClick={() => {
+                        setBundleTitleDraft(bundle.title);
+                        setBundleDescDraft(bundle.description);
+                        setEditingBundle(true);
+                      }}
+                      className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                    >
+                      <Pencil size={12} /> Edit
+                    </button>
+                    {bundle.status === 'active' && (
+                      <button
+                        onClick={handleCancelLot}
+                        disabled={cancelling}
+                        className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-dark)] disabled:opacity-60"
+                      >
+                        {cancelling ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        Cancel this lot
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
+              {cancelError && <p className="mt-2 text-sm text-[var(--color-brand-dark)]">{cancelError}</p>}
               <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[var(--color-ink)]">
                 {bundle.description}
               </p>

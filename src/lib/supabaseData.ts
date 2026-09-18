@@ -230,6 +230,18 @@ export async function deletePendingListing(listingId: string): Promise<void> {
   await supabase.from('listings').delete().eq('id', listingId).eq('fee_status', 'pending');
 }
 
+// Only ever allowed on a listing that's never sold — sold_at is set once
+// by stripe-webhook and never cleared, even after a refund, so it's a
+// permanent, reliable signal a real order exists for this listing. RLS
+// already permits an owner to delete their own row outright, and several
+// FKs (orders, messages, offers, reviews, saved_listings) cascade off
+// listings.id — this guard is what stops that cascade from ever being
+// able to reach a real order's payment/refund history.
+export async function deleteListing(listingId: string): Promise<void> {
+  const { error } = await supabase.from('listings').delete().eq('id', listingId).is('sold_at', null);
+  if (error) throw error;
+}
+
 // Everything a seller can change after a listing has already gone live.
 // Deliberately excludes fee_status/sold_at/buyer_id/bundle_id/seller_id/
 // stripe_checkout_session_id/sellable_individually — those are set by the
@@ -355,6 +367,15 @@ export async function updateFleetBundleShared(
     .from('listing_bundles')
     .update({ title: fields.title, description: fields.description })
     .eq('id', bundleId);
+  if (error) throw error;
+}
+
+// RLS has no seller DELETE policy on listing_bundles (only admin) — this
+// is the closest real equivalent: 'cancelled' drops it out of
+// fetchActiveBundles' `status = 'active'` filter, without touching the
+// member listings or needing DB permissions the schema doesn't grant.
+export async function cancelFleetBundle(bundleId: string): Promise<void> {
+  const { error } = await supabase.from('listing_bundles').update({ status: 'cancelled' }).eq('id', bundleId);
   if (error) throw error;
 }
 
