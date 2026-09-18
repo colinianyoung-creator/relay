@@ -1705,6 +1705,7 @@ export interface HandoverLookup {
   settled: boolean;
   receivedConfirmedAt: string | null;
   shippedAt: string | null;
+  method: 'collection' | 'courier' | 'freight' | null;
   expired: boolean;
 }
 

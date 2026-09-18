@@ -121,10 +121,11 @@ export function ScanHandover() {
   }
 
   if (lookup.role === 'seller') {
-    // Not shipped yet — this is the seller scanning their own label at the
-    // point of actually sending it, so that's the moment to mark it shipped
-    // and let the buyer know, rather than a separate step back in the app.
-    if (!lookup.settled && !lookup.shippedAt && !justMarkedShipped) {
+    // Only courier/freight has a distinct "sent" step to mark — a
+    // collection code's own handover *is* the buyer's scan, there's nothing
+    // separate for the seller to confirm here.
+    const canMarkSent = lookup.method === 'courier' || lookup.method === 'freight';
+    if (canMarkSent && !lookup.settled && !lookup.shippedAt && !justMarkedShipped) {
       return (
         <div className="mx-auto max-w-lg px-6 py-24 text-center">
           <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />

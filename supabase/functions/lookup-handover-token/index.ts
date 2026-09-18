@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: delivery, error: deliveryError } = await supabase
       .from('order_deliveries')
-      .select('order_id, handover_token_expires_at, received_confirmed_at, shipped_at')
+      .select('order_id, handover_token_expires_at, received_confirmed_at, shipped_at, method')
       .eq('handover_token', token)
       .maybeSingle();
     if (deliveryError || !delivery) {
@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
         settled: order.transfer_status !== 'pending',
         receivedConfirmedAt: delivery.received_confirmed_at,
         shippedAt: delivery.shipped_at,
+        method: delivery.method,
         expired: expired && order.transfer_status === 'pending',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
