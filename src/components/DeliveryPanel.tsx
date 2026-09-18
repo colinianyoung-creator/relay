@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
-import { Camera, CheckCircle2, FileText, Loader2, QrCode, Truck, X } from 'lucide-react';
+import { Camera, CheckCircle2, FileText, Loader2, Printer, QrCode, Truck, X } from 'lucide-react';
 import {
   confirmHandover,
   confirmReceipt,
@@ -229,6 +229,9 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
 
   const hasArranged = Boolean(order.deliveryMethod || order.trackingReference || order.trackingUrl);
   const isCollection = order.deliveryMethod === 'collection' || !order.deliveryMethod;
+  // Scopes the print CSS below to this order's own label — this panel can
+  // render more than once on one page (e.g. a seller's order list).
+  const labelPrintId = `shipping-label-${order.id}`;
 
   return (
     <div className="col-span-full border-t border-[var(--color-line)] pt-3">
@@ -385,7 +388,57 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
 
           {handoverQr && (
             <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
-              <img src={handoverQr.dataUrl} alt="Handover QR code" className="mx-auto h-40 w-40" />
+              <style>{`
+                @media print {
+                  body * { visibility: hidden; }
+                  #${labelPrintId}, #${labelPrintId} * { visibility: visible; }
+                  #${labelPrintId} { position: fixed; inset: 0; padding: 32px; }
+                }
+              `}</style>
+              <div id={labelPrintId} className="mx-auto max-w-xs text-center">
+                {!isCollection && (
+                  <div className="mb-3 text-left">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                      Ship to
+                    </p>
+                    {order.shippingAddress ? (
+                      <div className="mt-1 text-sm leading-relaxed">
+                        <p className="font-medium text-[var(--color-ink)]">
+                          {order.shippingRecipientName ?? order.counterpartyName}
+                        </p>
+                        <p>{order.shippingAddress.line1}</p>
+                        {order.shippingAddress.line2 && <p>{order.shippingAddress.line2}</p>}
+                        <p>
+                          {[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postal_code]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
+                        <p>{order.shippingAddress.country}</p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
+                        Address not available yet — refresh in a moment.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <img src={handoverQr.dataUrl} alt="Handover QR code" className="mx-auto h-40 w-40" />
+                <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+                  {order.title} · Order {order.id.slice(0, 8)}
+                </p>
+              </div>
+
+              {!isCollection && (
+                <div className="mt-3 flex justify-center">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                  >
+                    <Printer size={12} /> Print label
+                  </button>
+                </div>
+              )}
+
               <p className="mt-2 text-center text-[var(--color-ink-soft)]">
                 {isCollection
                   ? 'Show this to the buyer at handover.'
