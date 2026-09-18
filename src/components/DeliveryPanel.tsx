@@ -453,7 +453,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
               <p className="mt-2 text-center text-[var(--color-ink-soft)]">
                 {isCollection
                   ? 'Show this to the buyer at handover.'
-                  : 'Print this and stick it on the parcel before you send it — the buyer scans it when it arrives.'}{' '}
+                  : 'Print this and stick it on the parcel. Scan it yourself when you send it to mark the order shipped, then the buyer scans it again when it arrives.'}{' '}
                 Expires {formatDateTime(handoverQr.expiresAt)}.
               </p>
             </div>

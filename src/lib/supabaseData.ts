@@ -1704,6 +1704,7 @@ export interface HandoverLookup {
   title: string;
   settled: boolean;
   receivedConfirmedAt: string | null;
+  shippedAt: string | null;
   expired: boolean;
 }
 

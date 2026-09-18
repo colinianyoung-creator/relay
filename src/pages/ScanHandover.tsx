@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, AlertTriangle, PackageCheck } from 'lucide-react';
-import { confirmHandover, lookupHandoverToken, type HandoverLookup } from '@/lib/supabaseData';
+import { confirmHandover, lookupHandoverToken, updateDeliveryDetails, type HandoverLookup } from '@/lib/supabaseData';
 import { formatDateTime } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
@@ -20,6 +20,9 @@ export function ScanHandover() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [justConfirmed, setJustConfirmed] = useState(false);
+  const [marking, setMarking] = useState(false);
+  const [markError, setMarkError] = useState<string | null>(null);
+  const [justMarkedShipped, setJustMarkedShipped] = useState(false);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -35,6 +38,20 @@ export function ScanHandover() {
       cancelled = true;
     };
   }, [token, user]);
+
+  async function handleMarkShipped() {
+    if (!lookup) return;
+    setMarkError(null);
+    setMarking(true);
+    try {
+      await updateDeliveryDetails(lookup.orderId, { markShipped: true });
+      setJustMarkedShipped(true);
+    } catch (err) {
+      setMarkError(err instanceof Error ? err.message : 'Could not mark this as shipped.');
+    } finally {
+      setMarking(false);
+    }
+  }
 
   async function handleConfirm() {
     if (!token || !lookup) return;
@@ -104,6 +121,39 @@ export function ScanHandover() {
   }
 
   if (lookup.role === 'seller') {
+    // Not shipped yet — this is the seller scanning their own label at the
+    // point of actually sending it, so that's the moment to mark it shipped
+    // and let the buyer know, rather than a separate step back in the app.
+    if (!lookup.settled && !lookup.shippedAt && !justMarkedShipped) {
+      return (
+        <div className="mx-auto max-w-lg px-6 py-24 text-center">
+          <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
+          <h1 className="text-2xl">Sending "{lookup.title}"?</h1>
+          <p className="mt-3 text-[var(--color-ink-soft)]">
+            Scanning this at the point of posting marks the order as shipped and lets the buyer
+            know it's on its way.
+          </p>
+          {markError && <p className="mt-3 text-[var(--color-brand-dark)]">{markError}</p>}
+          <div className="mt-6 flex justify-center gap-3">
+            <button
+              onClick={handleMarkShipped}
+              disabled={marking}
+              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+            >
+              {marking && <Loader2 size={14} className="animate-spin" />}
+              Mark as sent
+            </button>
+            <Link
+              to="/account"
+              className="inline-flex items-center rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+            >
+              Not now
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-lg px-6 py-24 text-center">
         <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
@@ -111,7 +161,9 @@ export function ScanHandover() {
         <p className="mt-3 text-[var(--color-ink-soft)]">
           {lookup.settled
             ? `The buyer confirmed receipt${lookup.receivedConfirmedAt ? ` on ${formatDateTime(lookup.receivedConfirmedAt)}` : ''} — your payout has been released.`
-            : "Waiting for the buyer to scan this. You'll be notified, and paid out automatically, once they do."}
+            : justMarkedShipped
+              ? "Marked as sent — the buyer's been notified. You'll be paid out automatically once they confirm receipt."
+              : "Waiting for the buyer to scan this. You'll be notified, and paid out automatically, once they do."}
         </p>
         <Link
           to="/account"
