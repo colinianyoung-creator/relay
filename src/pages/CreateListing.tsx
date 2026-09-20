@@ -11,6 +11,7 @@ import {
   fetchListing,
   updateListing,
   uploadListingPhoto,
+  redeemPromoCode,
   LISTING_FEE_GBP,
 } from '@/lib/supabaseData';
 import {
@@ -44,6 +45,10 @@ export function CreateListing() {
   const [sport, setSport] = useState<Sport>('basketball');
   const [condition, setCondition] = useState<Condition>('good');
   const [isFree, setIsFree] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoApplying, setPromoApplying] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -188,6 +193,11 @@ export function CreateListing() {
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Your listing is now live on Relay. We'll email you when someone gets in touch.
         </p>
+        {promoApplied && (
+          <p className="mt-2 text-sm font-medium text-[var(--color-moss)]">
+            Posting fee waived — you're one of our first 100 sellers.
+          </p>
+        )}
         <div className="mt-6 flex justify-center gap-3">
           <Link
             to={`/listing/${submittedId}`}
@@ -223,6 +233,24 @@ export function CreateListing() {
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
     );
+  }
+
+  async function handleApplyPromo() {
+    if (!promoCode.trim()) return;
+    setPromoError(null);
+    setPromoApplying(true);
+    try {
+      const ok = await redeemPromoCode(promoCode);
+      if (ok) {
+        setPromoApplied(true);
+      } else {
+        setPromoError("That code's expired, already fully claimed, or isn't valid.");
+      }
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : 'Could not check that code.');
+    } finally {
+      setPromoApplying(false);
+    }
   }
 
   async function publishListing(opts?: { skipPayoutsCheck?: boolean }) {
@@ -283,9 +311,9 @@ export function CreateListing() {
         return;
       }
 
-      const id = await createListing(user!.id, fields);
+      const id = await createListing(user!.id, { ...fields, feeWaived: promoApplied });
 
-      if (isFree) {
+      if (isFree || promoApplied) {
         setSubmittedId(id);
         setSubmitting(false);
         return;
@@ -670,6 +698,45 @@ export function CreateListing() {
             </p>
           </div>
 
+          {!isEditMode && !isFree && (
+            <div>
+              <label htmlFor="promo" className="mb-2 block text-sm font-medium">
+                Promo code
+                <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">— optional</span>
+              </label>
+              {promoApplied ? (
+                <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-moss)]">
+                  <CheckCircle2 size={15} /> RELAY100 applied — this listing's £{LISTING_FEE_GBP} fee is waived.
+                </p>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      id="promo"
+                      value={promoCode}
+                      onChange={(e) => {
+                        setPromoCode(e.target.value);
+                        setPromoError(null);
+                      }}
+                      placeholder="RELAY100"
+                      className="flex-1 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      disabled={promoApplying || !promoCode.trim()}
+                      className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-50"
+                    >
+                      {promoApplying && <Loader2 size={14} className="animate-spin" />}
+                      Apply
+                    </button>
+                  </div>
+                  {promoError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{promoError}</p>}
+                </>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-5">
             <div>
               <label htmlFor="location" className="mb-2 block text-sm font-medium">
@@ -753,7 +820,11 @@ export function CreateListing() {
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60 sm:w-auto"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
-            {isEditMode ? 'Save changes' : isFree ? 'Publish listing' : `Continue to payment (£${LISTING_FEE_GBP})`}
+            {isEditMode
+              ? 'Save changes'
+              : isFree || promoApplied
+                ? 'Publish listing'
+                : `Continue to payment (£${LISTING_FEE_GBP})`}
           </button>
         </form>
       )}

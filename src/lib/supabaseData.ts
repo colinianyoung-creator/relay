@@ -151,9 +151,27 @@ export interface NewListingInput {
   minUserWeightKg?: number | null;
   maxUserWeightKg?: number | null;
   photos?: string[];
+  /** Set once redeemPromoCode() has confirmed a claim — waives the posting fee same as a free listing. */
+  feeWaived?: boolean;
 }
 
 export const LISTING_FEE_GBP = 9;
+export const LAUNCH_PROMO_CODE = 'RELAY100';
+export const LAUNCH_PROMO_CAP = 100;
+
+/** Redeems the launch promo code for the current user — idempotent, capped server-side. */
+export async function redeemPromoCode(code: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('redeem_promo_code', { p_code: code });
+  if (error) throw error;
+  return !!data;
+}
+
+/** Public claim count for the promo banner — works signed out too. */
+export async function fetchPromoRedemptionCount(code: string): Promise<number> {
+  const { data, error } = await supabase.rpc('promo_redemption_count', { p_code: code });
+  if (error) throw error;
+  return data ?? 0;
+}
 
 /** Fire-and-forget — a saved-search email failing must never block or fail a listing going live. */
 function checkSavedSearches(listingIds: string[]): void {
@@ -166,7 +184,7 @@ export async function createListing(sellerId: string, input: NewListingInput): P
   // Free/donation listings never owe a fee; anything with a price starts
   // 'pending' and is invisible to everyone but the seller until Checkout
   // completes and the webhook confirms it.
-  const feeStatus = input.price === null ? 'exempt' : 'pending';
+  const feeStatus = input.price === null || input.feeWaived ? 'exempt' : 'pending';
   const { data, error } = await supabase
     .from('listings')
     .insert({

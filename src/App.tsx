@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Nav } from '@/components/Nav';
+import { PromoBanner } from '@/components/PromoBanner';
 import { Footer } from '@/components/Footer';
 import { Browse } from '@/pages/Browse';
 import { ListingDetail } from '@/pages/ListingDetail';
@@ -32,6 +33,7 @@ function RedirectFleetDetail() {
 function App() {
   return (
     <div className="flex min-h-screen flex-col">
+      <PromoBanner />
       <Nav />
       <main className="flex-1">
         <Routes>
