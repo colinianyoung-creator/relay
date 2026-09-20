@@ -177,22 +177,24 @@ export function ListingDetail() {
         <div>
           {listing.photos && listing.photos.length > 0 ? (
             <>
-              <img
-                src={listing.photos[photoIndex]}
-                alt={listing.title}
-                className="h-80 w-full rounded-2xl object-cover sm:h-[26rem]"
-              />
+              <div className="h-80 w-full overflow-hidden rounded-2xl bg-[var(--color-paper)] sm:h-[26rem]">
+                <img
+                  src={listing.photos[photoIndex]}
+                  alt={listing.title}
+                  className="h-full w-full object-contain"
+                />
+              </div>
               {listing.photos.length > 1 && (
                 <div className="mt-3 flex gap-2 overflow-x-auto">
                   {listing.photos.map((photo, i) => (
                     <button
                       key={photo}
                       onClick={() => setPhotoIndex(i)}
-                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 ${
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-[var(--color-paper)] ${
                         i === photoIndex ? 'border-[var(--color-brand)]' : 'border-transparent'
                       }`}
                     >
-                      <img src={photo} alt="" className="h-full w-full object-cover" />
+                      <img src={photo} alt="" className="h-full w-full object-contain" />
                     </button>
                   ))}
                 </div>

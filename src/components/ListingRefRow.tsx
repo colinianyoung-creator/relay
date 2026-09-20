@@ -34,7 +34,7 @@ export function ListingRefRow({
         <ListingCover
           sport={sport}
           photos={photos ?? undefined}
-          className="h-12 w-12 shrink-0 rounded-xl object-cover"
+          className="h-12 w-12 shrink-0 rounded-xl"
         />
       ) : (
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-line)]/40 text-[var(--color-ink-soft)]">

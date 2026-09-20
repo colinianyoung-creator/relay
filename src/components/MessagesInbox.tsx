@@ -163,7 +163,7 @@ export function MessagesInbox({
             <ListingCover
               sport={t.sport}
               photos={t.photos ?? undefined}
-              className="h-12 w-12 shrink-0 rounded-xl object-cover"
+              className="h-12 w-12 shrink-0 rounded-xl"
             />
           ) : (
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">

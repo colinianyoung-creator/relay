@@ -221,7 +221,9 @@ export function CreateFleetListing() {
           <div className="flex flex-wrap gap-3">
             {photoPreviews.map((src, i) => (
               <div key={src} className="group relative h-28 w-28 shrink-0">
-                <img src={src} alt="" className="h-full w-full rounded-xl object-cover" />
+                <div className="h-full w-full overflow-hidden rounded-xl bg-[var(--color-paper)]">
+                  <img src={src} alt="" className="h-full w-full object-contain" />
+                </div>
                 <button
                   type="button"
                   onClick={() => removePhoto(i)}

@@ -353,7 +353,9 @@ export function CreateListing() {
             <div className="flex flex-wrap gap-3">
               {existingPhotoUrls.map((url) => (
                 <div key={url} className="group relative h-28 w-28 shrink-0">
-                  <img src={url} alt="" className="h-full w-full rounded-xl object-cover" />
+                  <div className="h-full w-full overflow-hidden rounded-xl bg-[var(--color-paper)]">
+                    <img src={url} alt="" className="h-full w-full object-contain" />
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeExistingPhoto(url)}
@@ -367,11 +369,9 @@ export function CreateListing() {
 
               {photoPreviews.map((src, i) => (
                 <div key={src} className="group relative h-28 w-28 shrink-0">
-                  <img
-                    src={src}
-                    alt=""
-                    className="h-full w-full rounded-xl object-cover"
-                  />
+                  <div className="h-full w-full overflow-hidden rounded-xl bg-[var(--color-paper)]">
+                    <img src={src} alt="" className="h-full w-full object-contain" />
+                  </div>
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
