@@ -14,6 +14,10 @@ import { corsHeaders } from '../_shared/cors.ts';
 // Relay's cut of each sale. Easy to tune — kept as one constant rather than
 // scattered through the codebase.
 const PLATFORM_FEE_PERCENT = 5;
+// Flat ceiling so a large sale (a club fleet liquidation especially) doesn't
+// pay commission that scales unbounded with price — see accept-offer's copy
+// of this same constant for the full reasoning.
+const PLATFORM_FEE_CAP = 150;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -128,7 +132,10 @@ Deno.serve(async (req) => {
     }
 
     const amountPence = Math.round(listing.price * 100);
-    const platformFeePence = Math.round((amountPence * PLATFORM_FEE_PERCENT) / 100);
+    const platformFeePence = Math.min(
+      Math.round((amountPence * PLATFORM_FEE_PERCENT) / 100),
+      PLATFORM_FEE_CAP * 100,
+    );
 
     const { data: order, error: orderError } = await supabase
       .from('orders')

@@ -6,10 +6,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
-// Kept identical to create-purchase-checkout's constant, just computed
+// Kept identical to create-purchase-checkout's constants, just computed
 // early here (before any Stripe session exists) so the invoice can show
 // both parties what Relay's cut will be up front.
 const PLATFORM_FEE_PERCENT = 5;
+const PLATFORM_FEE_CAP = 150;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -102,7 +103,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const platformFeeAmount = Math.round(Number(amount) * PLATFORM_FEE_PERCENT) / 100;
+    const platformFeeAmount = Math.min(Math.round(Number(amount) * PLATFORM_FEE_PERCENT) / 100, PLATFORM_FEE_CAP);
 
     const { data: order, error: orderError } = await supabase
       .from('orders')

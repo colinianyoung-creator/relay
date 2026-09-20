@@ -7,6 +7,12 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { notifyUser } from '../_shared/notify.ts';
 
 const PLATFORM_FEE_PERCENT = 5;
+// Uncapped, 5% on a club fleet liquidation (10-15 chairs at once, see
+// createFleetListing's own reasoning) runs into the hundreds of pounds on a
+// single sale — a flat ceiling keeps commission proportionate to a normal
+// single-item sale once the order gets that large, whatever currency it's
+// in (same flat-regardless-of-currency approach as the posting fee).
+const PLATFORM_FEE_CAP = 150;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -108,7 +114,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const platformFeeAmount = Math.round(Number(offer.amount) * PLATFORM_FEE_PERCENT) / 100;
+    const platformFeeAmount = Math.min(
+      Math.round(Number(offer.amount) * PLATFORM_FEE_PERCENT) / 100,
+      PLATFORM_FEE_CAP,
+    );
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
