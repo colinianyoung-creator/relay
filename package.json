@@ -13,7 +13,6 @@
     "@stripe/connect-js": "^3.4.6",
     "@stripe/react-connect-js": "^3.4.4",
     "@supabase/supabase-js": "^2.112.4",
-    "jsqr": "^1.4.0",
     "lucide-react": "^1.39.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",

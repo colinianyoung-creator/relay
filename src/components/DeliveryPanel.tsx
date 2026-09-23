@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import jsQR from 'jsqr';
-import { Camera, CheckCircle2, FileText, Loader2, Printer, QrCode, Truck, X } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, Printer, QrCode, Truck, X } from 'lucide-react';
 import {
-  confirmHandover,
   confirmReceipt,
   deleteDeliveryEvidence,
   generateHandoverCode,
@@ -13,7 +11,7 @@ import {
   uploadDeliveryEvidence,
   type MyOrder,
 } from '@/lib/supabaseData';
-import { formatDateTime, formatPrice } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 
 export const METHOD_LABEL: Record<string, string> = {
   collection: 'Local collection',
@@ -80,9 +78,6 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [handoverQr, setHandoverQr] = useState<{ dataUrl: string; expiresAt: string } | null>(null);
-  const [scannedToken, setScannedToken] = useState<string | null>(null);
-  const [scanError, setScanError] = useState<string | null>(null);
-  const scanInputRef = useRef<HTMLInputElement>(null);
 
   async function handleRequestQuote() {
     setError(null);
@@ -171,57 +166,6 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
     }
   }
 
-  async function handleScanPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setScanError(null);
-    setScannedToken(null);
-    try {
-      const bitmap = await createImageBitmap(file);
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not read that photo.');
-      ctx.drawImage(bitmap, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = jsQR(imageData.data, imageData.width, imageData.height);
-      if (!result?.data) {
-        setScanError("Couldn't find a QR code in that photo — try again with the code clearly in frame.");
-        return;
-      }
-      // The QR now encodes a /scan/:token link (so scanning it with any
-      // camera app opens that page directly); pull the token back out for
-      // the in-app confirm flow below, which still works off the bare value.
-      let token = result.data;
-      try {
-        const url = new URL(result.data);
-        token = url.pathname.split('/').filter(Boolean).pop() || result.data;
-      } catch {
-        // Not a URL — must be a token from a code generated before this change.
-      }
-      setScannedToken(token);
-    } catch {
-      setScanError("Couldn't read that photo — try again.");
-    }
-  }
-
-  async function handleConfirmHandover() {
-    if (!scannedToken) return;
-    setError(null);
-    setBusy(true);
-    try {
-      await confirmHandover(order.id, scannedToken);
-      setScannedToken(null);
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not confirm handover.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -239,6 +183,16 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   }
 
   const hasArranged = Boolean(order.deliveryMethod || order.trackingReference || order.trackingUrl);
+  // Details are what got agreed *before* dispatch. The one thing still worth
+  // filling in afterwards is the tracking reference — "Mark as delivered"
+  // is blocked without one — so a seller who shipped without it keeps the
+  // button until they've added it.
+  const canEditDetails =
+    !order.shippedAt ||
+    (order.role === 'seller' &&
+      (order.deliveryMethod === 'courier' || order.deliveryMethod === 'freight') &&
+      !order.trackingReference &&
+      order.trackingStatus !== 'delivered');
   const isCollection = order.deliveryMethod === 'collection' || !order.deliveryMethod;
   // Scopes the print CSS below to this order's own label — this panel can
   // render more than once on one page (e.g. a seller's order list).
@@ -373,28 +327,14 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                     : 'Generate QR to print on parcel'}
               </button>
             )}
-            {order.role === 'buyer' && order.transferStatus === 'pending' && (
+            {canEditDetails && (
               <button
-                onClick={() => scanInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                onClick={() => setEditing(true)}
+                className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
               >
-                <Camera size={12} /> {isCollection ? 'Scan to accept item' : 'Scan the QR on your parcel'}
+                {hasArranged || order.deliveryNotes ? 'Edit details' : 'Record what was arranged'}
               </button>
             )}
-            <input
-              ref={scanInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleScanPhoto}
-              className="hidden"
-            />
-            <button
-              onClick={() => setEditing(true)}
-              className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-            >
-              {hasArranged || order.deliveryNotes ? 'Edit details' : 'Record what was arranged'}
-            </button>
           </div>
 
           {handoverQr && (
@@ -459,32 +399,6 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
             </div>
           )}
 
-          {scanError && <p className="mt-2 text-[var(--color-brand-dark)]">{scanError}</p>}
-
-          {scannedToken && (
-            <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
-              <p>
-                Confirm you've received <strong>{order.title}</strong> from {order.counterpartyName} and release{' '}
-                {formatPrice(order.amount, order.currency)} to them?
-              </p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={handleConfirmHandover}
-                  disabled={busy}
-                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
-                >
-                  {busy && <Loader2 size={12} className="animate-spin" />}
-                  Confirm & release
-                </button>
-                <button
-                  onClick={() => setScannedToken(null)}
-                  className="text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
         </>
       )}
 
