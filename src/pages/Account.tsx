@@ -34,6 +34,9 @@ import {
   unarchiveListing,
   deleteListing,
   fetchArchivedOrderIds,
+  fetchArchivedOfferIds,
+  archiveOffer,
+  unarchiveOffer,
   archiveOrder,
   unarchiveOrder,
   type MessageThread,
@@ -160,6 +163,8 @@ export function Account() {
   const [archivedOrderIds, setArchivedOrderIds] = useState<Set<string>>(new Set());
   const [showArchivedListings, setShowArchivedListings] = useState(false);
   const [showArchivedOrders, setShowArchivedOrders] = useState(false);
+  const [archivedOfferIds, setArchivedOfferIds] = useState<Set<string>>(new Set());
+  const [showArchivedOffers, setShowArchivedOffers] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [invoiceBusyId, setInvoiceBusyId] = useState<string | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -228,6 +233,32 @@ export function Account() {
       setArchivedOrderIds((prev) => new Set(prev).add(orderId));
     } catch (err) {
       setArchiveError(err instanceof Error ? err.message : 'Could not archive that order.');
+    }
+  }
+
+  async function handleArchiveOffer(offerId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await archiveOffer(user.id, offerId);
+      setArchivedOfferIds((prev) => new Set(prev).add(offerId));
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not archive that offer.');
+    }
+  }
+
+  async function handleUnarchiveOffer(offerId: string) {
+    if (!user) return;
+    setArchiveError(null);
+    try {
+      await unarchiveOffer(user.id, offerId);
+      setArchivedOfferIds((prev) => {
+        const next = new Set(prev);
+        next.delete(offerId);
+        return next;
+      });
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not unarchive that offer.');
     }
   }
 
@@ -364,6 +395,7 @@ export function Account() {
     fetchMessageThreads(user.id).then(setMessages);
     fetchArchivedListingIds(user.id).then(setArchivedListingIds);
     fetchArchivedOrderIds(user.id).then(setArchivedOrderIds);
+    fetchArchivedOfferIds(user.id).then(setArchivedOfferIds);
   }, [user]);
 
   if (authLoading) {
@@ -382,6 +414,51 @@ export function Account() {
   // sale living in the Orders tab now — no longer something to act on or
   // track here.
   const visibleOffers = offers?.filter((o) => !(o.status === 'accepted' && o.orderPaid)) ?? null;
+  const roleOffers = visibleOffers?.filter((o) => o.role === viewRole) ?? [];
+  const activeRoleOffers = roleOffers.filter((o) => !archivedOfferIds.has(o.id));
+  const archivedOfferCount = roleOffers.length - activeRoleOffers.length;
+  const shownOffers = showArchivedOffers ? roleOffers : activeRoleOffers;
+
+  // Where a listing card should actually take you: wherever that listing's
+  // sale currently lives — an unpaid invoice, an order awaiting payment, a
+  // paid-out sale, or an open offer — rather than always the bare listing
+  // page. null means "nothing in flight", so it just opens the listing.
+  function followListing(e: React.MouseEvent, l: Listing) {
+    const go = listingDestination(l);
+    if (!go) return;
+    e.preventDefault();
+    e.stopPropagation();
+    go();
+  }
+
+  function listingDestination(l: Listing): (() => void) | null {
+    const order = (orders ?? []).find(
+      (o) =>
+        o.role === 'seller' &&
+        o.status !== 'cancelled' &&
+        (o.listingId === l.id || (!!l.bundleId && o.bundleId === l.bundleId)),
+    );
+    if (order) {
+      const nextTab: (typeof TABS)[number] =
+        order.status === 'pending' ? 'Offers' : order.status === 'paid' && order.transferStatus === 'pending' ? 'Orders' : 'Payouts';
+      return () => {
+        setViewRole('seller');
+        setTab(nextTab);
+        setExpandedId(order.id);
+        window.scrollTo({ top: 0 });
+      };
+    }
+    const offer = (offers ?? []).find((o) => o.role === 'seller' && o.listingId === l.id && o.status === 'pending');
+    if (offer) {
+      return () => {
+        setViewRole('seller');
+        setTab('Offers');
+        setExpandedId(offer.id);
+        window.scrollTo({ top: 0 });
+      };
+    }
+    return null;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -477,7 +554,9 @@ export function Account() {
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                       {visible.map((l) => (
                         <div key={l.id} className="relative">
-                          <ListingCard listing={l} />
+                          <div onClickCapture={(e) => followListing(e, l)}>
+                            <ListingCard listing={l} />
+                          </div>
                           <ListingActionsMenu
                             listing={l}
                             isArchived={false}
@@ -500,7 +579,9 @@ export function Account() {
                           <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                             {archived.map((l) => (
                               <div key={l.id} className="relative opacity-70">
-                                <ListingCard listing={l} />
+                                <div onClickCapture={(e) => followListing(e, l)}>
+                                  <ListingCard listing={l} />
+                                </div>
                                 <ListingActionsMenu
                                   listing={l}
                                   isArchived
@@ -667,7 +748,7 @@ export function Account() {
               <h3 className="mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Offers</h3>
               {visibleOffers === null ? (
                 <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
-              ) : visibleOffers.filter((o) => o.role === viewRole).length === 0 ? (
+              ) : shownOffers.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
                   <Tag size={28} />
                   <p>
@@ -684,15 +765,16 @@ export function Account() {
                     </p>
                   )}
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-                    {visibleOffers
-                      .filter((o) => o.role === viewRole)
+                    {shownOffers
                       .map((offer) => {
+                  const isArchivedOffer = archivedOfferIds.has(offer.id);
+                  const canArchiveOffer = offer.status === 'declined' || offer.status === 'withdrawn';
                   const myTurn = offer.status === 'pending' && offer.proposedBy !== offer.role;
                   const myOwnProposal = offer.status === 'pending' && offer.proposedBy === offer.role;
                   const expanded = expandedId === offer.id;
                   const listingLink = `/listing/${offer.listingId}`;
                   return (
-                    <div key={offer.id} className="p-4">
+                    <div key={offer.id} className={`p-4 ${isArchivedOffer ? 'opacity-70' : ''}`}>
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => setExpandedId(expanded ? null : offer.id)}
@@ -794,6 +876,25 @@ export function Account() {
                               View order
                             </button>
                           )}
+                          {isArchivedOffer ? (
+                            <button
+                              onClick={() => handleUnarchiveOffer(offer.id)}
+                              title="Unarchive — bring it back to Offers"
+                              className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                            >
+                              <ArchiveRestore size={13} />
+                            </button>
+                          ) : (
+                            canArchiveOffer && (
+                              <button
+                                onClick={() => handleArchiveOffer(offer.id)}
+                                title="Archive — hides it from this list, keeps the record"
+                                className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                              >
+                                <Archive size={13} />
+                              </button>
+                            )
+                          )}
                         </div>
                       </div>
 
@@ -868,6 +969,14 @@ export function Account() {
                   </div>
                 </div>
               )}
+              {archivedOfferCount > 0 && (
+                <button
+                  onClick={() => setShowArchivedOffers((v) => !v)}
+                  className="mt-4 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                >
+                  {showArchivedOffers ? 'Hide' : 'Show'} archived ({archivedOfferCount})
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -877,7 +986,9 @@ export function Account() {
             const baseEligible = (o: MyOrder) =>
               o.role === viewRole &&
               (o.status === 'paid' || o.status === 'refunded') &&
-              (viewRole === 'buyer' || (!o.shippedAt && !o.deliveredAt));
+              // A sale stays here until the money has actually landed —
+              // only then does it move on to Payouts.
+              (viewRole === 'buyer' || (o.status === 'paid' && o.transferStatus === 'pending'));
             const eligible = orders?.filter(baseEligible) ?? [];
             const visible = eligible.filter((o) => !archivedOrderIds.has(o.id));
             const archivedCount = eligible.length - visible.length;
@@ -894,7 +1005,7 @@ export function Account() {
                   <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-10 text-center text-sm text-[var(--color-ink-soft)]">
                     {viewRole === 'buyer'
                       ? 'Nothing bought yet.'
-                      : 'Nothing awaiting dispatch — sold items move to Payouts once sent or delivered.'}
+                      : 'Nothing awaiting payment — sales move to Payouts once you\'ve been paid.'}
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">

@@ -621,6 +621,23 @@ export async function unarchiveOrder(userId: string, orderId: string): Promise<v
   if (error) throw error;
 }
 
+/** Hides a finished (declined/withdrawn) offer from the user's own Offers tab — the offer row itself is untouched. */
+export async function fetchArchivedOfferIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('archived_offers').select('offer_id').eq('user_id', userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.offer_id as string));
+}
+
+export async function archiveOffer(userId: string, offerId: string): Promise<void> {
+  const { error } = await supabase.from('archived_offers').insert({ user_id: userId, offer_id: offerId });
+  if (error) throw error;
+}
+
+export async function unarchiveOffer(userId: string, offerId: string): Promise<void> {
+  const { error } = await supabase.from('archived_offers').delete().eq('user_id', userId).eq('offer_id', offerId);
+  if (error) throw error;
+}
+
 export interface SavedSearch {
   id: string;
   sport: Sport | null;

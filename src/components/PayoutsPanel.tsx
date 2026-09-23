@@ -45,8 +45,12 @@ export function PayoutsPanel({
   const [showArchived, setShowArchived] = useState(false);
 
   const chargesEnabled = !!profile?.stripe_connect_charges_enabled;
+  // Sales only show up here once settled (paid out, or refunded) — until the
+  // money lands they live in the Orders tab.
   const allSoldOrders = (orders ?? []).filter(
-    (o) => o.role === 'seller' && (o.status === 'paid' || o.status === 'refunded'),
+    (o) =>
+      o.role === 'seller' &&
+      (o.status === 'refunded' || (o.status === 'paid' && o.transferStatus !== 'pending')),
   );
   const visibleSoldOrders = allSoldOrders.filter((o) => !archivedOrderIds.has(o.id));
   const archivedCount = allSoldOrders.length - visibleSoldOrders.length;
@@ -162,7 +166,7 @@ export function PayoutsPanel({
             <h3 className="mt-6 mb-3 text-sm font-medium text-[var(--color-ink-soft)]">Sold items</h3>
             {soldOrders.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-8 text-center text-sm text-[var(--color-ink-soft)]">
-                Nothing sold yet.
+                No settled sales yet — sales appear here once they've been paid out.
               </div>
             ) : (
               <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)]">
