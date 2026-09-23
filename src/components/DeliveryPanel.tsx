@@ -313,7 +313,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 Confirm receipt
               </button>
             )}
-            {order.role === 'seller' && order.transferStatus === 'pending' && (
+            {order.role === 'seller' && order.transferStatus === 'pending' && (isCollection || !order.shippedAt) && (
               <button
                 onClick={handleGenerateHandoverCode}
                 disabled={busy}
