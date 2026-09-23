@@ -461,7 +461,7 @@ export function Account() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex items-center gap-4">
         <button
           onClick={() => avatarInputRef.current?.click()}
@@ -493,12 +493,12 @@ export function Account() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-6 border-b border-[var(--color-line)]">
+      <div className="-mx-4 mt-6 flex gap-5 overflow-x-auto border-b border-[var(--color-line)] px-4 sm:mx-0 sm:mt-8 sm:flex-wrap sm:gap-6 sm:overflow-visible sm:px-0">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 pb-3 text-sm font-medium transition ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition ${
               tab === t
                 ? 'border-[var(--color-brand)] text-[var(--color-ink)]'
                 : 'border-transparent text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
@@ -657,10 +657,10 @@ export function Account() {
                               : null;
                           return (
                             <div key={inv.id} className="p-4">
-                              <div className="flex items-center gap-4">
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                                 <button
                                   onClick={() => setExpandedId(expanded ? null : inv.id)}
-                                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                  className="flex min-w-0 basis-full items-center gap-2 text-left sm:flex-1 sm:basis-0"
                                 >
                                   <ChevronDown
                                     size={14}
@@ -678,7 +678,7 @@ export function Account() {
                                     />
                                   </span>
                                 </button>
-                                <div className="shrink-0 text-right">
+                                <div className="mr-auto shrink-0 pl-6 sm:mr-0 sm:pl-0 sm:text-right">
                                   <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
                                   <p className="text-xs text-[var(--color-ink-soft)]">
                                     {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
@@ -775,10 +775,10 @@ export function Account() {
                   const listingLink = `/listing/${offer.listingId}`;
                   return (
                     <div key={offer.id} className={`p-4 ${isArchivedOffer ? 'opacity-70' : ''}`}>
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                         <button
                           onClick={() => setExpandedId(expanded ? null : offer.id)}
-                          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                          className="flex min-w-0 basis-full items-start gap-2 text-left sm:flex-1 sm:basis-0"
                         >
                           <ChevronDown
                             size={14}
@@ -814,7 +814,7 @@ export function Account() {
                           )}
                           </span>
                         </button>
-                        <div className="shrink-0 text-right">
+                        <div className="mr-auto shrink-0 pl-6 sm:mr-0 sm:pl-0 sm:text-right">
                           <p className="text-sm font-medium">{formatPrice(offer.amount, offer.currency)}</p>
                           <p className="text-xs text-[var(--color-ink-soft)]">
                             {offer.role === 'buyer' ? 'to' : 'from'} {offer.counterpartyName} ·{' '}
@@ -1025,7 +1025,7 @@ export function Account() {
                         <div key={inv.id} className={`relative p-4 ${isArchived ? 'opacity-70' : ''}`}>
                           <button
                             onClick={() => setExpandedId(expanded ? null : inv.id)}
-                            className="flex w-full items-center gap-4 pr-20 text-left"
+                            className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 pr-12 text-left sm:flex-nowrap sm:pr-20"
                           >
                             <ChevronDown
                               size={14}
@@ -1060,7 +1060,7 @@ export function Account() {
                                     : 'Delivery not yet arranged'}
                               </p>
                             </div>
-                            <div className="shrink-0 text-right">
+                            <div className="w-full shrink-0 pl-7 sm:w-auto sm:pl-0 sm:text-right">
                               <p className="text-sm font-medium">
                                 {formatPrice(inv.amount, inv.currency)}
                                 {inv.status === 'refunded' && (

@@ -80,7 +80,7 @@ export function CreateFleetBundle() {
     .reduce((sum, l) => sum + (l.price ?? 0), 0);
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="flex items-center gap-2">
         <Boxes size={22} className="text-[var(--color-brand)]" />
         <h1 className="text-2xl sm:text-3xl">Group your club gear</h1>

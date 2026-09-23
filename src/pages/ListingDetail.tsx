@@ -122,7 +122,7 @@ export function ListingDetail() {
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6 text-center">
         <p className="text-[var(--color-ink-soft)]">Listing not found.</p>
         <button
           onClick={() => (canGoBack ? navigate(-1) : navigate('/'))}
@@ -165,7 +165,7 @@ export function ListingDetail() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <button
         onClick={() => (canGoBack ? navigate(-1) : navigate('/'))}
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"

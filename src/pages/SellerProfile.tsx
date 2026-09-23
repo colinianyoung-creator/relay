@@ -38,7 +38,7 @@ export function SellerProfile() {
 
   if (!seller) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6 text-center">
         <p className="text-[var(--color-ink-soft)]">
           This seller hasn't published any listings yet.
         </p>
@@ -50,7 +50,7 @@ export function SellerProfile() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <Link
         to="/"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"

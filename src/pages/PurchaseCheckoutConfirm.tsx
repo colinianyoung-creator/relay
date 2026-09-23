@@ -70,7 +70,7 @@ export function PurchaseCheckoutConfirm() {
 
   if (!listingId) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <p className="text-[var(--color-ink-soft)]">Nothing to confirm here.</p>
         <Link to="/" className="mt-4 inline-block text-[var(--color-brand)] underline">
           Back to browse
@@ -81,7 +81,7 @@ export function PurchaseCheckoutConfirm() {
 
   if (timedOut) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <AlertTriangle className="mx-auto mb-4 text-[var(--color-brand)]" size={36} />
         <h1 className="text-3xl">Still confirming payment</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -100,7 +100,7 @@ export function PurchaseCheckoutConfirm() {
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <Loader2 className="mx-auto mb-4 animate-spin text-[var(--color-ink-soft)]" size={32} />
         <h1 className="text-2xl">Confirming payment…</h1>
         <p className="mt-3 text-sm text-[var(--color-ink-soft)]">
@@ -111,7 +111,7 @@ export function PurchaseCheckoutConfirm() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-6 py-24 text-center">
+    <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
       <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
       <h1 className="text-3xl">Payment received — it's yours</h1>
       <p className="mt-3 text-[var(--color-ink-soft)]">

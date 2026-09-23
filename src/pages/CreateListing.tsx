@@ -187,7 +187,7 @@ export function CreateListing() {
 
   if (submittedId) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
         <h1 className="text-3xl">Listing published</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -219,7 +219,7 @@ export function CreateListing() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-md px-6 py-24 text-center">
+      <div className="mx-auto max-w-md px-4 py-24 sm:px-6 text-center">
         <h1 className="text-3xl">Sign in to list equipment</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Listings are tied to your account so buyers can message you and see your other kit.
@@ -339,7 +339,7 @@ export function CreateListing() {
   const isEditMode = editListingId !== null;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl sm:text-4xl">{isEditMode ? 'Edit your listing' : 'List a piece of equipment'}</h1>
       <p className="mt-2 max-w-lg text-[15px] text-[var(--color-ink-soft)]">
         {isEditMode
@@ -461,7 +461,7 @@ export function CreateListing() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="sport" className="mb-2 block text-sm font-medium">
                 Sport
@@ -737,7 +737,7 @@ export function CreateListing() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor="location" className="mb-2 block text-sm font-medium">
                 Town or city

@@ -57,7 +57,7 @@ export function FitProfileForm({ userId }: { userId: string }) {
         }}
         className="space-y-6"
       >
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium">Primary sport</label>
             <select

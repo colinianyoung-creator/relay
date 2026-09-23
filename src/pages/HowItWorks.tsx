@@ -21,7 +21,7 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
+    <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
         How Relay works
       </p>

@@ -36,7 +36,7 @@ export function PromoBanner() {
 
   return (
     <div className="bg-[var(--color-ink)] text-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-3 px-6 py-2.5 text-sm">
+      <div className="mx-auto flex max-w-6xl items-center justify-center gap-3 px-4 py-2 text-xs sm:px-6 sm:py-2.5 sm:text-sm">
         <p className="text-center">
           <span className="font-medium">First 100 sellers list free</span> — use code{' '}
           <span className="rounded bg-white/15 px-1.5 py-0.5 font-mono text-xs tracking-wide">
@@ -49,7 +49,7 @@ export function PromoBanner() {
         </p>
         <Link
           to="/sell"
-          className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--color-ink)] hover:bg-white/90"
+          className="hidden shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-medium text-[var(--color-ink)] hover:bg-white/90 sm:block"
         >
           Sell equipment
         </Link>

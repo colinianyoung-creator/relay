@@ -257,7 +257,7 @@ export function Browse() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-10">
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="mb-8 flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
             <SlidersHorizontal size={13} /> Filter

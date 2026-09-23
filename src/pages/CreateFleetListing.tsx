@@ -95,7 +95,7 @@ export function CreateFleetListing() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-md px-6 py-24 text-center">
+      <div className="mx-auto max-w-md px-4 py-24 sm:px-6 text-center">
         <h1 className="text-3xl">Sign in to list club gear</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Listings are tied to your account so buyers can message you and see your other kit.
@@ -176,7 +176,7 @@ export function CreateFleetListing() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="flex items-center gap-2">
         <Boxes size={22} className="text-[var(--color-brand)]" />
         <h1 className="text-2xl sm:text-3xl">List your club's gear</h1>
@@ -291,7 +291,7 @@ export function CreateFleetListing() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="fleet-sport" className="mb-2 block text-sm font-medium">
               Sport
@@ -328,7 +328,7 @@ export function CreateFleetListing() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="fleet-location" className="mb-2 block text-sm font-medium">
               Town or city

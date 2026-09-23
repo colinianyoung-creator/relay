@@ -182,7 +182,7 @@ export function PayoutsPanel({
                     <div key={o.id} className={`relative p-4 ${isArchived ? 'opacity-70' : ''}`}>
                       <button
                         onClick={() => setExpandedId(expanded ? null : o.id)}
-                        className="flex w-full items-center gap-4 pr-16 text-left"
+                        className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 pr-12 text-left sm:flex-nowrap sm:pr-16"
                       >
                         <ChevronDown
                           size={14}
@@ -209,7 +209,7 @@ export function PayoutsPanel({
                                 : 'Delivery not yet arranged'}
                           </p>
                         </div>
-                        <div className="shrink-0 text-right">
+                        <div className="w-full shrink-0 pl-7 sm:w-auto sm:pl-0 sm:text-right">
                           <p className="text-sm font-medium text-[var(--color-moss)]">
                             {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
                           </p>

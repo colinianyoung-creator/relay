@@ -260,7 +260,7 @@ export function FleetDetail() {
 
   if (!bundle) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center">
+      <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6 text-center">
         <p className="text-[var(--color-ink-soft)]">Listing not found.</p>
         <Link to="/club-gear" className="mt-4 inline-block text-[var(--color-brand)] underline">
           Back to Club Gear
@@ -285,7 +285,7 @@ export function FleetDetail() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <Link
         to="/club-gear"
         className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"

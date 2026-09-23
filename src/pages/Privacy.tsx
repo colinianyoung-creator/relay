@@ -159,7 +159,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
 
 export function Privacy() {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16">
+    <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
       <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
         Legal
       </p>

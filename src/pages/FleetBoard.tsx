@@ -15,7 +15,7 @@ export function FleetBoard() {
   return (
     <div>
       <section className="border-b border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-        <div className="mx-auto max-w-6xl px-6 py-14 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
           <p className="mb-3 text-sm font-medium uppercase tracking-[0.14em] text-[var(--color-brand)]">
             Club Gear
           </p>
@@ -35,7 +35,7 @@ export function FleetBoard() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-10">
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="mb-8 flex items-center">
           <span className="flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
             {bundles === null && <Loader2 size={13} className="animate-spin" />}

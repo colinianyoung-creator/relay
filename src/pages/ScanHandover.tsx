@@ -69,7 +69,7 @@ export function ScanHandover() {
 
   if (!token) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <p className="text-[var(--color-ink-soft)]">This link is missing its code.</p>
         <Link to="/" className="mt-4 inline-block text-[var(--color-brand)] underline">
           Back to browse
@@ -80,7 +80,7 @@ export function ScanHandover() {
 
   if (authLoading) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" size={32} />
       </div>
     );
@@ -88,7 +88,7 @@ export function ScanHandover() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <h1 className="text-2xl">Sign in to continue</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">Sign in to confirm this delivery.</p>
         <AuthModal onClose={() => {}} />
@@ -98,7 +98,7 @@ export function ScanHandover() {
 
   if (lookupError) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <AlertTriangle className="mx-auto mb-4 text-[var(--color-brand)]" size={36} />
         <h1 className="text-2xl">Can't open this code</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">{lookupError}</p>
@@ -114,7 +114,7 @@ export function ScanHandover() {
 
   if (!lookup) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" size={32} />
       </div>
     );
@@ -127,7 +127,7 @@ export function ScanHandover() {
     const canMarkSent = lookup.method === 'courier' || lookup.method === 'freight';
     if (canMarkSent && !lookup.settled && !lookup.shippedAt && !justMarkedShipped) {
       return (
-        <div className="mx-auto max-w-lg px-6 py-24 text-center">
+        <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
           <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
           <h1 className="text-2xl">Sending "{lookup.title}"?</h1>
           <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -156,7 +156,7 @@ export function ScanHandover() {
     }
 
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
         <h1 className="text-2xl">{lookup.title}</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -179,7 +179,7 @@ export function ScanHandover() {
   // role === 'buyer'
   if (justConfirmed || lookup.settled) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
         <h1 className="text-3xl">Confirmed — thanks!</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -197,7 +197,7 @@ export function ScanHandover() {
 
   if (lookup.expired) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <AlertTriangle className="mx-auto mb-4 text-[var(--color-brand)]" size={36} />
         <h1 className="text-2xl">This code has expired</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
@@ -214,7 +214,7 @@ export function ScanHandover() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-6 py-24 text-center">
+    <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
       <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
       <h1 className="text-2xl">Confirm you've received this</h1>
       <p className="mt-3 text-[var(--color-ink-soft)]">
