@@ -116,6 +116,11 @@ export function PurchaseReviewModal({
             </p>
           )}
 
+          <p className="rounded-xl bg-[var(--color-paper)] px-3.5 py-2 text-xs text-[var(--color-ink-soft)]">
+            Your payment is held securely and only released to the seller once you confirm the item
+            has arrived.
+          </p>
+
           {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
           <button
