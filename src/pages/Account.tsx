@@ -493,15 +493,15 @@ export function Account() {
         </div>
       </div>
 
-      <div className="-mx-4 mt-6 flex gap-5 overflow-x-auto border-b border-[var(--color-line)] px-4 sm:mx-0 sm:mt-8 sm:flex-wrap sm:gap-6 sm:overflow-visible sm:px-0">
+      <div className="mt-6 flex flex-wrap gap-2 sm:mt-8 sm:gap-x-6 sm:gap-y-0 sm:border-b sm:border-[var(--color-line)]">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition ${
+            className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:px-0 sm:pb-3 sm:pt-0 ${
               tab === t
-                ? 'border-[var(--color-brand)] text-[var(--color-ink)]'
-                : 'border-transparent text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
+                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white sm:bg-transparent sm:border-[var(--color-brand)] sm:text-[var(--color-ink)]'
+                : 'border-[var(--color-line)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] sm:border-transparent'
             }`}
           >
             {t}
