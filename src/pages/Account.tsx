@@ -20,8 +20,6 @@ import {
   fetchSavedListings,
   fetchMessageThreads,
   fetchMyOrders,
-  payCustomOrder,
-  fetchOrderDeliveryOptions,
   cancelCustomOrder,
   fetchMyOffers,
   acceptOffer,
@@ -50,7 +48,6 @@ import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ReviewForm } from '@/components/ReviewForm';
 import { RefundPanel } from '@/components/RefundPanel';
 import { TransactionDetails } from '@/components/TransactionDetails';
-import { PurchaseReviewModal } from '@/components/PurchaseReviewModal';
 import { SavedSearches } from '@/components/SavedSearches';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
@@ -59,7 +56,7 @@ import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { formatPrice, formatDateTime, timeAgo } from '@/lib/format';
 import type { Listing } from '@/types';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 
 const TABS = ['My listings', 'Saved', 'Messages', 'Offers', 'Orders', 'Payouts', 'Fit profile'] as const;
 
@@ -147,6 +144,7 @@ function OrderReviewSection({
 export function Account() {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<(typeof TABS)[number]>(() => {
     const t = searchParams.get('tab');
     if (t === 'payouts') return 'Payouts';
@@ -179,10 +177,6 @@ export function Account() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [payReview, setPayReview] = useState<{
-    invoice: MyOrder;
-    deliveryMethods: ('collection' | 'courier' | 'freight')[];
-  } | null>(null);
 
   function refreshOrders() {
     if (user) fetchMyOrders(user.id).then(setOrders);
@@ -277,17 +271,8 @@ export function Account() {
     }
   }
 
-  async function handlePayInvoice(invoice: MyOrder) {
-    setInvoiceError(null);
-    setInvoiceBusyId(invoice.id);
-    try {
-      const deliveryMethods = await fetchOrderDeliveryOptions(invoice.id);
-      setPayReview({ invoice, deliveryMethods });
-    } catch (err) {
-      setInvoiceError(err instanceof Error ? err.message : 'Something went wrong starting payment.');
-    } finally {
-      setInvoiceBusyId(null);
-    }
+  function handlePayInvoice(invoice: MyOrder) {
+    navigate(`/checkout/order/${invoice.id}`);
   }
 
   async function handleCancelInvoice(invoiceId: string) {
@@ -1146,25 +1131,6 @@ export function Account() {
         {tab === 'Fit profile' && <FitProfileForm userId={user.id} />}
       </div>
 
-      {payReview && (
-        <PurchaseReviewModal
-          title={payReview.invoice.title}
-          price={payReview.invoice.amount}
-          currency={payReview.invoice.currency}
-          sellerName={payReview.invoice.counterpartyName}
-          deliveryMethods={payReview.deliveryMethods}
-          onConfirm={(method) => {
-            const origin = window.location.origin;
-            return payCustomOrder(
-              payReview.invoice.id,
-              method,
-              `${origin}/account?tab=orders`,
-              `${origin}/account?tab=orders`,
-            );
-          }}
-          onClose={() => setPayReview(null)}
-        />
-      )}
     </div>
   );
 }

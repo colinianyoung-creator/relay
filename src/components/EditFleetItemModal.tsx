@@ -8,7 +8,7 @@ import { SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
 // Editing a single item within an already-posted club-gear lot — a smaller
 // surface than the full fleet-creation wizard (see the plan this shipped
 // under): just the fields that belong to this one item, not the bundle's
-// shared fields or membership. Modeled on PurchaseReviewModal's portal.
+// shared fields or membership. Modeled on the other portal modals.
 export function EditFleetItemModal({
   listing,
   onClose,

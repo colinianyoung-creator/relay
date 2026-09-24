@@ -9,7 +9,6 @@ import {
   hasMessaged,
   sendMessage,
   fetchFitProfile,
-  createPurchaseCheckout,
   deleteListing,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
@@ -20,7 +19,6 @@ import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
 import { MakeOfferModal } from '@/components/MakeOfferModal';
-import { PurchaseReviewModal } from '@/components/PurchaseReviewModal';
 import { DeliverySuggestion } from '@/components/DeliverySuggestion';
 import { formatPrice, timeAgo } from '@/lib/format';
 import type { Listing, FitProfile } from '@/types';
@@ -67,7 +65,6 @@ export function ListingDetail() {
 
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [showPurchaseReview, setShowPurchaseReview] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -400,7 +397,7 @@ export function ListingDetail() {
                 {canBuyInApp && (
                   <>
                     <button
-                      onClick={() => requireAuth(() => setShowPurchaseReview(true))}
+                      onClick={() => requireAuth(() => navigate(`/checkout/listing/${listing.id}`))}
                       className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
                     >
                       <CreditCard size={16} />
@@ -519,25 +516,6 @@ export function ListingDetail() {
           currency={listing.currency}
           sellerName={listing.seller.name}
           onClose={() => setShowOfferModal(false)}
-        />
-      )}
-      {showPurchaseReview && listing.price !== null && (
-        <PurchaseReviewModal
-          title={listing.title}
-          price={listing.price}
-          currency={listing.currency}
-          sellerName={listing.seller.name}
-          deliveryMethods={listing.deliveryMethods?.length ? listing.deliveryMethods : ['courier']}
-          onConfirm={(method) => {
-            const origin = window.location.origin;
-            return createPurchaseCheckout(
-              listing!.id,
-              method,
-              `${origin}/purchase/confirm?listing_id=${listing!.id}`,
-              `${origin}/listing/${listing!.id}`,
-            );
-          }}
-          onClose={() => setShowPurchaseReview(false)}
         />
       )}
     </div>
