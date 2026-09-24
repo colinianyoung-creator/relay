@@ -14,8 +14,8 @@ const steps = [
   },
   {
     icon: Handshake,
-    title: 'Pay securely, or arrange it yourselves',
-    body: "Once a price is agreed — asking price, an accepted offer, or a seller-sent invoice — pay in-app via Stripe if the seller's set up payouts (Relay never sees your card details; Stripe holds the payment in Relay's own account until you confirm receipt, releasing it to the seller automatically after 14 days if you don't respond), or arrange payment and collection directly, same as any private sale.",
+    title: 'Pay securely, all in one place',
+    body: "Once a price is agreed — asking price, an accepted offer, or a seller-sent invoice — you pay in-app via Stripe. Relay never sees your card details; Stripe holds the payment in Relay's own account until you confirm receipt, releasing it to the seller automatically after 14 days if you don't respond. Every seller of a priced item has set up payouts first, so every sale is protected.",
   },
 ];
 

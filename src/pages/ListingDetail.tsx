@@ -424,7 +424,7 @@ export function ListingDetail() {
                 {messageSent ? (
                   <div className="rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
                     Message sent — {listing.seller.name.split(' ')[0]} typically replies within a
-                    day. Arrange payment and collection directly with them.
+                    day. Once you're happy, pay through Relay's checkout.
                   </div>
                 ) : (
                   <>
@@ -474,8 +474,10 @@ export function ListingDetail() {
                   </>
                 ) : canBuyInApp ? (
                   'Pay securely in-app via Stripe — Relay never sees your card details.'
+                ) : listing.price === null ? (
+                  'Free to a good home — message the seller to arrange collection.'
                 ) : (
-                  "This seller hasn't set up in-app payouts — buyers and sellers arrange payment directly."
+                  "This seller is still finishing payout setup, so it can't be bought just yet — message them or check back soon."
                 )}
               </p>
             )}

@@ -92,9 +92,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           risk of a buyer paying for an item that's never sent.
         </p>
         <p className="mt-3">
-          Where in-app payment isn't available, or either party prefers it, buyers and sellers
-          are free to arrange payment and collection between themselves, exactly as in any
-          private sale. Relay is not responsible for payments made outside its checkout.
+          All payments for priced items are made through Relay's checkout, so both sides are
+          covered by the hold described above. Relay can't protect, and is not responsible for,
+          any payment made outside its checkout — please don't agree to pay or be paid off-site.
         </p>
       </>
     ),

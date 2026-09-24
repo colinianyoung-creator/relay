@@ -292,8 +292,8 @@ export function PayoutsPanel({
 
         {!chargesEnabled && !mode && (
           <p className="mt-4 text-xs text-[var(--color-ink-soft)]/80">
-            Without this, your listings still work as before — buyers can message you and you
-            arrange payment yourselves.
+            You need to finish this before you can list anything for sale — free or donated
+            items are the only exception.
           </p>
         )}
       </div>
