@@ -77,7 +77,8 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   const [notes, setNotes] = useState(order.deliveryNotes ?? '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [handoverQr, setHandoverQr] = useState<{ dataUrl: string; expiresAt: string } | null>(null);
+  const [handoverQr, setHandoverQr] = useState<{ dataUrl: string; expiresAt: string; scanUrl: string } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   async function handleRequestQuote() {
     setError(null);
@@ -157,7 +158,8 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
       const { token, expiresAt } = await generateHandoverCode(order.id);
       const scanUrl = `${window.location.origin}/scan/${token}`;
       const dataUrl = await QRCode.toDataURL(scanUrl, { width: 220, margin: 1 });
-      setHandoverQr({ dataUrl, expiresAt });
+      setHandoverQr({ dataUrl, expiresAt, scanUrl });
+      setLinkCopied(false);
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not generate a handover code.');
@@ -379,16 +381,35 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 </p>
               </div>
 
-              {!isCollection && (
-                <div className="mt-3 flex justify-center">
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {!isCollection && (
                   <button
                     onClick={() => window.print()}
                     className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
                   >
                     <Printer size={12} /> Print label
                   </button>
-                </div>
-              )}
+                )}
+                <a
+                  href={handoverQr.scanUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  Open link
+                </a>
+                <button
+                  onClick={() => {
+                    navigator.clipboard
+                      ?.writeText(handoverQr.scanUrl)
+                      .then(() => setLinkCopied(true))
+                      .catch(() => setLinkCopied(false));
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  {linkCopied ? 'Copied' : 'Copy link'}
+                </button>
+              </div>
 
               <p className="mt-2 text-center text-[var(--color-ink-soft)]">
                 {isCollection
