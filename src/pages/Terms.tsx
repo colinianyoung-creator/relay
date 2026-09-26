@@ -184,7 +184,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: '13. Contact',
-    body: <p>Questions about these terms: colinianyoung@gmail.com</p>,
+    body: <p>Questions about these terms: help@relayadaptive.com</p>,
   },
 ];
 

@@ -153,7 +153,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: '12. Contact',
-    body: <p>colinianyoung@gmail.com</p>,
+    body: <p>help@relayadaptive.com</p>,
   },
 ];
 
