@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, stripe_payment_intent_id, transfer_status')
+      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, stripe_payment_intent_id, transfer_status, stripe_transfer_id')
       .eq('id', request.order_id)
       .single();
     if (orderError || !order) {
