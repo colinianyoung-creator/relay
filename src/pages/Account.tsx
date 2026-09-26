@@ -13,6 +13,7 @@ import {
   Truck,
   Archive,
   ArchiveRestore,
+  CircleDollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -400,6 +401,8 @@ export function Account() {
   // track here.
   const visibleOffers = offers?.filter((o) => !(o.status === 'accepted' && o.orderPaid)) ?? null;
   const roleOffers = visibleOffers?.filter((o) => o.role === viewRole) ?? [];
+  // Refund requests on the user's own sales that they still have to answer.
+  const pendingRefundOrders = (orders ?? []).filter((o) => o.role === 'seller' && o.refundStatus === 'pending');
   const activeRoleOffers = roleOffers.filter((o) => !archivedOfferIds.has(o.id));
   const archivedOfferCount = roleOffers.length - activeRoleOffers.length;
   const shownOffers = showArchivedOffers ? roleOffers : activeRoleOffers;
@@ -478,6 +481,34 @@ export function Account() {
         </div>
       </div>
 
+      {pendingRefundOrders.length > 0 && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--color-brand)] bg-[var(--color-brand-soft)] p-4">
+          <div className="flex items-start gap-3">
+            <CircleDollarSign className="mt-0.5 shrink-0 text-[var(--color-brand-dark)]" size={20} />
+            <div>
+              <p className="font-medium text-[var(--color-brand-dark)]">
+                {pendingRefundOrders.length === 1
+                  ? '1 refund request is waiting for your response'
+                  : `${pendingRefundOrders.length} refund requests are waiting for your response`}
+              </p>
+              <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
+                Buyers are waiting on you — approve or decline each one.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setViewRole('seller');
+              setTab('Orders');
+              setExpandedId(pendingRefundOrders[0].id);
+            }}
+            className="rounded-full bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+          >
+            Review now
+          </button>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2 sm:mt-8 sm:gap-x-6 sm:gap-y-0 sm:border-b sm:border-[var(--color-line)]">
         {TABS.map((t) => (
           <button
@@ -490,6 +521,11 @@ export function Account() {
             }`}
           >
             {t}
+            {t === 'Orders' && pendingRefundOrders.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                {pendingRefundOrders.length}
+              </span>
+            )}
             {t === 'Messages' && messages && messages.some((m) => m.hasUnread) && (
               <span className="ml-1.5 text-[var(--color-brand)]">
                 ({messages.filter((m) => m.hasUnread).length})
@@ -1051,6 +1087,11 @@ export function Account() {
                                 {inv.status === 'refunded' && (
                                   <span className="ml-1.5 text-xs font-normal text-[var(--color-brand-dark)]">
                                     Refunded
+                                  </span>
+                                )}
+                                {inv.refundStatus === 'pending' && (
+                                  <span className="ml-1.5 rounded-full bg-[var(--color-brand)] px-2 py-0.5 text-[10px] font-semibold text-white">
+                                    {viewRole === 'seller' ? 'Refund requested — respond' : 'Refund requested'}
                                   </span>
                                 )}
                               </p>

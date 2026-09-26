@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CircleDollarSign, Loader2 } from 'lucide-react';
 import { escalateRefundRequest, respondToRefundRequest, type MyOrder } from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
+import { formatPrice } from '@/lib/format';
 
 /**
  * Buyer requests, seller approves/declines — approval is what actually calls
@@ -19,6 +20,7 @@ export function RefundPanel({
 }) {
   const [showModal, setShowModal] = useState(false);
   const [declining, setDeclining] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +70,25 @@ export function RefundPanel({
     }
   }
 
+  const needsSellerAction = viewRole === 'seller' && order.refundStatus === 'pending';
+  const refundable = formatPrice(order.amount, order.currency);
+  const paidOut = order.transferStatus === 'released';
+
   return (
-    <div className="col-span-full border-t border-[var(--color-line)] pt-3">
-      <p className="mb-1.5 flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
-        <CircleDollarSign size={13} /> Refund
+    <div
+      className={
+        needsSellerAction
+          ? 'col-span-full rounded-xl border-2 border-[var(--color-brand)] bg-[var(--color-brand-soft)] p-4'
+          : 'col-span-full border-t border-[var(--color-line)] pt-3'
+      }
+    >
+      <p
+        className={`mb-1.5 flex items-center gap-1.5 font-medium ${
+          needsSellerAction ? 'text-sm text-[var(--color-brand-dark)]' : 'text-[var(--color-ink)]'
+        }`}
+      >
+        <CircleDollarSign size={needsSellerAction ? 16 : 13} />
+        {needsSellerAction ? `Action needed — refund requested (${refundable})` : 'Refund'}
       </p>
 
       {error && <p className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
@@ -118,15 +135,43 @@ export function RefundPanel({
                   </button>
                 </div>
               </div>
+            ) : approving ? (
+              <div className="mt-2 space-y-2 rounded-lg bg-[var(--color-paper-raised)] p-3">
+                <p className="font-medium text-[var(--color-ink)]">
+                  Refund {refundable} to {order.counterpartyName}?
+                </p>
+                <p className="text-[var(--color-ink-soft)]">
+                  {paidOut
+                    ? `You've already been paid for this order, so the payout will be taken back from your connected account and the full ${refundable} returned to the buyer.`
+                    : `You haven't been paid for this order yet, so ${refundable} goes back to the buyer and no payout is sent.`}{' '}
+                  This can't be undone.
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleApprove}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+                  >
+                    {busy && <Loader2 size={12} className="animate-spin" />}
+                    Yes, refund {refundable}
+                  </button>
+                  <button
+                    onClick={() => setApproving(false)}
+                    disabled={busy}
+                    className="text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={handleApprove}
+                  onClick={() => setApproving(true)}
                   disabled={busy}
                   className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
                 >
-                  {busy && <Loader2 size={12} className="animate-spin" />}
-                  Approve
+                  Approve refund
                 </button>
                 <button
                   onClick={() => setDeclining(true)}
@@ -187,6 +232,9 @@ export function RefundPanel({
       {showModal && (
         <RequestRefundModal
           orderId={order.id}
+          title={order.title}
+          amount={order.amount}
+          currency={order.currency}
           onClose={() => setShowModal(false)}
           onSubmitted={onChanged}
         />

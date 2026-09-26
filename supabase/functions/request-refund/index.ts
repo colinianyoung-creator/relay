@@ -6,6 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import { notifyUser } from '../_shared/notify.ts';
+import { formatMoney, SITE_URL } from '../_shared/email.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids')
+      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, amount, currency')
       .eq('id', orderId)
       .single();
     if (orderError || !order) {
@@ -103,13 +104,26 @@ Deno.serve(async (req) => {
         body: `I'd like to request a refund for this order — ${reason}.${details ? ` ${details}` : ''} You can approve or decline this from your Orders tab.`,
       });
       if (messageError) console.error('Failed to send refund-request message', messageError);
-      await notifyUser(
-        supabase,
-        order.seller_id,
-        'Refund requested',
-        `<p>A refund has been requested for one of your orders — ${reason}. Check your Orders tab to approve or decline it.</p>`,
-      );
     }
+
+    // Sent whether or not the in-app message above succeeded — the seller
+    // must not miss this. Says what, how much, and links straight to it.
+    let itemTitle = 'your order';
+    if (anchorListingId) {
+      const { data: listing } = await supabase.from('listings').select('title').eq('id', anchorListingId).single();
+      if (listing?.title) itemTitle = `"${listing.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}"`;
+    }
+    const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const amountText = formatMoney(Number(order.amount), order.currency);
+    await notifyUser(
+      supabase,
+      order.seller_id,
+      `Action needed: refund requested for ${itemTitle} (${amountText})`,
+      `<p><strong>A buyer has asked for a refund of ${amountText}</strong> on ${itemTitle}.</p>
+       <p>Reason: ${esc(String(reason))}${details ? ` — ${esc(String(details))}` : ''}</p>
+       <p>Nothing is refunded until you approve it. Please approve or decline it as soon as you can — the buyer is waiting on your answer.</p>
+       <p><a href="${SITE_URL}/account?tab=orders" style="display:inline-block;padding:10px 18px;background:#e8583d;color:#fff;border-radius:999px;text-decoration:none;font-weight:600">Review the refund request</a></p>`,
+    );
 
     return new Response(JSON.stringify({ id: refundRequest.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

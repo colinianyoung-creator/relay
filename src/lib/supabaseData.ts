@@ -1660,6 +1660,17 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
   });
 }
 
+/** Refund requests waiting on this seller's response — drives the nav badge. */
+export async function fetchPendingRefundCount(sellerId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('refund_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', sellerId)
+    .eq('status', 'pending');
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function requestRefund(orderId: string, reason: string, details?: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('request-refund', {
     body: { orderId, reason, details },

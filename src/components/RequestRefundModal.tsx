@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { requestRefund } from '@/lib/supabaseData';
+import { formatPrice } from '@/lib/format';
+import type { Currency } from '@/types';
 
 const REASONS = [
   'Item not as described',
@@ -13,10 +15,16 @@ const REASONS = [
 
 export function RequestRefundModal({
   orderId,
+  title,
+  amount,
+  currency,
   onClose,
   onSubmitted,
 }: {
   orderId: string;
+  title: string;
+  amount: number;
+  currency: Currency;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -25,9 +33,15 @@ export function RequestRefundModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  // Two steps: fill in the reason, then review and explicitly confirm.
+  const [step, setStep] = useState<'details' | 'review'>('details');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (step === 'details') {
+      setStep('review');
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
@@ -70,6 +84,24 @@ export function RequestRefundModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {step === 'review' ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-[var(--color-ink-soft)]">Please check this before you send it:</p>
+                <div className="rounded-xl bg-[var(--color-paper)] p-3.5">
+                  <p className="font-medium">{title}</p>
+                  <p className="mt-1 text-[var(--color-ink-soft)]">
+                    Full refund of <span className="font-medium text-[var(--color-ink)]">{formatPrice(amount, currency)}</span>
+                  </p>
+                  <p className="mt-1 text-[var(--color-ink-soft)]">Reason: {reason}</p>
+                  {details && <p className="mt-1 text-[var(--color-ink-soft)]">"{details}"</p>}
+                </div>
+                <p className="text-xs text-[var(--color-ink-soft)]">
+                  The seller will be emailed and asked to approve or decline. Nothing is refunded until
+                  they approve. If they decline, you can escalate it to Relay.
+                </p>
+              </div>
+            ) : (
+            <>
             <div>
               <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Reason</label>
               <select
@@ -95,6 +127,8 @@ export function RequestRefundModal({
                 className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3 text-sm outline-none focus:border-[var(--color-ink-soft)]"
               />
             </div>
+            </>
+            )}
 
             {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
@@ -104,8 +138,18 @@ export function RequestRefundModal({
               className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-ink)] px-4 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
             >
               {submitting && <Loader2 size={15} className="animate-spin" />}
-              Send request
+              {step === 'details' ? 'Review request' : 'Confirm and send request'}
             </button>
+            {step === 'review' && (
+              <button
+                type="button"
+                onClick={() => setStep('details')}
+                disabled={submitting}
+                className="w-full text-center text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+              >
+                Back
+              </button>
+            )}
           </form>
         )}
       </div>

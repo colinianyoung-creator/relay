@@ -4,6 +4,7 @@ import { Plus, CircleUserRound, LogOut, Menu, ShieldAlert, X } from 'lucide-reac
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from './AuthModal';
 import { Avatar } from './Avatar';
+import { fetchPendingRefundCount } from '@/lib/supabaseData';
 
 export function Nav() {
   const { user, profile, signOut } = useAuth();
@@ -15,6 +16,23 @@ export function Nav() {
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  // Refetched on every route change so the badge clears soon after a request
+  // is answered, without needing a realtime subscription.
+  const [pendingRefundCount, setPendingRefunds] = useState(0);
+  const pendingRefunds = user ? pendingRefundCount : 0;
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchPendingRefundCount(user.id)
+      .then((n) => {
+        if (!cancelled) setPendingRefunds(n);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, location.pathname, location.search]);
 
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-paper)]/90 backdrop-blur">
@@ -39,6 +57,14 @@ export function Nav() {
           {user && (
             <NavLink to="/account" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
               My activity
+              {pendingRefunds > 0 && (
+                <span
+                  title={`${pendingRefunds} refund request${pendingRefunds === 1 ? '' : 's'} waiting for you`}
+                  className="ml-1.5 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                >
+                  {pendingRefunds}
+                </span>
+              )}
             </NavLink>
           )}
           {profile?.is_admin && (
@@ -64,8 +90,13 @@ export function Nav() {
 
           {user ? (
             <div className="flex items-center gap-2">
-              <Link to="/account" aria-label="My activity">
+              <Link to="/account" aria-label="My activity" className="relative">
                 <Avatar name={profile?.name ?? user.email ?? '?'} avatarUrl={profile?.avatar_url} className="h-9 w-9 text-sm" />
+                {pendingRefunds > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-brand)] px-1 text-[10px] font-semibold text-white">
+                    {pendingRefunds}
+                  </span>
+                )}
               </Link>
               <button
                 onClick={() => {
@@ -104,7 +135,7 @@ export function Nav() {
             { to: '/', label: 'Browse', end: true },
             { to: '/club-gear', label: 'Club Gear' },
             { to: '/how-it-works', label: 'How it works' },
-            ...(user ? [{ to: '/account', label: 'My activity' }] : []),
+            ...(user ? [{ to: '/account', label: pendingRefunds > 0 ? `My activity (${pendingRefunds} refund${pendingRefunds === 1 ? '' : 's'} to review)` : 'My activity' }] : []),
             ...(profile?.is_admin ? [{ to: '/admin/reports', label: 'Admin' }] : []),
           ].map((item) => (
             <NavLink
