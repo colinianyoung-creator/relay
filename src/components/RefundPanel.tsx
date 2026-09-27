@@ -1,8 +1,18 @@
 import { useState } from 'react';
-import { CircleDollarSign, Loader2 } from 'lucide-react';
-import { escalateRefundRequest, respondToRefundRequest, type MyOrder } from '@/lib/supabaseData';
+import { CircleDollarSign, Loader2, PackageCheck } from 'lucide-react';
+import {
+  escalateRefundRequest,
+  respondToRefundRequest,
+  requestReturn,
+  markReturnShipped,
+  confirmReturnReceived,
+  type MyOrder,
+  type ReturnAddress,
+} from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
 import { formatPrice } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
 
 /**
  * Buyer requests, seller approves/declines — approval is what actually calls
@@ -18,12 +28,18 @@ export function RefundPanel({
   viewRole: 'buyer' | 'seller';
   onChanged: () => void;
 }) {
+  const { profile } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [requestingReturn, setRequestingReturn] = useState(false);
+  const [returnAddr, setReturnAddr] = useState<ReturnAddress>({ line1: '', city: '', postal_code: '', country: 'GB' });
+  const [returnRecipientName, setReturnRecipientName] = useState(profile?.name ?? '');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [returnBusy, setReturnBusy] = useState(false);
+  const [returnErr, setReturnErr] = useState<string | null>(null);
 
   // Nothing to request or show yet, and not the buyer — nothing to render.
   if (!order.refundRequestId && viewRole !== 'buyer') return null;
@@ -70,6 +86,47 @@ export function RefundPanel({
     }
   }
 
+  async function handleRequestReturn(e: React.FormEvent) {
+    e.preventDefault();
+    setReturnErr(null);
+    setReturnBusy(true);
+    try {
+      await requestReturn(order.id, returnAddr, returnRecipientName);
+      setRequestingReturn(false);
+      onChanged();
+    } catch (err) {
+      setReturnErr(err instanceof Error ? err.message : 'Could not set up the return.');
+    } finally {
+      setReturnBusy(false);
+    }
+  }
+
+  async function handleMarkReturnShipped() {
+    setReturnErr(null);
+    setReturnBusy(true);
+    try {
+      await markReturnShipped(order.id);
+      onChanged();
+    } catch (err) {
+      setReturnErr(err instanceof Error ? err.message : 'Could not mark this as sent.');
+    } finally {
+      setReturnBusy(false);
+    }
+  }
+
+  async function handleConfirmReturnReceived() {
+    setReturnErr(null);
+    setReturnBusy(true);
+    try {
+      await confirmReturnReceived(order.id);
+      onChanged();
+    } catch (err) {
+      setReturnErr(err instanceof Error ? err.message : 'Could not confirm the return.');
+    } finally {
+      setReturnBusy(false);
+    }
+  }
+
   const needsSellerAction = viewRole === 'seller' && order.refundStatus === 'pending';
   const refundable = formatPrice(order.amount, order.currency);
   const paidOut = order.transferStatus === 'released';
@@ -108,6 +165,71 @@ export function RefundPanel({
             {order.refundReason}
             {order.refundDetails && ` — ${order.refundDetails}`}
           </p>
+
+          {order.returnRequested && (
+            <div className="mt-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-3">
+              <p className="flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
+                <PackageCheck size={13} /> Return in progress
+              </p>
+              {returnErr && <p className="mt-1 text-[var(--color-brand-dark)]">{returnErr}</p>}
+              {order.returnReceivedAt ? (
+                <p className="mt-1 text-[var(--color-moss)]">
+                  Received back {formatDateTime(order.returnReceivedAt)}
+                  {viewRole === 'buyer' && " — the seller can now issue your refund."}
+                </p>
+              ) : order.returnShippedAt ? (
+                <>
+                  <p className="mt-1 text-[var(--color-ink-soft)]">
+                    Marked as sent {formatDateTime(order.returnShippedAt)}
+                    {viewRole === 'buyer' && " — waiting for the seller to confirm it's arrived."}
+                  </p>
+                  {viewRole === 'seller' && (
+                    <button
+                      onClick={handleConfirmReturnReceived}
+                      disabled={returnBusy}
+                      className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                    >
+                      {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                      Confirm received
+                    </button>
+                  )}
+                </>
+              ) : viewRole === 'buyer' ? (
+                <>
+                  <p className="mt-1 text-[var(--color-ink-soft)]">
+                    Send it back to {order.returnRecipientName}: {order.returnAddress?.line1}
+                    {order.returnAddress?.line2 ? `, ${order.returnAddress.line2}` : ''}
+                    {order.returnAddress?.city ? `, ${order.returnAddress.city}` : ''}, {order.returnAddress?.postal_code},{' '}
+                    {order.returnAddress?.country}
+                  </p>
+                  <button
+                    onClick={handleMarkReturnShipped}
+                    disabled={returnBusy}
+                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                  >
+                    {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                    Mark as sent
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-[var(--color-ink-soft)]">
+                    Waiting for the buyer to send it back to you. You can still confirm it if it's already
+                    arrived.
+                  </p>
+                  <button
+                    onClick={handleConfirmReturnReceived}
+                    disabled={returnBusy}
+                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                  >
+                    {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                    Confirm received
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
           {viewRole === 'seller' ? (
             declining ? (
               <div className="mt-2 space-y-2">
@@ -146,6 +268,12 @@ export function RefundPanel({
                     : `You haven't been paid for this order yet, so ${refundable} goes back to the buyer and no payout is sent.`}{' '}
                   This can't be undone.
                 </p>
+                {order.returnRequested && !order.returnReceivedAt && (
+                  <p className="text-[var(--color-brand-dark)]">
+                    Heads up: you asked for this to be returned first, and it hasn't been confirmed as
+                    received yet.
+                  </p>
+                )}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleApprove}
@@ -164,8 +292,82 @@ export function RefundPanel({
                   </button>
                 </div>
               </div>
+            ) : requestingReturn ? (
+              <form onSubmit={handleRequestReturn} className="mt-2 space-y-2 rounded-lg bg-[var(--color-paper-raised)] p-3">
+                <p className="font-medium text-[var(--color-ink)]">Where should it be sent back to?</p>
+                <input
+                  required
+                  placeholder="Recipient name"
+                  value={returnRecipientName}
+                  onChange={(e) => setReturnRecipientName(e.target.value)}
+                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                />
+                <input
+                  required
+                  placeholder="Address line 1"
+                  value={returnAddr.line1}
+                  onChange={(e) => setReturnAddr((a) => ({ ...a, line1: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                />
+                <input
+                  placeholder="Address line 2 (optional)"
+                  value={returnAddr.line2 ?? ''}
+                  onChange={(e) => setReturnAddr((a) => ({ ...a, line2: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                />
+                <div className="flex gap-2">
+                  <input
+                    placeholder="Town/city"
+                    value={returnAddr.city ?? ''}
+                    onChange={(e) => setReturnAddr((a) => ({ ...a, city: e.target.value }))}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                  />
+                  <input
+                    required
+                    placeholder="Postcode"
+                    value={returnAddr.postal_code}
+                    onChange={(e) => setReturnAddr((a) => ({ ...a, postal_code: e.target.value }))}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                  />
+                </div>
+                <input
+                  required
+                  placeholder="Country (e.g. GB)"
+                  value={returnAddr.country}
+                  onChange={(e) => setReturnAddr((a) => ({ ...a, country: e.target.value }))}
+                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                />
+                {returnErr && <p className="text-[var(--color-brand-dark)]">{returnErr}</p>}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={returnBusy}
+                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                  >
+                    {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                    Send return instructions
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRequestingReturn(false)}
+                    disabled={returnBusy}
+                    className="text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             ) : (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
+                {!order.returnRequested && (
+                  <button
+                    onClick={() => setRequestingReturn(true)}
+                    disabled={busy}
+                    className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                  >
+                    Ask buyer to return it first
+                  </button>
+                )}
                 <button
                   onClick={() => setApproving(true)}
                   disabled={busy}

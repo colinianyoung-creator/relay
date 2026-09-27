@@ -1503,6 +1503,11 @@ export interface MyOrder {
   refundDetails: string | null;
   refundSellerResponse: string | null;
   refundAdminNote: string | null;
+  returnRequested: boolean;
+  returnShippedAt: string | null;
+  returnReceivedAt: string | null;
+  returnAddress: ReturnAddress | null;
+  returnRecipientName: string | null;
 }
 
 interface MyOrderRow {
@@ -1563,10 +1568,16 @@ interface MyOrderRow {
     seller_response: string | null;
     admin_note: string | null;
   } | null;
+  return: {
+    shipped_at: string | null;
+    received_at: string | null;
+    return_address: ReturnAddress;
+    return_recipient_name: string;
+  } | null;
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1656,6 +1667,11 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       refundDetails: row.refund?.details ?? null,
       refundSellerResponse: row.refund?.seller_response ?? null,
       refundAdminNote: row.refund?.admin_note ?? null,
+      returnRequested: row.return !== null,
+      returnShippedAt: row.return?.shipped_at ?? null,
+      returnReceivedAt: row.return?.received_at ?? null,
+      returnAddress: row.return?.return_address ?? null,
+      returnRecipientName: row.return?.return_recipient_name ?? null,
     };
   });
 }
@@ -1782,16 +1798,37 @@ export async function confirmHandover(orderId: string, token: string): Promise<v
   if (data?.error) throw new Error(data.error);
 }
 
-export interface HandoverLookup {
-  role: 'buyer' | 'seller';
-  orderId: string;
-  title: string;
-  settled: boolean;
-  receivedConfirmedAt: string | null;
-  shippedAt: string | null;
-  method: 'collection' | 'courier' | 'freight' | null;
-  expired: boolean;
+export interface ReturnAddress {
+  line1: string;
+  line2?: string;
+  city?: string;
+  postal_code: string;
+  country: string;
 }
+
+export type HandoverLookup =
+  | {
+      kind: 'delivery';
+      role: 'buyer' | 'seller';
+      orderId: string;
+      title: string;
+      settled: boolean;
+      receivedConfirmedAt: string | null;
+      shippedAt: string | null;
+      method: 'collection' | 'courier' | 'freight' | null;
+      expired: boolean;
+    }
+  | {
+      kind: 'return';
+      role: 'buyer' | 'seller';
+      orderId: string;
+      title: string;
+      shippedAt: string | null;
+      receivedAt: string | null;
+      returnAddress: ReturnAddress;
+      returnRecipientName: string;
+      expired: boolean;
+    };
 
 /** Resolves a scanned/opened handover QR token — the landing page for /scan/:token. */
 export async function lookupHandoverToken(token: string): Promise<HandoverLookup> {
@@ -1808,6 +1845,59 @@ export async function lookupHandoverToken(token: string): Promise<HandoverLookup
   }
   if (data?.error) throw new Error(data.error);
   return data as HandoverLookup;
+}
+
+/** Seller-only: asks for a pending refund request's item to be returned before refunding. */
+export async function requestReturn(
+  orderId: string,
+  returnAddress: ReturnAddress,
+  returnRecipientName: string,
+): Promise<{ token: string; expiresAt: string }> {
+  const { data, error } = await supabase.functions.invoke('request-return', {
+    body: { orderId, returnAddress, returnRecipientName },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
+  if (data?.error) throw new Error(data.error);
+  return { token: data.token, expiresAt: data.expiresAt };
+}
+
+/** Buyer-only: marks a requested return as posted back — via a button, or from /scan/:token. */
+export async function markReturnShipped(orderId: string, token?: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('mark-return-shipped', {
+    body: { orderId, token },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
+  if (data?.error) throw new Error(data.error);
+}
+
+/** Seller-only: confirms a returned item has arrived — via a button, or from /scan/:token. */
+export async function confirmReturnReceived(orderId: string, token?: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('confirm-return-received', {
+    body: { orderId, token },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
+  if (data?.error) throw new Error(data.error);
 }
 
 /** Admin-only: refunds a paid order directly, without a buyer having to request it first. */

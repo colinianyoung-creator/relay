@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CheckCircle2, Loader2, AlertTriangle, PackageCheck } from 'lucide-react';
-import { confirmHandover, lookupHandoverToken, updateDeliveryDetails, type HandoverLookup } from '@/lib/supabaseData';
+import {
+  confirmHandover,
+  lookupHandoverToken,
+  updateDeliveryDetails,
+  markReturnShipped,
+  confirmReturnReceived,
+  type HandoverLookup,
+} from '@/lib/supabaseData';
 import { formatDateTime } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
@@ -23,6 +30,10 @@ export function ScanHandover() {
   const [marking, setMarking] = useState(false);
   const [markError, setMarkError] = useState<string | null>(null);
   const [justMarkedShipped, setJustMarkedShipped] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [justReturnShipped, setJustReturnShipped] = useState(false);
+  const [justReturnReceived, setJustReturnReceived] = useState(false);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -50,6 +61,34 @@ export function ScanHandover() {
       setMarkError(err instanceof Error ? err.message : 'Could not mark this as shipped.');
     } finally {
       setMarking(false);
+    }
+  }
+
+  async function handleMarkReturnShipped() {
+    if (!lookup) return;
+    setReturnError(null);
+    setReturning(true);
+    try {
+      await markReturnShipped(lookup.orderId, token);
+      setJustReturnShipped(true);
+    } catch (err) {
+      setReturnError(err instanceof Error ? err.message : 'Could not mark this as sent.');
+    } finally {
+      setReturning(false);
+    }
+  }
+
+  async function handleConfirmReturnReceived() {
+    if (!lookup) return;
+    setReturnError(null);
+    setReturning(true);
+    try {
+      await confirmReturnReceived(lookup.orderId, token);
+      setJustReturnReceived(true);
+    } catch (err) {
+      setReturnError(err instanceof Error ? err.message : 'Could not confirm this as received.');
+    } finally {
+      setReturning(false);
     }
   }
 
@@ -116,6 +155,133 @@ export function ScanHandover() {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
         <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" size={32} />
+      </div>
+    );
+  }
+
+  if (lookup.kind === 'return') {
+    const addr = lookup.returnAddress;
+    if (lookup.role === 'buyer') {
+      if (lookup.receivedAt) {
+        return (
+          <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
+            <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+            <h1 className="text-2xl">Return received</h1>
+            <p className="mt-3 text-[var(--color-ink-soft)]">
+              {lookup.returnRecipientName.split(' ')[0]} has confirmed "{lookup.title}" arrived back with
+              them. They'll issue your refund from here.
+            </p>
+            <Link
+              to="/account"
+              className="mt-6 inline-flex rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white hover:bg-black"
+            >
+              Go to my account
+            </Link>
+          </div>
+        );
+      }
+      if (lookup.shippedAt || justReturnShipped) {
+        return (
+          <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
+            <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
+            <h1 className="text-2xl">Return on its way</h1>
+            <p className="mt-3 text-[var(--color-ink-soft)]">
+              You've marked "{lookup.title}" as sent back. {lookup.returnRecipientName.split(' ')[0]} will
+              confirm once it arrives, then issue your refund.
+            </p>
+            <Link
+              to="/account"
+              className="mt-6 inline-flex rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white hover:bg-black"
+            >
+              Go to my account
+            </Link>
+          </div>
+        );
+      }
+      return (
+        <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
+          <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
+          <h1 className="text-2xl">Sending "{lookup.title}" back?</h1>
+          <div className="mx-auto mt-4 max-w-xs rounded-xl bg-[var(--color-paper-raised)] p-4 text-left text-sm">
+            <p className="text-xs text-[var(--color-ink-soft)]">Send to</p>
+            <p className="mt-1 font-medium">{lookup.returnRecipientName}</p>
+            <p>{addr.line1}</p>
+            {addr.line2 && <p>{addr.line2}</p>}
+            {addr.city && <p>{addr.city}</p>}
+            <p>{addr.postal_code}</p>
+            <p>{addr.country}</p>
+          </div>
+          <p className="mt-4 text-[var(--color-ink-soft)]">
+            Scanning this at the point of posting lets {lookup.returnRecipientName.split(' ')[0]} know it's
+            on its way back to them.
+          </p>
+          {returnError && <p className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
+          <div className="mt-6 flex justify-center gap-3">
+            <button
+              onClick={handleMarkReturnShipped}
+              disabled={returning}
+              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white hover:bg-black disabled:opacity-60"
+            >
+              {returning && <Loader2 size={14} className="animate-spin" />}
+              Mark as sent
+            </button>
+            <Link
+              to="/account"
+              className="inline-flex items-center rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+            >
+              Not now
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    // role === 'seller' — this is the receiving end of the return.
+    if (lookup.receivedAt || justReturnReceived) {
+      return (
+        <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
+          <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+          <h1 className="text-2xl">Return confirmed</h1>
+          <p className="mt-3 text-[var(--color-ink-soft)]">
+            You've confirmed "{lookup.title}" arrived back with you. Approve the refund from your Orders
+            tab whenever you're ready.
+          </p>
+          <Link
+            to="/account?tab=orders"
+            className="mt-6 inline-flex rounded-full bg-[var(--color-ink)] px-5 py-2.5 text-sm font-medium text-white hover:bg-black"
+          >
+            Go to Orders
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
+        <PackageCheck className="mx-auto mb-4 text-[var(--color-ink-soft)]" size={36} />
+        <h1 className="text-2xl">Received "{lookup.title}" back?</h1>
+        <p className="mt-3 text-[var(--color-ink-soft)]">
+          {lookup.shippedAt
+            ? 'The buyer has marked it as sent.'
+            : "The buyer hasn't marked it as sent yet, but confirm here once it's physically arrived."}{' '}
+          Confirming unlocks approving the refund — nothing is refunded automatically.
+        </p>
+        {returnError && <p className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
+        <div className="mt-6 flex justify-center gap-3">
+          <button
+            onClick={handleConfirmReturnReceived}
+            disabled={returning}
+            className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {returning && <Loader2 size={14} className="animate-spin" />}
+            Confirm received
+          </button>
+          <Link
+            to="/account"
+            className="inline-flex items-center rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+          >
+            Not now
+          </Link>
+        </div>
       </div>
     );
   }

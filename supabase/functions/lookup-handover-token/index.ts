@@ -45,24 +45,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: delivery, error: deliveryError } = await supabase
+    const { data: delivery } = await supabase
       .from('order_deliveries')
       .select('order_id, handover_token_expires_at, received_confirmed_at, shipped_at, method')
       .eq('handover_token', token)
       .maybeSingle();
-    if (deliveryError || !delivery) {
-      return new Response(JSON.stringify({ error: 'This code is invalid — ask the seller to generate a new one.' }), {
+
+    // Not a delivery token — try a return token before giving up. Both live
+    // in separate tables (order_deliveries / order_returns) since they're
+    // opposite legs with different fields, but share one opaque token space
+    // by construction (crypto.randomUUID x2), so a plain lookup-by-token
+    // across both is safe.
+    const { data: ret } = delivery
+      ? { data: null }
+      : await supabase
+          .from('order_returns')
+          .select('order_id, handover_token_expires_at, shipped_at, received_at, return_address, return_recipient_name')
+          .eq('handover_token', token)
+          .maybeSingle();
+
+    if (!delivery && !ret) {
+      return new Response(JSON.stringify({ error: 'This code is invalid — ask them to generate a new one.' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const orderId = delivery?.order_id ?? ret!.order_id;
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(
         'id, buyer_id, seller_id, transfer_status, listing:listings(title), bundle:listing_bundles(title)',
       )
-      .eq('id', delivery.order_id)
+      .eq('id', orderId)
       .single();
     if (orderError || !order) {
       return new Response(JSON.stringify({ error: 'Order not found' }), {
@@ -81,21 +96,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    const expired = !delivery.handover_token_expires_at || new Date(delivery.handover_token_expires_at) < new Date();
     const title =
       (order.listing as { title?: string } | null)?.title ??
       (order.bundle as { title?: string } | null)?.title ??
       'this item';
 
+    if (ret) {
+      const returnExpired = !ret.handover_token_expires_at || new Date(ret.handover_token_expires_at) < new Date();
+      return new Response(
+        JSON.stringify({
+          kind: 'return',
+          role,
+          orderId: order.id,
+          title,
+          shippedAt: ret.shipped_at,
+          receivedAt: ret.received_at,
+          returnAddress: ret.return_address,
+          returnRecipientName: ret.return_recipient_name,
+          expired: returnExpired && !ret.received_at,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const expired = !delivery!.handover_token_expires_at || new Date(delivery!.handover_token_expires_at) < new Date();
     return new Response(
       JSON.stringify({
+        kind: 'delivery',
         role,
         orderId: order.id,
         title,
         settled: order.transfer_status !== 'pending',
-        receivedConfirmedAt: delivery.received_confirmed_at,
-        shippedAt: delivery.shipped_at,
-        method: delivery.method,
+        receivedConfirmedAt: delivery!.received_confirmed_at,
+        shippedAt: delivery!.shipped_at,
+        method: delivery!.method,
         expired: expired && order.transfer_status === 'pending',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
