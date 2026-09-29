@@ -26,6 +26,16 @@ import { useAuth } from '@/lib/auth';
 import { AuthModal } from '@/components/AuthModal';
 import { PayoutsGate } from '@/components/PayoutsGate';
 
+// Freight used to be a third, separately-selectable option here but never
+// behaved differently from courier anywhere in the app — collapse any
+// legacy 'freight' value (from duplicating or editing an old listing) into
+// 'courier', and since a listing now only ever offers one method, keep
+// just the first.
+function normalizeDeliveryMethods(methods?: ('collection' | 'courier' | 'freight')[] | null): ('collection' | 'courier')[] {
+  const first = methods?.[0];
+  return first === 'collection' ? ['collection'] : ['courier'];
+}
+
 export function CreateListing() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -56,7 +66,12 @@ export function CreateListing() {
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState<string>('United Kingdom');
   const [shipsInternationally, setShipsInternationally] = useState(false);
-  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier' | 'freight')[]>(['courier']);
+  // A listing offers exactly one of these — freight used to be a third
+  // option here, but never behaved differently from courier anywhere in
+  // the app (same QR flow, same TTL); dropped rather than keep a choice
+  // that was really just a relabelled courier. Existing freight listings
+  // and orders still work everywhere else — this only affects new ones.
+  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier')[]>(['courier']);
   const [deliveryMethodsError, setDeliveryMethodsError] = useState<string | null>(null);
   const [measurementValues, setMeasurementValues] = useState<Record<string, string>>({});
   const [seatWidthCm, setSeatWidthCm] = useState('');
@@ -100,7 +115,7 @@ export function CreateListing() {
       setLocation(source.location);
       setCountry(source.country);
       setShipsInternationally(source.shipsInternationally);
-      setDeliveryMethods(source.deliveryMethods?.length ? source.deliveryMethods : ['courier']);
+      setDeliveryMethods(normalizeDeliveryMethods(source.deliveryMethods));
       setMeasurementValues(Object.fromEntries(source.measurements.map((m) => [m.label, m.value])));
       setSeatWidthCm(source.seatWidthCm?.toString() ?? '');
       setSeatDepthCm(source.seatDepthCm?.toString() ?? '');
@@ -144,7 +159,7 @@ export function CreateListing() {
       setLocation(source.location);
       setCountry(source.country);
       setShipsInternationally(source.shipsInternationally);
-      setDeliveryMethods(source.deliveryMethods?.length ? source.deliveryMethods : ['courier']);
+      setDeliveryMethods(normalizeDeliveryMethods(source.deliveryMethods));
       setMeasurementValues(Object.fromEntries(source.measurements.map((m) => [m.label, m.value])));
       setSeatWidthCm(source.seatWidthCm?.toString() ?? '');
       setSeatDepthCm(source.seatDepthCm?.toString() ?? '');
@@ -779,19 +794,15 @@ export function CreateListing() {
                 [
                   { value: 'collection', label: 'Local collection' },
                   { value: 'courier', label: 'Courier or parcel' },
-                  { value: 'freight', label: 'Freight' },
                 ] as const
               ).map((opt) => (
                 <label key={opt.value} className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
                   <input
-                    type="checkbox"
+                    type="radio"
+                    name="delivery-method"
                     checked={deliveryMethods.includes(opt.value)}
-                    onChange={(e) =>
-                      setDeliveryMethods((prev) =>
-                        e.target.checked ? [...prev, opt.value] : prev.filter((m) => m !== opt.value),
-                      )
-                    }
-                    className="h-4 w-4 rounded border-[var(--color-line)]"
+                    onChange={() => setDeliveryMethods([opt.value])}
+                    className="h-4 w-4 border-[var(--color-line)]"
                   />
                   {opt.label}
                 </label>

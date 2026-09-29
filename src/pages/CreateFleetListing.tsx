@@ -52,7 +52,9 @@ export function CreateFleetListing() {
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState<string>('United Kingdom');
   const [shipsInternationally, setShipsInternationally] = useState(false);
-  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier' | 'freight')[]>(['courier']);
+  // A lot offers exactly one method — see the note in CreateListing.tsx for
+  // why freight was dropped as a separate option here.
+  const [deliveryMethods, setDeliveryMethods] = useState<('collection' | 'courier')[]>(['courier']);
   const [deliveryMethodsError, setDeliveryMethodsError] = useState<string | null>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -370,19 +372,15 @@ export function CreateFleetListing() {
               [
                 { value: 'collection', label: 'Local collection' },
                 { value: 'courier', label: 'Courier or parcel' },
-                { value: 'freight', label: 'Freight' },
               ] as const
             ).map((opt) => (
               <label key={opt.value} className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
                 <input
-                  type="checkbox"
+                  type="radio"
+                  name="delivery-method"
                   checked={deliveryMethods.includes(opt.value)}
-                  onChange={(e) =>
-                    setDeliveryMethods((prev) =>
-                      e.target.checked ? [...prev, opt.value] : prev.filter((m) => m !== opt.value),
-                    )
-                  }
-                  className="h-4 w-4 rounded border-[var(--color-line)]"
+                  onChange={() => setDeliveryMethods([opt.value])}
+                  className="h-4 w-4 border-[var(--color-line)]"
                 />
                 {opt.label}
               </label>
