@@ -343,6 +343,13 @@ export async function createFleetListing(
     .single();
   if (bundleError) throw bundleError;
 
+  // These two inserts aren't atomic — there's no client-side transaction
+  // across them — so a failure here (bad item data, a dropped connection)
+  // would otherwise leave the bundle row behind: 'active', zero items,
+  // stuck showing in Club Gear browse forever since sellers have no DELETE
+  // policy on listing_bundles (only UPDATE). Catch and compensate by
+  // cancelling it — the same soft-delete cancelFleetBundle uses — so a
+  // failed create never leaves an orphan lot for the seller to find later.
   const { data: newListings, error: listingsError } = await supabase
     .from('listings')
     .insert(
@@ -369,7 +376,10 @@ export async function createFleetListing(
       })),
     )
     .select('id');
-  if (listingsError) throw listingsError;
+  if (listingsError) {
+    await supabase.from('listing_bundles').update({ status: 'cancelled' }).eq('id', bundle.id);
+    throw listingsError;
+  }
 
   // Same immediate-live/no-Stripe-step reasoning as a free single listing.
   if (newListings && newListings.length > 0) checkSavedSearches(newListings.map((l) => l.id));
