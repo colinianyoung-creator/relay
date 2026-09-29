@@ -42,7 +42,7 @@ export function formatDateTime(iso: string): string {
 
 export function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
-  const now = new Date('2026-09-01').getTime();
+  const now = Date.now();
   const days = Math.round((now - then) / 86_400_000);
   if (days <= 0) return 'today';
   if (days === 1) return '1 day ago';
