@@ -15,6 +15,7 @@ import { RequestRefundModal } from './RequestRefundModal';
 import { formatPrice } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { OrderStatusTracker } from './OrderStatusTracker';
+import { Badge } from './Badge';
 
 /**
  * Buyer requests, seller approves/declines — approval is what actually calls
@@ -195,9 +196,7 @@ export function RefundPanel({
       {order.refundRequestId && order.refundStatus === 'pending' && (
         <div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
-              {order.refundReason}
-            </span>
+            <Badge>{order.refundReason}</Badge>
             {order.refundDetails && (
               <span className="text-xs text-[var(--color-ink-soft)]">"{order.refundDetails}"</span>
             )}
@@ -520,9 +519,7 @@ export function RefundPanel({
 
       {order.refundRequestId && order.refundStatus === 'declined' && (
         <div>
-          <span className="inline-flex items-center rounded-full bg-[var(--color-brand-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-brand-dark)]">
-            Declined
-          </span>
+          <Badge tone="brand">Declined</Badge>
           {order.refundSellerResponse && (
             <p className="mt-1.5 text-[var(--color-ink-soft)]">{order.refundSellerResponse}</p>
           )}
@@ -541,33 +538,27 @@ export function RefundPanel({
 
       {order.refundRequestId && order.refundStatus === 'escalated' && (
         <div>
-          <span className="inline-flex items-center rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
-            Escalated to Relay
-          </span>
+          <Badge>Escalated to Relay</Badge>
           <p className="mt-1.5 text-[var(--color-ink-soft)]">They'll review and follow up.</p>
         </div>
       )}
 
       {order.refundRequestId && order.refundStatus === 'dismissed' && (
         <div>
-          <span className="inline-flex items-center rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
-            Not refunded
-          </span>
+          <Badge>Not refunded</Badge>
           {order.refundAdminNote && <p className="mt-1.5 text-[var(--color-ink-soft)]">{order.refundAdminNote}</p>}
         </div>
       )}
 
       {order.refundRequestId && order.refundStatus === 'refunded' && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-moss-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-moss)]">
+        <Badge tone="moss">
           <CircleDollarSign size={12} /> Refunded
-        </span>
+        </Badge>
       )}
 
       {order.refundRequestId && order.refundStatus === 'failed' && (
         <div>
-          <span className="inline-flex items-center rounded-full bg-[var(--color-brand-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-brand-dark)]">
-            Needs manual follow-up
-          </span>
+          <Badge tone="brand">Needs manual follow-up</Badge>
           <p className="mt-1.5 text-[var(--color-ink-soft)]">
             Approved, but the refund couldn't be processed automatically — Relay's team will follow up to
             sort it out manually.

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import { formatDateTime, formatPrice } from '@/lib/format';
 import type { MyOrder } from '@/lib/supabaseData';
+import { Badge } from './Badge';
 
 export function TransactionDetails({
   id,
@@ -12,6 +13,7 @@ export function TransactionDetails({
   counterpartyName,
   role,
   statusLabel,
+  statusTone = 'neutral',
   platformFeeAmount,
   listingLink,
   extra,
@@ -23,6 +25,8 @@ export function TransactionDetails({
   counterpartyName: string;
   role: 'buyer' | 'seller';
   statusLabel: string;
+  /** 'brand' for something needing attention, 'moss' for a settled/good state. */
+  statusTone?: 'neutral' | 'brand' | 'moss';
   platformFeeAmount?: number;
   listingLink?: string | null;
   extra?: ReactNode;
@@ -30,8 +34,8 @@ export function TransactionDetails({
   return (
     <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl bg-[var(--color-paper)] p-4 text-xs text-[var(--color-ink-soft)] sm:grid-cols-3">
       <div>
-        <p className="font-medium text-[var(--color-ink)]">Status</p>
-        <p>{statusLabel}</p>
+        <p className="mb-1 font-medium text-[var(--color-ink)]">Status</p>
+        <Badge tone={statusTone}>{statusLabel}</Badge>
       </div>
       <div>
         <p className="font-medium text-[var(--color-ink)]">{role === 'buyer' ? 'Seller' : 'Buyer'}</p>

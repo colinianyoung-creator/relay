@@ -246,6 +246,7 @@ export function PayoutsPanel({
                           counterpartyName={o.counterpartyName}
                           role="seller"
                           statusLabel={o.status === 'refunded' ? 'Refunded' : 'Paid'}
+                          statusTone={o.status === 'refunded' ? 'neutral' : 'moss'}
                           platformFeeAmount={o.platformFeeAmount}
                           listingLink={link}
                           extra={

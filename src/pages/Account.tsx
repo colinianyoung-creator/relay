@@ -752,6 +752,7 @@ export function Account() {
                                   counterpartyName={inv.counterpartyName}
                                   role={viewRole}
                                   statusLabel={viewRole === 'buyer' ? 'Awaiting your payment' : 'Awaiting payment'}
+                                  statusTone={viewRole === 'buyer' ? 'brand' : 'neutral'}
                                   platformFeeAmount={inv.platformFeeAmount}
                                   listingLink={link}
                                 />
@@ -969,6 +970,15 @@ export function Account() {
                                   ? 'Declined'
                                   : 'Withdrawn'
                           }
+                          statusTone={
+                            offer.status === 'pending'
+                              ? myTurn
+                                ? 'brand'
+                                : 'neutral'
+                              : offer.status === 'accepted'
+                                ? 'moss'
+                                : 'neutral'
+                          }
                           listingLink={listingLink}
                           extra={
                             <div>
@@ -1129,6 +1139,7 @@ export function Account() {
                               counterpartyName={inv.counterpartyName}
                               role={viewRole}
                               statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
+                              statusTone={inv.status === 'refunded' ? 'neutral' : 'moss'}
                               platformFeeAmount={inv.platformFeeAmount}
                               listingLink={link}
                               extra={
