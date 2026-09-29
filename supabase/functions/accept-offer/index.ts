@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    if (listing.fee_status !== 'paid') {
+    if (listing.fee_status === 'pending') {
       return new Response(JSON.stringify({ error: "This listing isn't currently live" }), {
         status: 409,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
