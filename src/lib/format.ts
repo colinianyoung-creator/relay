@@ -41,8 +41,16 @@ export function formatDateTime(iso: string): string {
 }
 
 export function timeAgo(iso: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
+  // Every caller of this feeds it date-level granularity — either an actual
+  // `date` column (posted_at) or a timestamptz manually truncated with
+  // .slice(0, 10) — so both sides of the diff are normalized to UTC
+  // calendar-day boundaries here too. Diffing the date's UTC-midnight
+  // instant against the exact current instant (as this used to) made "days
+  // ago" swing on what time of day "now" happens to be: anything posted
+  // after roughly midday UTC would round up to "1 day ago" within seconds
+  // of being created.
+  const then = new Date(iso.slice(0, 10) + 'T00:00:00Z').getTime();
+  const now = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z').getTime();
   const days = Math.round((now - then) / 86_400_000);
   if (days <= 0) return 'today';
   if (days === 1) return '1 day ago';
