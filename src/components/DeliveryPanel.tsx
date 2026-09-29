@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { CheckCircle2, FileText, Loader2, Printer, QrCode, Truck, X } from 'lucide-react';
+import { FileText, Loader2, MapPin, Printer, QrCode, Truck, X } from 'lucide-react';
 import {
   confirmReceipt,
   deleteDeliveryEvidence,
@@ -12,6 +12,7 @@ import {
   type MyOrder,
 } from '@/lib/supabaseData';
 import { formatDateTime } from '@/lib/format';
+import { OrderStatusTracker, type TrackerStep } from './OrderStatusTracker';
 
 export const METHOD_LABEL: Record<string, string> = {
   collection: 'Local collection',
@@ -200,6 +201,26 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   // render more than once on one page (e.g. a seller's order list).
   const labelPrintId = `shipping-label-${order.id}`;
 
+  const receivedAt = order.receivedConfirmedAt ?? undefined;
+  const trackerSteps: TrackerStep[] = [
+    { label: 'Paid', timestamp: order.createdAt },
+    ...(isCollection
+      ? []
+      : [
+          {
+            label: 'Shipped',
+            timestamp: order.shippedAt,
+            state: order.trackingStatus === 'delivered' && !order.shippedAt ? ('done' as const) : undefined,
+          },
+        ]),
+    {
+      label: isCollection ? 'Handed over' : 'Delivered',
+      timestamp: receivedAt ?? (order.trackingStatus === 'delivered' ? order.deliveredAt : undefined),
+      state: order.trackingStatus === 'delivered' && !receivedAt ? 'current' : undefined,
+    },
+    { label: 'Paid out', timestamp: undefined, state: order.transferStatus === 'released' ? 'done' : undefined },
+  ];
+
   return (
     <div className="col-span-full border-t border-[var(--color-line)] pt-3">
       <p className="mb-1.5 flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
@@ -207,20 +228,22 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
       </p>
 
       {order.shippingAddress && (
-        <p className="mb-2 text-[var(--color-ink-soft)]">
-          <span className="font-medium text-[var(--color-ink)]">Shipping address: </span>
-          {order.shippingRecipientName && `${order.shippingRecipientName}, `}
-          {[
-            order.shippingAddress.line1,
-            order.shippingAddress.line2,
-            order.shippingAddress.city,
-            order.shippingAddress.state,
-            order.shippingAddress.postal_code,
-            order.shippingAddress.country,
-          ]
-            .filter(Boolean)
-            .join(', ')}
-        </p>
+        <div className="mb-3 flex items-start gap-2 rounded-lg bg-[var(--color-paper)] p-2.5">
+          <MapPin size={14} className="mt-0.5 shrink-0 text-[var(--color-ink-soft)]" />
+          <div className="text-[var(--color-ink-soft)]">
+            {order.shippingRecipientName && (
+              <p className="font-medium text-[var(--color-ink)]">{order.shippingRecipientName}</p>
+            )}
+            <p>{order.shippingAddress.line1}</p>
+            {order.shippingAddress.line2 && <p>{order.shippingAddress.line2}</p>}
+            <p>
+              {[order.shippingAddress.city, order.shippingAddress.state, order.shippingAddress.postal_code]
+                .filter(Boolean)
+                .join(', ')}
+            </p>
+            <p>{order.shippingAddress.country}</p>
+          </div>
+        </div>
       )}
 
       {error && <p className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
@@ -252,20 +275,14 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
           )}
           {order.deliveryNotes && <p className="mt-1 text-[var(--color-ink-soft)]">{order.deliveryNotes}</p>}
 
+          <div className="mt-3">
+            <OrderStatusTracker steps={trackerSteps} />
+          </div>
           {order.transferStatus === 'pending' && (
-            <p className="mt-1 text-[var(--color-ink-soft)]">
-              {order.receivedConfirmedAt
-                ? 'Receipt confirmed — payout releasing.'
-                : order.trackingStatus === 'delivered'
-                  ? `Marked delivered ${formatDateTime(order.deliveredAt!)}. Relay will pay the seller automatically in 48 hours unless you confirm receipt or raise an issue sooner.`
-                  : order.shippedAt
-                    ? `Marked shipped ${formatDateTime(order.shippedAt)}. Relay holds the seller's payout until receipt is confirmed, or automatically after 14 days.`
-                    : "Relay holds the seller's payout until the order ships and receipt is confirmed."}
-            </p>
-          )}
-          {order.transferStatus === 'released' && (
-            <p className="mt-1 flex items-center gap-1.5 text-[var(--color-moss)]">
-              <CheckCircle2 size={13} /> Payout released to the seller.
+            <p className="mt-2 text-[10px] text-[var(--color-ink-soft)]">
+              {order.trackingStatus === 'delivered' && !order.receivedConfirmedAt
+                ? 'Paying out automatically in 48 hours unless receipt is confirmed or an issue is raised sooner.'
+                : "Held until the order's confirmed received, or automatically after 14 days."}
             </p>
           )}
 

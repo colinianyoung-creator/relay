@@ -1,18 +1,20 @@
-import { useState } from 'react';
-import { CircleDollarSign, Loader2, PackageCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
+import { CircleDollarSign, Loader2, MapPin, PackageCheck, Printer } from 'lucide-react';
 import {
   escalateRefundRequest,
   respondToRefundRequest,
   requestReturn,
   markReturnShipped,
   confirmReturnReceived,
+  fetchReturnHandoverToken,
   type MyOrder,
   type ReturnAddress,
 } from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
 import { formatPrice } from '@/lib/format';
-import { formatDateTime } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { OrderStatusTracker } from './OrderStatusTracker';
 
 /**
  * Buyer requests, seller approves/declines — approval is what actually calls
@@ -40,6 +42,32 @@ export function RefundPanel({
   const [error, setError] = useState<string | null>(null);
   const [returnBusy, setReturnBusy] = useState(false);
   const [returnErr, setReturnErr] = useState<string | null>(null);
+  const [returnQr, setReturnQr] = useState<{ dataUrl: string; scanUrl: string } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const labelPrintId = `return-label-${order.id}`;
+
+  // Buyer needs a printable code for the parcel, same as the seller does on
+  // the outbound leg — build it as soon as a return's been requested and
+  // hasn't shipped yet (RLS lets the buyer read the token straight off
+  // order_returns; see fetchReturnHandoverToken).
+  useEffect(() => {
+    if (viewRole !== 'buyer' || !order.returnRequested || order.returnShippedAt || order.returnReceivedAt) {
+      setReturnQr(null);
+      return;
+    }
+    let cancelled = false;
+    fetchReturnHandoverToken(order.id)
+      .then(async (result) => {
+        if (!result || cancelled) return;
+        const scanUrl = `${window.location.origin}/scan/${result.token}`;
+        const dataUrl = await QRCode.toDataURL(scanUrl, { width: 220, margin: 1 });
+        if (!cancelled) setReturnQr({ dataUrl, scanUrl });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [viewRole, order.id, order.returnRequested, order.returnShippedAt, order.returnReceivedAt]);
 
   // Nothing to request or show yet, and not the buyer — nothing to render.
   if (!order.refundRequestId && viewRole !== 'buyer') return null;
@@ -166,47 +194,119 @@ export function RefundPanel({
 
       {order.refundRequestId && order.refundStatus === 'pending' && (
         <div>
-          <p>
-            {order.refundReason}
-            {order.refundDetails && ` — ${order.refundDetails}`}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
+              {order.refundReason}
+            </span>
+            {order.refundDetails && (
+              <span className="text-xs text-[var(--color-ink-soft)]">"{order.refundDetails}"</span>
+            )}
+          </div>
 
           {order.returnRequested && (
             <div className="mt-2 rounded-lg border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-3">
-              <p className="flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
-                <PackageCheck size={13} /> Return in progress
+              <p className="mb-2.5 flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
+                <PackageCheck size={13} /> Return
               </p>
-              {returnErr && <p className="mt-1 text-[var(--color-brand-dark)]">{returnErr}</p>}
+              <OrderStatusTracker
+                steps={[
+                  { label: 'Requested', timestamp: order.refundRequestedAt },
+                  { label: 'Sent back', timestamp: order.returnShippedAt },
+                  { label: 'Received', timestamp: order.returnReceivedAt },
+                ]}
+              />
+              {returnErr && <p className="mt-2 text-[var(--color-brand-dark)]">{returnErr}</p>}
               {order.returnReceivedAt ? (
-                <p className="mt-1 text-[var(--color-moss)]">
-                  Received back {formatDateTime(order.returnReceivedAt)}
-                  {viewRole === 'buyer' && " — the seller can now issue your refund."}
-                </p>
+                viewRole === 'buyer' && (
+                  <p className="mt-2 text-[var(--color-ink-soft)]">The seller can now issue your refund.</p>
+                )
               ) : order.returnShippedAt ? (
-                <>
-                  <p className="mt-1 text-[var(--color-ink-soft)]">
-                    Marked as sent {formatDateTime(order.returnShippedAt)}
-                    {viewRole === 'buyer' && " — waiting for the seller to confirm it's arrived."}
-                  </p>
-                  {viewRole === 'seller' && (
-                    <button
-                      onClick={handleConfirmReturnReceived}
-                      disabled={returnBusy}
-                      className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
-                    >
-                      {returnBusy && <Loader2 size={12} className="animate-spin" />}
-                      Confirm received
-                    </button>
-                  )}
-                </>
+                viewRole === 'seller' && (
+                  <button
+                    onClick={handleConfirmReturnReceived}
+                    disabled={returnBusy}
+                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                  >
+                    {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                    Confirm received
+                  </button>
+                )
               ) : viewRole === 'buyer' ? (
                 <>
-                  <p className="mt-1 text-[var(--color-ink-soft)]">
-                    Send it back to {order.returnRecipientName}: {order.returnAddress?.line1}
-                    {order.returnAddress?.line2 ? `, ${order.returnAddress.line2}` : ''}
-                    {order.returnAddress?.city ? `, ${order.returnAddress.city}` : ''}, {order.returnAddress?.postal_code},{' '}
-                    {order.returnAddress?.country}
-                  </p>
+                  <div className="mt-2 flex items-start gap-2 rounded-lg bg-[var(--color-paper)] p-2.5">
+                    <MapPin size={14} className="mt-0.5 shrink-0 text-[var(--color-ink-soft)]" />
+                    <div className="text-[var(--color-ink-soft)]">
+                      <p className="font-medium text-[var(--color-ink)]">{order.returnRecipientName}</p>
+                      <p>{order.returnAddress?.line1}</p>
+                      {order.returnAddress?.line2 && <p>{order.returnAddress.line2}</p>}
+                      <p>
+                        {[order.returnAddress?.city, order.returnAddress?.postal_code].filter(Boolean).join(', ')}
+                      </p>
+                      <p>{order.returnAddress?.country}</p>
+                    </div>
+                  </div>
+
+                  {returnQr && (
+                    <div className="mt-3 rounded-xl border border-[var(--color-line)] p-3">
+                      <style>{`
+                        @media print {
+                          body * { visibility: hidden; }
+                          #${labelPrintId}, #${labelPrintId} * { visibility: visible; }
+                          #${labelPrintId} { position: fixed; inset: 0; padding: 32px; }
+                        }
+                      `}</style>
+                      <div id={labelPrintId} className="mx-auto max-w-xs text-center">
+                        <div className="mb-3 text-left">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                            Return to
+                          </p>
+                          <div className="mt-1 text-sm leading-relaxed">
+                            <p className="font-medium text-[var(--color-ink)]">{order.returnRecipientName}</p>
+                            <p>{order.returnAddress?.line1}</p>
+                            {order.returnAddress?.line2 && <p>{order.returnAddress.line2}</p>}
+                            {order.returnAddress?.city && <p>{order.returnAddress.city}</p>}
+                            <p>{order.returnAddress?.postal_code}</p>
+                            <p>{order.returnAddress?.country}</p>
+                          </div>
+                        </div>
+                        <img src={returnQr.dataUrl} alt="Return handover QR code" className="mx-auto h-40 w-40" />
+                        <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+                          Return · {order.title} · Order {order.id.slice(0, 8)}
+                        </p>
+                      </div>
+                      <div className="mt-3 flex flex-wrap justify-center gap-2">
+                        <button
+                          onClick={() => window.print()}
+                          className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                        >
+                          <Printer size={12} /> Print label
+                        </button>
+                        <a
+                          href={returnQr.scanUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                        >
+                          Open link
+                        </a>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard
+                              ?.writeText(returnQr.scanUrl)
+                              .then(() => setLinkCopied(true))
+                              .catch(() => setLinkCopied(false));
+                          }}
+                          className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                        >
+                          {linkCopied ? 'Copied' : 'Copy link'}
+                        </button>
+                      </div>
+                      <p className="mt-2 text-center text-[10px] text-[var(--color-ink-soft)]">
+                        Print this and stick it on the parcel, or scan it yourself when you post it.
+                      </p>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleMarkReturnShipped}
                     disabled={returnBusy}
@@ -217,20 +317,15 @@ export function RefundPanel({
                   </button>
                 </>
               ) : (
-                <>
-                  <p className="mt-1 text-[var(--color-ink-soft)]">
-                    Waiting for the buyer to send it back to you. You can still confirm it if it's already
-                    arrived.
-                  </p>
-                  <button
-                    onClick={handleConfirmReturnReceived}
-                    disabled={returnBusy}
-                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
-                  >
-                    {returnBusy && <Loader2 size={12} className="animate-spin" />}
-                    Confirm received
-                  </button>
-                </>
+                <button
+                  onClick={handleConfirmReturnReceived}
+                  disabled={returnBusy}
+                  title="You can confirm this if it's already arrived, even before the buyer marks it sent"
+                  className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                >
+                  {returnBusy && <Loader2 size={12} className="animate-spin" />}
+                  Confirm received
+                </button>
               )}
             </div>
           )}
@@ -298,50 +393,76 @@ export function RefundPanel({
                 </div>
               </div>
             ) : requestingReturn ? (
-              <form onSubmit={handleRequestReturn} className="mt-2 space-y-2 rounded-lg bg-[var(--color-paper-raised)] p-3">
-                <p className="font-medium text-[var(--color-ink)]">Where should it be sent back to?</p>
-                <input
-                  required
-                  placeholder="Recipient name"
-                  value={returnRecipientName}
-                  onChange={(e) => setReturnRecipientName(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <input
-                  required
-                  placeholder="Address line 1"
-                  value={returnAddr.line1}
-                  onChange={(e) => setReturnAddr((a) => ({ ...a, line1: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <input
-                  placeholder="Address line 2 (optional)"
-                  value={returnAddr.line2 ?? ''}
-                  onChange={(e) => setReturnAddr((a) => ({ ...a, line2: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
-                />
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Town/city"
-                    value={returnAddr.city ?? ''}
-                    onChange={(e) => setReturnAddr((a) => ({ ...a, city: e.target.value }))}
-                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
-                  />
+              <form onSubmit={handleRequestReturn} className="mt-2 space-y-2.5 rounded-lg bg-[var(--color-paper-raised)] p-3">
+                <p className="mb-1 flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
+                  <MapPin size={13} /> Where should it be sent back to?
+                </p>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                    Recipient name
+                  </span>
                   <input
                     required
-                    placeholder="Postcode"
-                    value={returnAddr.postal_code}
-                    onChange={(e) => setReturnAddr((a) => ({ ...a, postal_code: e.target.value }))}
+                    value={returnRecipientName}
+                    onChange={(e) => setReturnRecipientName(e.target.value)}
                     className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
                   />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                    Address line 1
+                  </span>
+                  <input
+                    required
+                    value={returnAddr.line1}
+                    onChange={(e) => setReturnAddr((a) => ({ ...a, line1: e.target.value }))}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                    Address line 2 (optional)
+                  </span>
+                  <input
+                    value={returnAddr.line2 ?? ''}
+                    onChange={(e) => setReturnAddr((a) => ({ ...a, line2: e.target.value }))}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                  />
+                </label>
+                <div className="flex gap-2">
+                  <label className="block flex-1">
+                    <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                      Town/city
+                    </span>
+                    <input
+                      value={returnAddr.city ?? ''}
+                      onChange={(e) => setReturnAddr((a) => ({ ...a, city: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                    />
+                  </label>
+                  <label className="block flex-1">
+                    <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                      Postcode
+                    </span>
+                    <input
+                      required
+                      value={returnAddr.postal_code}
+                      onChange={(e) => setReturnAddr((a) => ({ ...a, postal_code: e.target.value }))}
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                    />
+                  </label>
                 </div>
-                <input
-                  required
-                  placeholder="Country (e.g. GB)"
-                  value={returnAddr.country}
-                  onChange={(e) => setReturnAddr((a) => ({ ...a, country: e.target.value }))}
-                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
-                />
+                <label className="block">
+                  <span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-[var(--color-ink-soft)]">
+                    Country (e.g. GB)
+                  </span>
+                  <input
+                    required
+                    value={returnAddr.country}
+                    onChange={(e) => setReturnAddr((a) => ({ ...a, country: e.target.value }))}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-ink-soft)]"
+                  />
+                </label>
                 {returnErr && <p className="text-[var(--color-brand-dark)]">{returnErr}</p>}
                 <div className="flex items-center gap-3">
                   <button
@@ -399,10 +520,12 @@ export function RefundPanel({
 
       {order.refundRequestId && order.refundStatus === 'declined' && (
         <div>
-          <p>
-            Declined.
-            {order.refundSellerResponse && ` ${order.refundSellerResponse}`}
-          </p>
+          <span className="inline-flex items-center rounded-full bg-[var(--color-brand-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-brand-dark)]">
+            Declined
+          </span>
+          {order.refundSellerResponse && (
+            <p className="mt-1.5 text-[var(--color-ink-soft)]">{order.refundSellerResponse}</p>
+          )}
           {viewRole === 'buyer' && (
             <button
               onClick={handleEscalate}
@@ -417,25 +540,39 @@ export function RefundPanel({
       )}
 
       {order.refundRequestId && order.refundStatus === 'escalated' && (
-        <p>Escalated to Relay's team — they'll review and follow up.</p>
+        <div>
+          <span className="inline-flex items-center rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
+            Escalated to Relay
+          </span>
+          <p className="mt-1.5 text-[var(--color-ink-soft)]">They'll review and follow up.</p>
+        </div>
       )}
 
       {order.refundRequestId && order.refundStatus === 'dismissed' && (
-        <p>
-          Relay reviewed this and won't be issuing a refund.
-          {order.refundAdminNote && ` ${order.refundAdminNote}`}
-        </p>
+        <div>
+          <span className="inline-flex items-center rounded-full bg-[var(--color-paper-raised)] px-2.5 py-1 text-xs font-medium text-[var(--color-ink)]">
+            Not refunded
+          </span>
+          {order.refundAdminNote && <p className="mt-1.5 text-[var(--color-ink-soft)]">{order.refundAdminNote}</p>}
+        </div>
       )}
 
       {order.refundRequestId && order.refundStatus === 'refunded' && (
-        <p className="text-[var(--color-moss)]">Refunded.</p>
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-moss-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-moss)]">
+          <CircleDollarSign size={12} /> Refunded
+        </span>
       )}
 
       {order.refundRequestId && order.refundStatus === 'failed' && (
-        <p>
-          Approved, but the refund couldn't be processed automatically — Relay's team will
-          follow up to sort it out manually.
-        </p>
+        <div>
+          <span className="inline-flex items-center rounded-full bg-[var(--color-brand-soft)] px-2.5 py-1 text-xs font-medium text-[var(--color-brand-dark)]">
+            Needs manual follow-up
+          </span>
+          <p className="mt-1.5 text-[var(--color-ink-soft)]">
+            Approved, but the refund couldn't be processed automatically — Relay's team will follow up to
+            sort it out manually.
+          </p>
+        </div>
       )}
 
       {showModal && (

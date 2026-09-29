@@ -1503,6 +1503,7 @@ export interface MyOrder {
   refundDetails: string | null;
   refundSellerResponse: string | null;
   refundAdminNote: string | null;
+  refundRequestedAt: string | null;
   returnRequested: boolean;
   returnShippedAt: string | null;
   returnReceivedAt: string | null;
@@ -1567,6 +1568,7 @@ interface MyOrderRow {
     details: string | null;
     seller_response: string | null;
     admin_note: string | null;
+    created_at: string;
   } | null;
   return: {
     shipped_at: string | null;
@@ -1577,7 +1579,7 @@ interface MyOrderRow {
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note, created_at), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1667,6 +1669,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       refundDetails: row.refund?.details ?? null,
       refundSellerResponse: row.refund?.seller_response ?? null,
       refundAdminNote: row.refund?.admin_note ?? null,
+      refundRequestedAt: row.refund?.created_at ?? null,
       returnRequested: row.return !== null,
       returnShippedAt: row.return?.shipped_at ?? null,
       returnReceivedAt: row.return?.received_at ?? null,
@@ -1866,6 +1869,20 @@ export async function requestReturn(
   }
   if (data?.error) throw new Error(data.error);
   return { token: data.token, expiresAt: data.expiresAt };
+}
+
+/** Reads the current return handover token for QR display — RLS already permits either side of the order. */
+export async function fetchReturnHandoverToken(
+  orderId: string,
+): Promise<{ token: string; expiresAt: string } | null> {
+  const { data, error } = await supabase
+    .from('order_returns')
+    .select('handover_token, handover_token_expires_at')
+    .eq('order_id', orderId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.handover_token || !data.handover_token_expires_at) return null;
+  return { token: data.handover_token, expiresAt: data.handover_token_expires_at };
 }
 
 /** Buyer-only: marks a requested return as posted back — via a button, or from /scan/:token. */
