@@ -297,7 +297,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                 Request a shipping quote
               </button>
             )}
-            {order.role === 'seller' && !order.shippedAt && order.transferStatus === 'pending' && (
+            {order.role === 'seller' && !isCollection && !order.shippedAt && order.transferStatus === 'pending' && (
               <button
                 onClick={handleMarkShipped}
                 disabled={busy}
