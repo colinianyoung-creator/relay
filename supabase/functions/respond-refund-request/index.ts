@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const { data: request, error: requestError } = await supabase
       .from('refund_requests')
-      .select('id, order_id, buyer_id, seller_id, status')
+      .select('id, order_id, buyer_id, seller_id, status, reason')
       .eq('id', requestId)
       .single();
     if (requestError || !request) {
@@ -115,7 +115,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Approve — this is the only path that actually moves money.
+    // Approve — this is the only path that actually moves money. For any
+    // reason other than "never arrived" (nothing to send back), a return
+    // must have been requested and confirmed received first — this mirrors
+    // the client-side gating in RefundPanel.tsx, but enforced here too so
+    // it can't be bypassed by calling this function directly.
+    if (request.reason !== 'Item never arrived/collected') {
+      const { data: ret } = await supabase
+        .from('order_returns')
+        .select('received_at')
+        .eq('order_id', order.id)
+        .maybeSingle();
+      if (!ret?.received_at) {
+        return new Response(
+          JSON.stringify({
+            error: 'Ask the buyer to return this and confirm it has arrived before approving this refund.',
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
       apiVersion: '2024-12-18.acacia',
       httpClient: Stripe.createFetchHttpClient(),

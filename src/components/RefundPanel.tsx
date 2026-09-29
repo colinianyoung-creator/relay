@@ -130,6 +130,11 @@ export function RefundPanel({
   const needsSellerAction = viewRole === 'seller' && order.refundStatus === 'pending';
   const refundable = formatPrice(order.amount, order.currency);
   const paidOut = order.transferStatus === 'released';
+  // A return is required before approving unless there was nothing to send
+  // back in the first place — enforced again server-side in
+  // respond-refund-request, so this is a UI convenience, not the only guard.
+  const returnRequired = order.refundReason !== 'Item never arrived/collected';
+  const canApprove = !returnRequired || !!order.returnReceivedAt;
 
   return (
     <div
@@ -359,22 +364,24 @@ export function RefundPanel({
               </form>
             ) : (
               <div className="mt-2 flex flex-wrap gap-2">
-                {!order.returnRequested && (
+                {returnRequired && !order.returnRequested && (
                   <button
                     onClick={() => setRequestingReturn(true)}
                     disabled={busy}
-                    className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)] disabled:opacity-60"
+                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
                   >
                     Ask buyer to return it first
                   </button>
                 )}
-                <button
-                  onClick={() => setApproving(true)}
-                  disabled={busy}
-                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
-                >
-                  Approve refund
-                </button>
+                {canApprove && (
+                  <button
+                    onClick={() => setApproving(true)}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-ink)] px-3 py-1.5 text-xs font-medium text-white hover:bg-black disabled:opacity-60"
+                  >
+                    Approve refund
+                  </button>
+                )}
                 <button
                   onClick={() => setDeclining(true)}
                   disabled={busy}
