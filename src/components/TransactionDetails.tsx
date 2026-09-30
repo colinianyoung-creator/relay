@@ -49,7 +49,7 @@ export function TransactionDetails({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[var(--color-line)] pt-3 text-xs text-[var(--color-ink-soft)]">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-t border-[var(--color-line)] pt-3.5 text-sm text-[var(--color-ink-soft)]">
         <p>
           <span className="font-medium text-[var(--color-ink)]">
             {role === 'buyer' ? 'Seller' : 'Buyer'}

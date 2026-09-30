@@ -701,8 +701,8 @@ export function Account() {
                                   </span>
                                 </button>
                                 <div className="mr-auto shrink-0 pl-6 sm:mr-0 sm:pl-0 sm:text-right">
-                                  <p className="text-sm font-medium">{formatPrice(inv.amount, inv.currency)}</p>
-                                  <p className="text-xs text-[var(--color-ink-soft)]">
+                                  <p className="text-base font-medium">{formatPrice(inv.amount, inv.currency)}</p>
+                                  <p className="text-sm text-[var(--color-ink-soft)]">
                                     {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
                                     {timeAgo(inv.createdAt.slice(0, 10))}
                                   </p>
@@ -838,8 +838,8 @@ export function Account() {
                           </span>
                         </button>
                         <div className="mr-auto shrink-0 pl-6 sm:mr-0 sm:pl-0 sm:text-right">
-                          <p className="text-sm font-medium">{formatPrice(offer.amount, offer.currency)}</p>
-                          <p className="text-xs text-[var(--color-ink-soft)]">
+                          <p className="text-base font-medium">{formatPrice(offer.amount, offer.currency)}</p>
+                          <p className="text-sm text-[var(--color-ink-soft)]">
                             {offer.role === 'buyer' ? 'to' : 'from'} {offer.counterpartyName} ·{' '}
                             {timeAgo(offer.updatedAt.slice(0, 10))}
                           </p>
@@ -1118,20 +1118,20 @@ export function Account() {
                               </p>
                             </div>
                             <div className="w-full shrink-0 pl-7 sm:w-auto sm:pl-0 sm:text-right">
-                              <p className="text-sm font-medium">
+                              <p className="text-base font-medium">
                                 {formatPrice(inv.amount, inv.currency)}
                                 {inv.status === 'refunded' && (
-                                  <span className="ml-1.5 text-xs font-normal text-[var(--color-brand-dark)]">
+                                  <span className="ml-1.5 text-sm font-normal text-[var(--color-brand-dark)]">
                                     Refunded
                                   </span>
                                 )}
-                                {inv.refundStatus === 'pending' && (
-                                  <span className="ml-1.5 rounded-full bg-[var(--color-brand)] px-2 py-0.5 text-[10px] font-semibold text-white">
-                                    {viewRole === 'seller' ? 'Refund requested — respond' : 'Refund requested'}
-                                  </span>
-                                )}
                               </p>
-                              <p className="text-xs text-[var(--color-ink-soft)]">
+                              {inv.refundStatus === 'pending' && (
+                                <span className="mt-1 inline-block rounded-full bg-[var(--color-brand)] px-3 py-1 text-xs font-semibold text-white">
+                                  {viewRole === 'seller' ? 'Refund requested — respond' : 'Refund requested'}
+                                </span>
+                              )}
+                              <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
                                 {viewRole === 'buyer' ? 'from' : 'to'} {inv.counterpartyName} ·{' '}
                                 {timeAgo(inv.createdAt.slice(0, 10))}
                               </p>

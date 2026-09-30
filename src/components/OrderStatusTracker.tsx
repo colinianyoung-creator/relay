@@ -40,7 +40,7 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
           <div key={step.label} className="flex sm:flex-1 sm:flex-col">
             <div className="flex flex-col items-center sm:w-full sm:flex-row">
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-semibold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold ${
                   isError
                     ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
                     : isDone
@@ -50,19 +50,19 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
                         : 'border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
                 }`}
               >
-                {isDone ? <Check size={13} /> : isError ? '!' : i + 1}
+                {isDone ? <Check size={16} /> : isError ? '!' : i + 1}
               </span>
               {!isLast && (
                 <span
-                  className={`my-0.5 w-0.5 flex-1 sm:mx-1.5 sm:my-0 sm:h-0.5 sm:w-auto ${
+                  className={`my-0.5 w-0.5 flex-1 sm:mx-2 sm:my-0 sm:h-0.5 sm:w-auto ${
                     lineDone ? 'bg-[var(--color-moss)]' : 'bg-[var(--color-line)]'
                   }`}
                 />
               )}
             </div>
-            <div className={`ml-3 sm:ml-0 sm:mt-1.5 ${isLast ? '' : 'pb-3 sm:pb-0'}`}>
+            <div className={`ml-3 sm:ml-0 sm:mt-2 ${isLast ? '' : 'pb-4 sm:pb-0'}`}>
               <p
-                className={`text-xs font-medium ${
+                className={`text-sm font-medium ${
                   isError
                     ? 'text-[var(--color-brand-dark)]'
                     : isDone || isCurrent
@@ -73,7 +73,7 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
                 {step.label}
               </p>
               {step.timestamp && (
-                <p className="text-[10px] text-[var(--color-ink-soft)]">{formatDateTime(step.timestamp)}</p>
+                <p className="text-xs text-[var(--color-ink-soft)]">{formatDateTime(step.timestamp)}</p>
               )}
             </div>
           </div>

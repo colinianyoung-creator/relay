@@ -210,12 +210,14 @@ export function PayoutsPanel({
                           </p>
                         </div>
                         <div className="w-full shrink-0 pl-7 sm:w-auto sm:pl-0 sm:text-right">
-                          <p className="text-sm font-medium text-[var(--color-moss)]">
+                          <p className="text-base font-medium text-[var(--color-moss)]">
                             {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
                           </p>
-                          <Badge tone={o.status === 'refunded' ? 'neutral' : transferTone(o.transferStatus)}>
-                            {o.status === 'refunded' ? 'refunded' : o.transferStatus}
-                          </Badge>
+                          <div className="mt-1">
+                            <Badge tone={o.status === 'refunded' ? 'neutral' : transferTone(o.transferStatus)}>
+                              {o.status === 'refunded' ? 'refunded' : o.transferStatus}
+                            </Badge>
+                          </div>
                         </div>
                       </button>
                       {isArchived ? (
