@@ -145,7 +145,20 @@ Deno.serve(async (req) => {
       .from('offers')
       .update({ status: 'accepted', order_id: order.id, updated_at: new Date().toISOString() })
       .eq('id', offerId);
-    if (updateError) console.error('Failed to mark offer accepted', updateError);
+    if (updateError) {
+      // The order above already exists — if the offer never actually
+      // flips to 'accepted' here, it's still sitting there as 'pending',
+      // which means either side could call accept-offer on it again and
+      // create a second, duplicate order for the same negotiated deal.
+      // Compensate by cancelling the order we just created and surfacing
+      // a real error instead of silently returning success.
+      console.error('Failed to mark offer accepted — rolling back the order', updateError);
+      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+      return new Response(JSON.stringify({ error: 'Could not accept this offer. Please try again.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const otherId = user.id === offer.buyer_id ? offer.seller_id : offer.buyer_id;
     await notifyUser(

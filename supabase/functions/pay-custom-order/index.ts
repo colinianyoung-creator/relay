@@ -53,7 +53,9 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, bundle_listing_ids, stripe_checkout_session_id')
+      .select(
+        'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, listing_id, bundle_listing_ids, stripe_checkout_session_id',
+      )
       .eq('id', orderId)
       .single();
     if (orderError || !order) {
@@ -81,12 +83,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // This invoice covers either a bundle_listing_ids array (an accepted
+    // offer, a seller-sent custom invoice, or a club-gear-lot sale) or a
+    // single listing_id (a direct Buy now whose order was created but never
+    // got its own Stripe session — e.g. that first attempt's session.create
+    // call failed after the order row was already inserted). Both are
+    // "pay this order" the same way from here on; only how we find the
+    // listing(s) differs.
+    const targetListingIds =
+      order.bundle_listing_ids && order.bundle_listing_ids.length > 0
+        ? order.bundle_listing_ids
+        : order.listing_id
+          ? [order.listing_id]
+          : [];
+
     // Re-check — things may have changed in the time between the invoice
     // being sent and the buyer getting round to paying it.
     const { data: listings, error: listingsError } = await supabase
       .from('listings')
       .select('id, title, sold_at, delivery_methods')
-      .in('id', order.bundle_listing_ids ?? []);
+      .in('id', targetListingIds);
     if (listingsError || !listings || listings.length === 0) {
       return new Response(JSON.stringify({ error: 'The listings on this invoice could not be found' }), {
         status: 404,
