@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { refreshConnectStatus, type MyOrder } from '@/lib/supabaseData';
 import { getConnectInstance } from '@/lib/stripeConnect';
 import { ListingRefRow } from '@/components/ListingRefRow';
-import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
+import { DeliveryPanel, METHOD_LABEL, getDeliveryTrackerSteps } from '@/components/DeliveryPanel';
 import { RefundPanel } from '@/components/RefundPanel';
 import { TransactionDetails } from '@/components/TransactionDetails';
 import { Badge } from '@/components/Badge';
@@ -249,6 +249,7 @@ export function PayoutsPanel({
                           statusTone={o.status === 'refunded' ? 'neutral' : 'moss'}
                           platformFeeAmount={o.platformFeeAmount}
                           listingLink={link}
+                          steps={getDeliveryTrackerSteps(o)}
                           extra={
                             <>
                               <DeliveryPanel order={o} onChanged={onOrdersChanged} />

@@ -45,7 +45,8 @@ import {
 import { ListingCard } from '@/components/ListingCard';
 import { ListingActionsMenu } from '@/components/ListingActionsMenu';
 import { ListingRefRow } from '@/components/ListingRefRow';
-import { DeliveryPanel, METHOD_LABEL } from '@/components/DeliveryPanel';
+import { DeliveryPanel, METHOD_LABEL, getDeliveryTrackerSteps } from '@/components/DeliveryPanel';
+import type { TrackerStep } from '@/components/OrderStatusTracker';
 import { ReviewForm } from '@/components/ReviewForm';
 import { RefundPanel } from '@/components/RefundPanel';
 import { TransactionDetails } from '@/components/TransactionDetails';
@@ -951,7 +952,30 @@ export function Account() {
                         </div>
                       )}
 
-                      {expanded && (
+                      {expanded &&
+                        (() => {
+                          // Same "where is this right now" story as the order
+                          // trackers — a sent offer either sits waiting on one
+                          // side or has already resolved one of three ways.
+                          const offerSteps: TrackerStep[] = [
+                            { label: 'Offer sent', timestamp: offer.createdAt },
+                            offer.status === 'pending'
+                              ? {
+                                  label: myTurn ? 'Your turn to respond' : `Waiting on ${offer.counterpartyName.split(' ')[0]}`,
+                                  state: 'current',
+                                }
+                              : {
+                                  label:
+                                    offer.status === 'accepted'
+                                      ? 'Accepted'
+                                      : offer.status === 'declined'
+                                        ? 'Declined'
+                                        : 'Withdrawn',
+                                  timestamp: offer.updatedAt,
+                                  state: offer.status === 'accepted' ? 'done' : 'error',
+                                },
+                          ];
+                          return (
                         <TransactionDetails
                           id={offer.id}
                           createdAt={offer.createdAt}
@@ -980,6 +1004,7 @@ export function Account() {
                                 : 'neutral'
                           }
                           listingLink={listingLink}
+                          steps={offerSteps}
                           extra={
                             <div>
                               <p className="font-medium text-[var(--color-ink)]">Proposed by</p>
@@ -993,7 +1018,8 @@ export function Account() {
                             </div>
                           }
                         />
-                      )}
+                          );
+                        })()}
                     </div>
                   );
                 })}
@@ -1142,6 +1168,7 @@ export function Account() {
                               statusTone={inv.status === 'refunded' ? 'neutral' : 'moss'}
                               platformFeeAmount={inv.platformFeeAmount}
                               listingLink={link}
+                              steps={getDeliveryTrackerSteps(inv)}
                               extra={
                                 <>
                                   {viewRole === 'buyer' && inv.status === 'paid' && (

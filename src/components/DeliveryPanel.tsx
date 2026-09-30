@@ -12,13 +12,44 @@ import {
   type MyOrder,
 } from '@/lib/supabaseData';
 import { formatDateTime } from '@/lib/format';
-import { OrderStatusTracker, type TrackerStep } from './OrderStatusTracker';
+import type { TrackerStep } from './OrderStatusTracker';
 
 export const METHOD_LABEL: Record<string, string> = {
   collection: 'Local collection',
   courier: 'Courier / parcel',
   freight: 'Freight',
 };
+
+/**
+ * The order's overall lifecycle, lead-tracker style — hoisted out of this
+ * panel so TransactionDetails can show it once, above both this panel and
+ * RefundPanel, instead of it living only inside the delivery section.
+ */
+export function getDeliveryTrackerSteps(order: MyOrder): TrackerStep[] {
+  const isCollection = order.deliveryMethod === 'collection' || !order.deliveryMethod;
+  const receivedAt = order.receivedConfirmedAt ?? undefined;
+  const steps: TrackerStep[] = [
+    { label: 'Paid', timestamp: order.createdAt },
+    ...(isCollection
+      ? []
+      : [
+          {
+            label: 'Shipped',
+            timestamp: order.shippedAt,
+            state: order.trackingStatus === 'delivered' && !order.shippedAt ? ('done' as const) : undefined,
+          },
+        ]),
+    {
+      label: isCollection ? 'Handed over' : 'Delivered',
+      timestamp: receivedAt ?? (order.trackingStatus === 'delivered' ? order.deliveredAt : undefined),
+      state: order.trackingStatus === 'delivered' && !receivedAt ? 'current' : undefined,
+    },
+    order.status === 'refunded'
+      ? { label: 'Refunded', state: 'error' }
+      : { label: 'Paid out', state: order.transferStatus === 'released' ? 'done' : undefined },
+  ];
+  return steps;
+}
 
 function EvidenceThumb({ orderId, path, onRemoved }: { orderId: string; path: string; onRemoved: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -201,26 +232,6 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
   // render more than once on one page (e.g. a seller's order list).
   const labelPrintId = `shipping-label-${order.id}`;
 
-  const receivedAt = order.receivedConfirmedAt ?? undefined;
-  const trackerSteps: TrackerStep[] = [
-    { label: 'Paid', timestamp: order.createdAt },
-    ...(isCollection
-      ? []
-      : [
-          {
-            label: 'Shipped',
-            timestamp: order.shippedAt,
-            state: order.trackingStatus === 'delivered' && !order.shippedAt ? ('done' as const) : undefined,
-          },
-        ]),
-    {
-      label: isCollection ? 'Handed over' : 'Delivered',
-      timestamp: receivedAt ?? (order.trackingStatus === 'delivered' ? order.deliveredAt : undefined),
-      state: order.trackingStatus === 'delivered' && !receivedAt ? 'current' : undefined,
-    },
-    { label: 'Paid out', timestamp: undefined, state: order.transferStatus === 'released' ? 'done' : undefined },
-  ];
-
   return (
     <div className="col-span-full border-t border-[var(--color-line)] pt-3">
       <p className="mb-1.5 flex items-center gap-1.5 font-medium text-[var(--color-ink)]">
@@ -275,9 +286,6 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
           )}
           {order.deliveryNotes && <p className="mt-1 text-[var(--color-ink-soft)]">{order.deliveryNotes}</p>}
 
-          <div className="mt-3">
-            <OrderStatusTracker steps={trackerSteps} />
-          </div>
           {order.transferStatus === 'pending' && (
             <p className="mt-2 text-[10px] text-[var(--color-ink-soft)]">
               {order.trackingStatus === 'delivered' && !order.receivedConfirmedAt
