@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Boxes, Globe2, MapPin } from 'lucide-react';
-import type { FleetBundle } from '@/types';
+import type { ClubGearBundle } from '@/types';
 import { ListingCover } from './ListingCover';
 import { Badge } from './Badge';
 import { formatPrice, timeAgo, countryCode } from '@/lib/format';
 
-export function BundleCard({ bundle }: { bundle: FleetBundle }) {
+export function BundleCard({ bundle }: { bundle: ClubGearBundle }) {
   const total = bundle.listings.reduce((sum, l) => sum + (l.price ?? 0), 0);
   const currency = bundle.listings[0]?.currency ?? 'GBP';
   const shipsInternationally = bundle.listings.some((l) => l.shipsInternationally);

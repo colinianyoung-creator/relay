@@ -4,9 +4,9 @@ import { Boxes, ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition } from '@/types';
 import { ListingPhoto } from '@/components/ListingPhoto';
 import {
-  createFleetListing,
+  createClubGearListing,
   uploadListingPhoto,
-  type FleetItemInput,
+  type ClubGearItemInput,
 } from '@/lib/supabaseData';
 import { CURRENCIES, CATEGORY_LABEL, SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
 import { useAuth } from '@/lib/auth';
@@ -37,7 +37,7 @@ function newItem(): ItemDraft {
   };
 }
 
-export function CreateFleetListing() {
+export function CreateClubGearListing() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [showAuth, setShowAuth] = useState(false);
@@ -113,7 +113,7 @@ export function CreateFleetListing() {
     );
   }
 
-  async function publishFleetListing(opts?: { skipPayoutsCheck?: boolean }) {
+  async function publishClubGearListing(opts?: { skipPayoutsCheck?: boolean }) {
     setSubmitError(null);
 
     if (items.length < 2) {
@@ -144,7 +144,7 @@ export function CreateFleetListing() {
         photoUrls.push(await uploadListingPhoto(user!.id, file));
       }
 
-      const itemInputs: FleetItemInput[] = items.map((it) => ({
+      const itemInputs: ClubGearItemInput[] = items.map((it) => ({
         title: it.title,
         condition: it.condition,
         price: Number(it.price),
@@ -153,7 +153,7 @@ export function CreateFleetListing() {
         seatDepthCm: it.seatDepthCm ? Number(it.seatDepthCm) : null,
       }));
 
-      const bundleId = await createFleetListing(
+      const bundleId = await createClubGearListing(
         user!.id,
         {
           title,
@@ -201,7 +201,7 @@ export function CreateFleetListing() {
           <PayoutsGate
             onDone={(enabled) => {
               setShowPayoutsGate(false);
-              if (enabled) publishFleetListing({ skipPayoutsCheck: true });
+              if (enabled) publishClubGearListing({ skipPayoutsCheck: true });
             }}
           />
         </div>
@@ -209,7 +209,7 @@ export function CreateFleetListing() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          publishFleetListing();
+          publishClubGearListing();
         }}
         className="mt-8 space-y-8"
       >
@@ -265,11 +265,11 @@ export function CreateFleetListing() {
         </div>
 
         <div>
-          <label htmlFor="fleet-title" className="mb-2 block text-sm font-medium">
+          <label htmlFor="clubgear-title" className="mb-2 block text-sm font-medium">
             Gear lot title
           </label>
           <input
-            id="fleet-title"
+            id="clubgear-title"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -279,11 +279,11 @@ export function CreateFleetListing() {
         </div>
 
         <div>
-          <label htmlFor="fleet-description" className="mb-2 block text-sm font-medium">
+          <label htmlFor="clubgear-description" className="mb-2 block text-sm font-medium">
             Description
           </label>
           <textarea
-            id="fleet-description"
+            id="clubgear-description"
             required
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -295,11 +295,11 @@ export function CreateFleetListing() {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="fleet-sport" className="mb-2 block text-sm font-medium">
+            <label htmlFor="clubgear-sport" className="mb-2 block text-sm font-medium">
               Sport
             </label>
             <select
-              id="fleet-sport"
+              id="clubgear-sport"
               value={sport}
               onChange={(e) => setSport(e.target.value as Sport)}
               className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm"
@@ -312,11 +312,11 @@ export function CreateFleetListing() {
             </select>
           </div>
           <div>
-            <label htmlFor="fleet-currency" className="mb-2 block text-sm font-medium">
+            <label htmlFor="clubgear-currency" className="mb-2 block text-sm font-medium">
               Currency
             </label>
             <select
-              id="fleet-currency"
+              id="clubgear-currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value as Currency)}
               className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm"
@@ -332,11 +332,11 @@ export function CreateFleetListing() {
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="fleet-location" className="mb-2 block text-sm font-medium">
+            <label htmlFor="clubgear-location" className="mb-2 block text-sm font-medium">
               Town or city
             </label>
             <input
-              id="fleet-location"
+              id="clubgear-location"
               required
               value={location}
               onChange={(e) => setLocation(e.target.value)}
@@ -345,11 +345,11 @@ export function CreateFleetListing() {
             />
           </div>
           <div>
-            <label htmlFor="fleet-country" className="mb-2 block text-sm font-medium">
+            <label htmlFor="clubgear-country" className="mb-2 block text-sm font-medium">
               Country
             </label>
             <select
-              id="fleet-country"
+              id="clubgear-country"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm"

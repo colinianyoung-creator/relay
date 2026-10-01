@@ -7,8 +7,8 @@ import {
   createCustomOrder,
   hasMessaged,
   sendMessage,
-  updateFleetBundleShared,
-  cancelFleetBundle,
+  updateClubGearBundleShared,
+  cancelClubGearBundle,
   type BuyerLookup,
 } from '@/lib/supabaseData';
 import { useAuth } from '@/lib/auth';
@@ -17,11 +17,11 @@ import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { AuthModal } from '@/components/AuthModal';
 import { DeliverySuggestion } from '@/components/DeliverySuggestion';
-import { EditFleetItemModal } from '@/components/EditFleetItemModal';
+import { EditClubGearItemModal } from '@/components/EditClubGearItemModal';
 import { formatPrice } from '@/lib/format';
-import type { FleetBundle, Listing } from '@/types';
+import type { ClubGearBundle, Listing } from '@/types';
 
-function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
+function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
   const [buyerEmail, setBuyerEmail] = useState('');
   const [buyer, setBuyer] = useState<BuyerLookup | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -163,7 +163,7 @@ function InvoicePanel({ bundle }: { bundle: FleetBundle }) {
   );
 }
 
-export function FleetDetail() {
+export function ClubGearDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -171,7 +171,7 @@ export function FleetDetail() {
   // reads the current session, not the stale one captured when it was queued.
   const userRef = useRef(user);
   userRef.current = user;
-  const [bundle, setBundle] = useState<FleetBundle | null | undefined>(undefined);
+  const [bundle, setBundle] = useState<ClubGearBundle | null | undefined>(undefined);
   const [showAuth, setShowAuth] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
   const [message, setMessage] = useState('');
@@ -197,7 +197,7 @@ export function FleetDetail() {
     setCancelError(null);
     setCancelling(true);
     try {
-      await cancelFleetBundle(bundle.id);
+      await cancelClubGearBundle(bundle.id);
       navigate('/club-gear');
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'Could not cancel this lot.');
@@ -217,7 +217,7 @@ export function FleetDetail() {
     setBundleSaveError(null);
     setBundleSaving(true);
     try {
-      await updateFleetBundleShared(bundle.id, { title: bundleTitleDraft, description: bundleDescDraft });
+      await updateClubGearBundleShared(bundle.id, { title: bundleTitleDraft, description: bundleDescDraft });
       setBundle({ ...bundle, title: bundleTitleDraft, description: bundleDescDraft });
       setEditingBundle(false);
     } catch (err) {
@@ -485,7 +485,7 @@ export function FleetDetail() {
       )}
 
       {editingItem && (
-        <EditFleetItemModal
+        <EditClubGearItemModal
           listing={editingItem}
           onClose={() => setEditingItem(null)}
           onSaved={refreshBundle}

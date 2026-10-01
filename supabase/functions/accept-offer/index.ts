@@ -7,8 +7,8 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { notifyUser } from '../_shared/notify.ts';
 
 const PLATFORM_FEE_PERCENT = 5;
-// Uncapped, 5% on a club fleet liquidation (10-15 chairs at once, see
-// createFleetListing's own reasoning) runs into the hundreds of pounds on a
+// Uncapped, 5% on a club gear liquidation (10-15 chairs at once, see
+// createClubGearListing's own reasoning) runs into the hundreds of pounds on a
 // single sale — a flat ceiling keeps commission proportionate to a normal
 // single-item sale once the order gets that large, whatever currency it's
 // in (same flat-regardless-of-currency approach as the posting fee).

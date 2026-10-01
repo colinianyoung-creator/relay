@@ -68,7 +68,7 @@ export interface Listing extends StructuredSpec {
   deliveryMethods?: ('collection' | 'courier' | 'freight')[];
 }
 
-export interface FleetBundle {
+export interface ClubGearBundle {
   id: string;
   title: string;
   description: string;

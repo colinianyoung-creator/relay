@@ -139,18 +139,18 @@ export function ListingDetail() {
   const fitSignal = fitProfileUsable && hasFitSignal(listing, fitProfile);
   const fits = fitSignal && isLikelyFit(listing, fitProfile);
   const isSold = !!listing.soldAt;
-  const isFleetOnly = listing.sellableIndividually === false && !!listing.bundleId;
+  const isClubGearOnly = listing.sellableIndividually === false && !!listing.bundleId;
   const canBuyInApp =
     !isDemo &&
     !isSold &&
-    !isFleetOnly &&
+    !isClubGearOnly &&
     listing.price !== null &&
     listing.seller.payoutsEnabled &&
     user?.id !== listing.seller.id;
   // Doesn't need the seller's payouts set up yet — only accepting and
   // paying an offer does (same reasoning as the custom-invoice flow).
   const canOffer =
-    !isDemo && !isSold && !isFleetOnly && listing.price !== null && user?.id !== listing.seller.id;
+    !isDemo && !isSold && !isClubGearOnly && listing.price !== null && user?.id !== listing.seller.id;
 
   function requireAuth(action: () => void) {
     if (!user) {
@@ -464,7 +464,7 @@ export function ListingDetail() {
 
             {!isSold && user?.id !== listing.seller.id && (
               <p className="mt-4 text-center text-xs text-[var(--color-ink-soft)]">
-                {isFleetOnly ? (
+                {isClubGearOnly ? (
                   <>
                     Only sold as part of its club gear lot —{' '}
                     <Link to={`/club-gear/${listing.bundleId}`} className="underline">

@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { Loader2, Boxes } from 'lucide-react';
 import { fetchActiveBundles } from '@/lib/supabaseData';
 import { BundleCard } from '@/components/BundleCard';
-import type { FleetBundle } from '@/types';
+import type { ClubGearBundle } from '@/types';
 
-export function FleetBoard() {
-  const [bundles, setBundles] = useState<FleetBundle[] | null>(null);
+export function ClubGearBoard() {
+  const [bundles, setBundles] = useState<ClubGearBundle[] | null>(null);
 
   useEffect(() => {
     fetchActiveBundles().then(setBundles);

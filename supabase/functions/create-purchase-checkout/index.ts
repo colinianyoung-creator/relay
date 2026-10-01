@@ -14,7 +14,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 // Relay's cut of each sale. Easy to tune — kept as one constant rather than
 // scattered through the codebase.
 const PLATFORM_FEE_PERCENT = 5;
-// Flat ceiling so a large sale (a club fleet liquidation especially) doesn't
+// Flat ceiling so a large sale (a club gear liquidation especially) doesn't
 // pay commission that scales unbounded with price — see accept-offer's copy
 // of this same constant for the full reasoning.
 const PLATFORM_FEE_CAP = 150;
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    // Mirrors ListingDetail.tsx's isFleetOnly check — a fleet item not
+    // Mirrors ListingDetail.tsx's isClubGearOnly check — a club-gear-lot item not
     // marked sellable individually can only be bought as part of its bundle
     // (via a custom invoice), never on its own. The UI already hides Buy
     // Now for these; this is the server-side backstop a direct API call

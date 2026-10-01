@@ -1,4 +1,4 @@
-// Called right after a free/exempt listing (or fleet lot) goes live —
+// Called right after a free/exempt listing (or club gear lot) goes live —
 // stripe-webhook does the equivalent check inline for the two paid paths
 // since it's already running server-side there. Checks every listing id
 // against every saved search and emails each matching user once.

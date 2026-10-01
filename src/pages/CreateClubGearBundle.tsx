@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Boxes, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { fetchListingsBySeller, createFleetBundle } from '@/lib/supabaseData';
+import { fetchListingsBySeller, createClubGearBundle } from '@/lib/supabaseData';
 import { ListingCover } from '@/components/ListingCover';
 import { formatPrice } from '@/lib/format';
 import type { Listing } from '@/types';
 
-export function CreateFleetBundle() {
+export function CreateClubGearBundle() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [listings, setListings] = useState<Listing[] | null>(null);
@@ -67,7 +67,7 @@ export function CreateFleetBundle() {
     setError(null);
     setSubmitting(true);
     try {
-      const bundleId = await createFleetBundle(user!.id, title, description, Array.from(selected));
+      const bundleId = await createClubGearBundle(user!.id, title, description, Array.from(selected));
       navigate(`/club-gear/${bundleId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');

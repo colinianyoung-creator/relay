@@ -1,6 +1,6 @@
 import type { Sport, Currency } from '@/types';
 
-// Shared between CreateListing (one item) and CreateFleetListing (many items
+// Shared between CreateListing (one item) and CreateClubGearListing (many items
 // at once) so the two forms never drift on what fields/labels a sport gets.
 
 export const CURRENCIES: Currency[] = ['GBP', 'USD', 'EUR', 'AUD', 'CAD'];

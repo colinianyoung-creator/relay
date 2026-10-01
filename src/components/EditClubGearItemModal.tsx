@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 import { CONDITIONS, type Condition, type Listing } from '@/types';
-import { updateFleetItem } from '@/lib/supabaseData';
+import { updateClubGearItem } from '@/lib/supabaseData';
 import { SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
 
 // Editing a single item within an already-posted club-gear lot — a smaller
-// surface than the full fleet-creation wizard (see the plan this shipped
+// surface than the full club-gear-creation wizard (see the plan this shipped
 // under): just the fields that belong to this one item, not the bundle's
 // shared fields or membership. Modeled on the other portal modals.
-export function EditFleetItemModal({
+export function EditClubGearItemModal({
   listing,
   onClose,
   onSaved,
@@ -39,7 +39,7 @@ export function EditFleetItemModal({
     }
     setSubmitting(true);
     try {
-      await updateFleetItem(listing.id, {
+      await updateClubGearItem(listing.id, {
         title: title.trim(),
         price: priceNumber,
         condition,

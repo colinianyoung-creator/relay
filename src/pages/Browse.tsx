@@ -18,7 +18,7 @@ import {
   type Condition,
   type Listing,
   type FitProfile,
-  type FleetBundle,
+  type ClubGearBundle,
 } from '@/types';
 import { ListingCard } from '@/components/ListingCard';
 import { BundleCard } from '@/components/BundleCard';
@@ -28,7 +28,7 @@ import { AuthModal } from '@/components/AuthModal';
 
 type BrowseEntry =
   | { kind: 'listing'; date: string; listing: Listing }
-  | { kind: 'bundle'; date: string; bundle: FleetBundle };
+  | { kind: 'bundle'; date: string; bundle: ClubGearBundle };
 
 const EMPTY_FIT_PROFILE: FitProfile = {
   primarySport: null,
@@ -45,7 +45,7 @@ const EMPTY_FIT_PROFILE: FitProfile = {
 export function Browse() {
   const { user } = useAuth();
   const [realListings, setRealListings] = useState<Listing[]>([]);
-  const [bundles, setBundles] = useState<FleetBundle[]>([]);
+  const [bundles, setBundles] = useState<ClubGearBundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [fitProfile, setFitProfile] = useState<FitProfile | null>(null);

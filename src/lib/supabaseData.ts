@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Listing, Currency, FitProfile, FleetBundle, Seller, Sport, Condition } from '@/types';
+import type { Listing, Currency, FitProfile, ClubGearBundle, Seller, Sport, Condition } from '@/types';
 
 interface ListingRow {
   id: string;
@@ -92,10 +92,10 @@ function mapListing(row: ListingRow): Listing {
 const LISTING_SELECT =
   '*, profiles:profiles!listings_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled, avatar_url)';
 
-// Fleet-only items (sellable_individually = false) are deliberately excluded
-// here — they're only reachable/purchasable via their fleet's own page, not
-// through general browse/search. See fetchListingsBySeller below, which a
-// seller uses to see everything they own, fleet-only included.
+// Club-gear-only items (sellable_individually = false) are deliberately
+// excluded here — they're only reachable/purchasable via their lot's own
+// page, not through general browse/search. See fetchListingsBySeller below,
+// which a seller uses to see everything they own, lot-only items included.
 export async function fetchListings(): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
@@ -301,15 +301,15 @@ export async function updateListing(listingId: string, input: EditableListingFie
   if (error) throw error;
 }
 
-// --- Fleet listing (create a whole fleet's listings + the bundle together) ---
-// Distinct from createFleetBundle below, which groups listings a seller
+// --- Club gear listing (create a whole lot's listings + the bundle together) ---
+// Distinct from createClubGearBundle below, which groups listings a seller
 // already has up. This creates the listings and the bundle in one step, for
 // a seller who's never listed any of it before. No posting fee for club
-// gear lots (unlike a single listing) — Relay's commission on a fleet-sized
+// gear lots (unlike a single listing) — Relay's commission on a lot-sized
 // sale already far exceeds what a flat £9 fee would add, so charging both
 // would be pointless double-dipping. Everything publishes immediately.
 
-export interface FleetSharedFields {
+export interface ClubGearSharedFields {
   title: string;
   description: string;
   sport: string;
@@ -322,7 +322,7 @@ export interface FleetSharedFields {
   photos?: string[];
 }
 
-export interface FleetItemInput {
+export interface ClubGearItemInput {
   title: string;
   condition: string;
   price: number;
@@ -331,10 +331,10 @@ export interface FleetItemInput {
   seatDepthCm?: number | null;
 }
 
-export async function createFleetListing(
+export async function createClubGearListing(
   sellerId: string,
-  shared: FleetSharedFields,
-  items: FleetItemInput[],
+  shared: ClubGearSharedFields,
+  items: ClubGearItemInput[],
 ): Promise<string> {
   const { data: bundle, error: bundleError } = await supabase
     .from('listing_bundles')
@@ -348,7 +348,7 @@ export async function createFleetListing(
   // would otherwise leave the bundle row behind: 'active', zero items,
   // stuck showing in Club Gear browse forever since sellers have no DELETE
   // policy on listing_bundles (only UPDATE). Catch and compensate by
-  // cancelling it — the same soft-delete cancelFleetBundle uses — so a
+  // cancelling it — the same soft-delete cancelClubGearBundle uses — so a
   // failed create never leaves an orphan lot for the seller to find later.
   const { data: newListings, error: listingsError } = await supabase
     .from('listings')
@@ -387,7 +387,7 @@ export async function createFleetListing(
   return bundle.id;
 }
 
-export async function updateFleetBundleShared(
+export async function updateClubGearBundleShared(
   bundleId: string,
   fields: { title: string; description: string },
 ): Promise<void> {
@@ -402,7 +402,7 @@ export async function updateFleetBundleShared(
 // is the closest real equivalent: 'cancelled' drops it out of
 // fetchActiveBundles' `status = 'active'` filter, without touching the
 // member listings or needing DB permissions the schema doesn't grant.
-export async function cancelFleetBundle(bundleId: string): Promise<void> {
+export async function cancelClubGearBundle(bundleId: string): Promise<void> {
   const { error } = await supabase.from('listing_bundles').update({ status: 'cancelled' }).eq('id', bundleId);
   if (error) throw error;
 }
@@ -410,7 +410,7 @@ export async function cancelFleetBundle(bundleId: string): Promise<void> {
 // Same allowlist reasoning as updateListing — a single item's own editable
 // fields within a lot, never fee_status/sold_at/bundle_id/seller_id. The
 // `.is('sold_at', null)` guard is the same stale-edit-form protection.
-export async function updateFleetItem(
+export async function updateClubGearItem(
   listingId: string,
   fields: {
     title: string;
@@ -1256,9 +1256,10 @@ export async function fetchAuditLog(): Promise<AdminAuditLogEntry[]> {
   }));
 }
 
-// --- Fleet bundles (club fleet liquidations) ---
+// --- Club gear bundles (club fleet liquidations) ---
 // A bundle groups several of a seller's own listings into one sellable lot,
-// bought in a single checkout. See supabase/migrations/20260906100000_fleet_bundles.sql.
+// bought in a single checkout. See supabase/migrations/20260906100000_fleet_bundles.sql
+// (the table/migration predates the "club gear" rename and keeps its original name).
 
 interface BundleRow {
   id: string;
@@ -1284,7 +1285,7 @@ interface BundleRow {
 const BUNDLE_SELECT =
   'id, title, description, status, created_at, seller_id, profiles:profiles!listing_bundles_seller_id_fkey(id, name, club, verified, rating, sales_count, created_at, stripe_connect_charges_enabled, avatar_url), listings(*)';
 
-function mapBundle(row: BundleRow): FleetBundle {
+function mapBundle(row: BundleRow): ClubGearBundle {
   const sellerProfile = row.profiles;
   const seller: Seller = {
     id: sellerProfile?.id ?? row.seller_id,
@@ -1311,7 +1312,7 @@ function mapBundle(row: BundleRow): FleetBundle {
   };
 }
 
-export async function fetchActiveBundles(): Promise<FleetBundle[]> {
+export async function fetchActiveBundles(): Promise<ClubGearBundle[]> {
   const { data, error } = await supabase
     .from('listing_bundles')
     .select(BUNDLE_SELECT)
@@ -1321,7 +1322,7 @@ export async function fetchActiveBundles(): Promise<FleetBundle[]> {
   return (data as unknown as BundleRow[]).map(mapBundle);
 }
 
-export async function fetchBundle(id: string): Promise<FleetBundle | null> {
+export async function fetchBundle(id: string): Promise<ClubGearBundle | null> {
   const { data, error } = await supabase
     .from('listing_bundles')
     .select(BUNDLE_SELECT)
@@ -1331,7 +1332,7 @@ export async function fetchBundle(id: string): Promise<FleetBundle | null> {
   return data ? mapBundle(data as unknown as BundleRow) : null;
 }
 
-export async function fetchBundlesBySeller(sellerId: string): Promise<FleetBundle[]> {
+export async function fetchBundlesBySeller(sellerId: string): Promise<ClubGearBundle[]> {
   const { data, error } = await supabase
     .from('listing_bundles')
     .select(BUNDLE_SELECT)
@@ -1341,7 +1342,7 @@ export async function fetchBundlesBySeller(sellerId: string): Promise<FleetBundl
   return (data as unknown as BundleRow[]).map(mapBundle);
 }
 
-export async function createFleetBundle(
+export async function createClubGearBundle(
   sellerId: string,
   title: string,
   description: string,

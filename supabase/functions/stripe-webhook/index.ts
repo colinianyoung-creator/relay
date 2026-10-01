@@ -188,9 +188,9 @@ Deno.serve(async (req) => {
     const session = event.data.object as Stripe.Checkout.Session;
     const listingId = session.metadata?.listing_id;
     const orderId = session.metadata?.order_id;
-    const fleetBundleId = session.metadata?.bundle_id;
+    const clubGearBundleId = session.metadata?.bundle_id;
 
-    if (fleetBundleId && session.payment_status === 'paid') {
+    if (clubGearBundleId && session.payment_status === 'paid') {
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -199,27 +199,27 @@ Deno.serve(async (req) => {
       const { data: bundle, error: bundleFetchError } = await supabase
         .from('listing_bundles')
         .select('id')
-        .eq('id', fleetBundleId)
+        .eq('id', clubGearBundleId)
         .eq('stripe_checkout_session_id', session.id)
         .single();
 
       if (bundleFetchError || !bundle) {
-        console.error('Fleet bundle not found for completed session', fleetBundleId, bundleFetchError);
+        console.error('Club gear bundle not found for completed session', clubGearBundleId, bundleFetchError);
       } else {
-        const { data: updatedFleetListings, error: listingsUpdateError } = await supabase
+        const { data: updatedClubGearListings, error: listingsUpdateError } = await supabase
           .from('listings')
           .update({ fee_status: 'paid' })
-          .eq('bundle_id', fleetBundleId)
+          .eq('bundle_id', clubGearBundleId)
           .eq('fee_status', 'pending')
           .select('id, title, price, currency, sport, condition, country, ships_internationally, location, bundle_id');
-        if (listingsUpdateError) console.error('Failed to mark fleet listings paid', listingsUpdateError);
-        else await notifyMatchingSearches(supabase, updatedFleetListings ?? []);
+        if (listingsUpdateError) console.error('Failed to mark club gear listings paid', listingsUpdateError);
+        else await notifyMatchingSearches(supabase, updatedClubGearListings ?? []);
 
         const { error: bundleUpdateError } = await supabase
           .from('listing_bundles')
           .update({ status: 'active' })
-          .eq('id', fleetBundleId);
-        if (bundleUpdateError) console.error('Failed to activate fleet bundle', bundleUpdateError);
+          .eq('id', clubGearBundleId);
+        if (bundleUpdateError) console.error('Failed to activate club gear bundle', bundleUpdateError);
       }
     }
 
@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
         let soldListingIds: string[] = [];
 
         if (order.bundle_listing_ids && order.bundle_listing_ids.length > 0) {
-          // Multi-item order (fleet bundle purchase or a one-off negotiated
+          // Multi-item order (club gear bundle purchase or a one-off negotiated
           // invoice covering several listings) — mark every listing sold in
           // one go, same race-guard style as the single-listing path below.
           const targetIds = order.bundle_listing_ids;
