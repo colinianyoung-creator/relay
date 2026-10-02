@@ -6,7 +6,7 @@
 // real payment, so this webhook is what actually flips state.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
-import { sendEmail, formatMoney, SITE_URL } from '../_shared/email.ts';
+import { sendEmail, formatMoney, SITE_URL, wrapEmailBody } from '../_shared/email.ts';
 import { notifyUser } from '../_shared/notify.ts';
 import { listingMatchesSearch, type SavedSearch } from '../_shared/matchSearch.ts';
 
@@ -131,13 +131,15 @@ async function sendOrderEmails(
       await sendEmail({
         to: buyerEmail,
         subject: `Order confirmed — ${itemLabel}`,
-        html: `
-          <p>Hi ${buyerName},</p>
-          <p>Your payment of <strong>${amountStr}</strong> for "<strong>${itemLabel}</strong>" from ${sellerName} is confirmed.</p>
-          <p><a href="${buyerLink}">View it on Relay</a></p>
-          <p>Relay doesn't arrange shipping or collection — sort the details directly with ${sellerName} via Relay messages.</p>
-          <p>— Relay</p>
-        `,
+        html: wrapEmailBody({
+          bodyHtml: `
+            <p style="margin: 0 0 12px;">Hi ${buyerName},</p>
+            <p style="margin: 0 0 12px;">Your payment of <strong>${amountStr}</strong> for "<strong>${itemLabel}</strong>" from ${sellerName} is confirmed.</p>
+            <p style="margin: 0;">Relay doesn't arrange shipping or collection — sort the details directly with ${sellerName} via Relay messages.</p>
+          `,
+          ctaLabel: 'View it on Relay',
+          ctaUrl: buyerLink,
+        }),
       });
     } else {
       console.error('No buyer email found for order', orderId);
@@ -147,13 +149,15 @@ async function sendOrderEmails(
       await sendEmail({
         to: sellerEmail,
         subject: `You've made a sale on Relay — ${itemLabel}`,
-        html: `
-          <p>Hi ${sellerName},</p>
-          <p>${buyerName} just bought "<strong>${itemLabel}</strong>" for ${amountStr}.</p>
-          <p>Your payout, after Relay's platform fee, is <strong>${payoutStr}</strong>. Relay holds this until your buyer confirms receipt (or 14 days after you mark it shipped, whichever comes first) — then it's sent straight to your connected account.</p>
-          <p><a href="${sellerLink}">View in your account</a></p>
-          <p>— Relay</p>
-        `,
+        html: wrapEmailBody({
+          bodyHtml: `
+            <p style="margin: 0 0 12px;">Hi ${sellerName},</p>
+            <p style="margin: 0 0 12px;">${buyerName} just bought "<strong>${itemLabel}</strong>" for ${amountStr}.</p>
+            <p style="margin: 0;">Your payout, after Relay's platform fee, is <strong>${payoutStr}</strong>. Relay holds this until your buyer confirms receipt (or 14 days after you mark it shipped, whichever comes first) — then it's sent straight to your connected account.</p>
+          `,
+          ctaLabel: 'View in your account',
+          ctaUrl: sellerLink,
+        }),
       });
     } else {
       console.error('No seller email found for order', orderId);

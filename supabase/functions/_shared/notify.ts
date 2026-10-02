@@ -2,7 +2,7 @@
 // Never throws — a failed/missing email must never turn an otherwise-
 // successful message/offer action into a user-facing error.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { sendEmail, SITE_URL } from './email.ts';
+import { sendEmail, SITE_URL, wrapEmailBody } from './email.ts';
 
 export async function notifyUser(
   supabase: ReturnType<typeof createClient>,
@@ -20,7 +20,11 @@ export async function notifyUser(
     await sendEmail({
       to: email,
       subject,
-      html: `<p>Hi ${profile?.name ?? 'there'},</p>${bodyHtml}<p><a href="${SITE_URL}/account">View on Relay</a></p><p>— Relay</p>`,
+      html: wrapEmailBody({
+        bodyHtml: `<p style="margin: 0 0 12px;">Hi ${profile?.name ?? 'there'},</p>${bodyHtml}`,
+        ctaLabel: 'View on Relay',
+        ctaUrl: `${SITE_URL}/account`,
+      }),
     });
   } catch (err) {
     console.error('notifyUser failed for', userId, err);
