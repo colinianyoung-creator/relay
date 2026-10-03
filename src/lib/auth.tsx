@@ -27,6 +27,8 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null; signedIn: boolean }>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
+  resetPassword: (email: string) => Promise<string | null>;
+  updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -94,6 +96,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   }
 
+  async function resetPassword(email: string) {
+    // redirectTo must be on additional_redirect_urls (Supabase dashboard) —
+    // it's where the recovery link lands with a session already attached,
+    // not an API callback.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    return error?.message ?? null;
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
+    return error?.message ?? null;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -104,7 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signUp, signIn, signInWithGoogle, signOut, refreshProfile }}
+      value={{
+        user,
+        profile,
+        loading,
+        signUp,
+        signIn,
+        signInWithGoogle,
+        resetPassword,
+        updatePassword,
+        signOut,
+        refreshProfile,
+      }}
     >
       {children}
     </AuthContext.Provider>

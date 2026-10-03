@@ -22,6 +22,7 @@ import { CreateClubGearBundle } from '@/pages/CreateClubGearBundle';
 import { CreateClubGearListing } from '@/pages/CreateClubGearListing';
 import { Checkout } from '@/pages/Checkout';
 import { ScanHandover } from '@/pages/ScanHandover';
+import { ResetPassword } from '@/pages/ResetPassword';
 
 // Redirect the old /fleet(s) paths to their /club-gear equivalents, so any
 // existing bookmarks/shared links or emails already sent (which used the
@@ -50,6 +51,7 @@ function App() {
           <Route path="/club-gear" element={<ClubGearBoard />} />
           <Route path="/club-gear/:id" element={<ClubGearDetail />} />
           <Route path="/scan/:token" element={<ScanHandover />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
           {/* Old URLs — redirect rather than break existing links */}
           <Route path="/sell/fleet/new" element={<Navigate to="/sell/club-gear/new" replace />} />
           <Route path="/sell/fleet/existing" element={<Navigate to="/sell/club-gear/existing" replace />} />
