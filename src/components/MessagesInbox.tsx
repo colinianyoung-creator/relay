@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Send } from 'lucide-react';
+import { ArrowLeft, Archive, ArchiveRestore, Loader2, Send } from 'lucide-react';
 import {
+  archiveMessageThread,
+  fetchArchivedThreadMap,
   fetchThreadMessages,
   markThreadRead,
   sendMessage,
+  unarchiveMessageThread,
   type MessageThread,
   type ThreadMessage,
 } from '@/lib/supabaseData';
 import { formatPrice, timeAgo } from '@/lib/format';
 import { ListingCover } from './ListingCover';
 import { ListingRefRow } from './ListingRefRow';
+
+function threadKey(listingId: string, otherPartyId: string) {
+  return `${listingId}:${otherPartyId}`;
+}
 
 export function MessagesInbox({
   userId,
@@ -28,6 +35,42 @@ export function MessagesInbox({
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [archivedMap, setArchivedMap] = useState<Map<string, string>>(new Map());
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchArchivedThreadMap(userId).then(setArchivedMap);
+  }, [userId]);
+
+  function isArchived(t: MessageThread) {
+    const archivedAt = archivedMap.get(threadKey(t.listingId, t.otherPartyId));
+    return !!archivedAt && t.lastMessageAt <= archivedAt;
+  }
+
+  async function handleArchive(t: MessageThread) {
+    setArchiveError(null);
+    try {
+      await archiveMessageThread(userId, t.listingId, t.otherPartyId);
+      setArchivedMap((prev) => new Map(prev).set(threadKey(t.listingId, t.otherPartyId), new Date().toISOString()));
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not archive that conversation.');
+    }
+  }
+
+  async function handleUnarchive(t: MessageThread) {
+    setArchiveError(null);
+    try {
+      await unarchiveMessageThread(userId, t.listingId, t.otherPartyId);
+      setArchivedMap((prev) => {
+        const next = new Map(prev);
+        next.delete(threadKey(t.listingId, t.otherPartyId));
+        return next;
+      });
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Could not unarchive that conversation.');
+    }
+  }
 
   useEffect(() => {
     if (!selected) return;
@@ -151,54 +194,112 @@ export function MessagesInbox({
     );
   }
 
+  const activeThreads = threads.filter((t) => !isArchived(t));
+  const archivedThreads = threads.filter((t) => isArchived(t));
+  const shownThreads = showArchived ? threads : activeThreads;
+
+  if (shownThreads.length === 0) {
+    return (
+      <div>
+        <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-16 text-center text-[var(--color-ink-soft)]">
+          {showArchived ? 'No messages yet.' : 'All caught up — nothing active right now.'}
+        </div>
+        {archivedThreads.length > 0 && (
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="mt-4 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+          >
+            {showArchived ? 'Hide' : 'Show'} archived ({archivedThreads.length})
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
-      {threads.map((t) => (
-        <button
-          key={`${t.listingId}:${t.otherPartyId}`}
-          onClick={() => setSelected(t)}
-          className="flex w-full items-center gap-4 p-4 text-left hover:bg-[var(--color-paper)]"
-        >
-          {t.sport ? (
-            <ListingCover
-              sport={t.sport}
-              photos={t.photos ?? undefined}
-              className="h-12 w-12 shrink-0 rounded-xl"
-            />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
-              {t.otherPartyName.slice(0, 1)}
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-1.5">
-                {t.hasUnread && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-brand)]" aria-hidden="true" />
+    <div>
+      {archiveError && (
+        <p className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+          {archiveError}
+        </p>
+      )}
+      <div className="divide-y divide-[var(--color-line)] rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
+        {shownThreads.map((t) => {
+          const archived = isArchived(t);
+          return (
+            <div key={`${t.listingId}:${t.otherPartyId}`} className={`flex items-center gap-2 p-4 ${archived ? 'opacity-70' : ''}`}>
+              <button
+                onClick={() => setSelected(t)}
+                className="flex min-w-0 flex-1 items-center gap-4 text-left"
+              >
+                {t.sport ? (
+                  <ListingCover
+                    sport={t.sport}
+                    photos={t.photos ?? undefined}
+                    className="h-12 w-12 shrink-0 rounded-xl"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]">
+                    {t.otherPartyName.slice(0, 1)}
+                  </div>
                 )}
-                <span className={`truncate text-sm ${t.hasUnread ? 'font-semibold' : 'font-medium'}`}>
-                  {t.otherPartyName}
-                </span>
-              </span>
-              <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
-                {timeAgo(t.lastMessageAt.slice(0, 10))}
-              </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {t.hasUnread && (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-brand)]" aria-hidden="true" />
+                      )}
+                      <span className={`truncate text-sm ${t.hasUnread ? 'font-semibold' : 'font-medium'}`}>
+                        {t.otherPartyName}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-[var(--color-ink-soft)]">
+                      {timeAgo(t.lastMessageAt.slice(0, 10))}
+                    </span>
+                  </div>
+                  <p
+                    className={`truncate text-sm ${
+                      t.hasUnread ? 'font-medium text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]'
+                    }`}
+                  >
+                    {t.lastMessageFromMe && 'You: '}
+                    {t.lastMessage || '(no message text)'}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[var(--color-ink-soft)]/80">
+                    Re: {t.listingTitle} · {formatPrice(t.listingPrice, t.listingCurrency)}
+                    {t.location ? ` · ${t.location}` : ''}
+                  </p>
+                </div>
+              </button>
+              {archived ? (
+                <button
+                  onClick={() => handleUnarchive(t)}
+                  title="Unarchive — bring it back to Messages"
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  <ArchiveRestore size={13} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleArchive(t)}
+                  title="Archive — hides it from this list, keeps the messages"
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  <Archive size={13} />
+                </button>
+              )}
             </div>
-            <p
-              className={`truncate text-sm ${
-                t.hasUnread ? 'font-medium text-[var(--color-ink)]' : 'text-[var(--color-ink-soft)]'
-              }`}
-            >
-              {t.lastMessageFromMe && 'You: '}
-              {t.lastMessage || '(no message text)'}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-[var(--color-ink-soft)]/80">
-              Re: {t.listingTitle} · {formatPrice(t.listingPrice, t.listingCurrency)}
-              {t.location ? ` · ${t.location}` : ''}
-            </p>
-          </div>
+          );
+        })}
+      </div>
+      {archivedThreads.length > 0 && (
+        <button
+          onClick={() => setShowArchived((v) => !v)}
+          className="mt-4 text-xs font-medium text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+        >
+          {showArchived ? 'Hide' : 'Show'} archived ({archivedThreads.length})
         </button>
-      ))}
+      )}
     </div>
   );
 }

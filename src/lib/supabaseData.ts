@@ -824,6 +824,50 @@ export async function fetchMessageThreads(userId: string): Promise<MessageThread
   return Array.from(threads.values());
 }
 
+/**
+ * Threads have no row of their own to key an archive table on — this maps
+ * `${listingId}:${otherPartyId}` to the archive's created_at. A thread
+ * counts as archived only while its latest message predates this
+ * timestamp, so a new reply after archiving un-hides it again rather than
+ * burying it for good.
+ */
+export async function fetchArchivedThreadMap(userId: string): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from('archived_message_threads')
+    .select('listing_id, other_party_id, created_at')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return new Map((data ?? []).map((row) => [`${row.listing_id}:${row.other_party_id}`, row.created_at as string]));
+}
+
+export async function archiveMessageThread(
+  userId: string,
+  listingId: string,
+  otherPartyId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('archived_message_threads')
+    .upsert(
+      { user_id: userId, listing_id: listingId, other_party_id: otherPartyId, created_at: new Date().toISOString() },
+      { onConflict: 'user_id,listing_id,other_party_id' },
+    );
+  if (error) throw error;
+}
+
+export async function unarchiveMessageThread(
+  userId: string,
+  listingId: string,
+  otherPartyId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('archived_message_threads')
+    .delete()
+    .eq('user_id', userId)
+    .eq('listing_id', listingId)
+    .eq('other_party_id', otherPartyId);
+  if (error) throw error;
+}
+
 /** Marks every message this user received in one thread as read. */
 export async function markThreadRead(
   userId: string,
