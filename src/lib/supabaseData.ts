@@ -130,6 +130,8 @@ export async function fetchListingsBySeller(sellerId: string): Promise<Listing[]
   return (data as unknown as ListingRow[]).map(mapListing);
 }
 
+export type SellerType = 'individual' | 'commercial';
+
 export interface NewListingInput {
   title: string;
   sport: string;
@@ -138,6 +140,7 @@ export interface NewListingInput {
   price: number | null;
   currency: Currency;
   description: string;
+  sellerType: SellerType;
   measurements: { label: string; value: string }[];
   location: string;
   country: string;
@@ -210,6 +213,7 @@ export async function createListing(sellerId: string, input: NewListingInput): P
       max_user_weight_kg: input.maxUserWeightKg ?? null,
       photos: input.photos ?? [],
       fee_status: feeStatus,
+      seller_type: input.sellerType,
     })
     .select('id')
     .single();
@@ -295,6 +299,7 @@ export async function updateListing(listingId: string, input: EditableListingFie
       min_user_weight_kg: input.minUserWeightKg ?? null,
       max_user_weight_kg: input.maxUserWeightKg ?? null,
       photos: input.photos ?? [],
+      seller_type: input.sellerType,
     })
     .eq('id', listingId)
     .is('sold_at', null);

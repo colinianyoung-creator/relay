@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ImagePlus, CheckCircle2, Loader2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Currency } from '@/types';
+import type { SellerType } from '@/lib/supabaseData';
 import { ListingPhoto } from '@/components/ListingPhoto';
 import {
   createListing,
@@ -54,6 +55,8 @@ export function CreateListing() {
   const [removedExistingPhotoUrls, setRemovedExistingPhotoUrls] = useState<string[]>([]);
   const [sport, setSport] = useState<Sport>('basketball');
   const [condition, setCondition] = useState<Condition>('good');
+  const [sellerType, setSellerType] = useState<SellerType | ''>('');
+  const [sellerTypeError, setSellerTypeError] = useState<string | null>(null);
   const [isFree, setIsFree] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
@@ -281,6 +284,11 @@ export function CreateListing() {
       setDeliveryMethodsError('Pick at least one way buyers can get this from you.');
       return;
     }
+    setSellerTypeError(null);
+    if (!sellerType) {
+      setSellerTypeError('Select who this listing is from before publishing.');
+      return;
+    }
     setSubmitError(null);
     setSubmitting(true);
     try {
@@ -295,6 +303,7 @@ export function CreateListing() {
         sport,
         category: CATEGORY_LABEL[sport],
         condition,
+        sellerType: sellerType as SellerType,
         // Price stays in whatever free/paid category the listing already
         // has in edit mode — the toggle is hidden, so `isFree` here just
         // reflects that starting category, not a live user choice.
@@ -459,6 +468,40 @@ export function CreateListing() {
               <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
                 No photos yet — we'll show a placeholder for your sport instead.
               </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium">Who's this listing from?</label>
+            <div className="flex flex-wrap gap-4">
+              {(
+                [
+                  { value: 'individual', label: 'Private individual / non-profit club' },
+                  { value: 'commercial', label: 'Commercial trader' },
+                ] as const
+              ).map((opt) => (
+                <label key={opt.value} className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+                  <input
+                    type="radio"
+                    name="seller-type"
+                    required
+                    checked={sellerType === opt.value}
+                    onChange={() => setSellerType(opt.value)}
+                    className="h-4 w-4 border-[var(--color-line)]"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+              Affects what Relay reports to HMRC, not your price or fees. See the{' '}
+              <Link to="/faq/tax" className="underline hover:text-[var(--color-ink)]">
+                tax FAQ
+              </Link>
+              .
+            </p>
+            {sellerTypeError && (
+              <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{sellerTypeError}</p>
             )}
           </div>
 

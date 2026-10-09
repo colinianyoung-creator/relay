@@ -11,6 +11,7 @@ import { SellerProfile } from '@/pages/SellerProfile';
 import { ListingCheckoutConfirm } from '@/pages/ListingCheckoutConfirm';
 import { PurchaseCheckoutConfirm } from '@/pages/PurchaseCheckoutConfirm';
 import { Terms } from '@/pages/Terms';
+import { TaxFaq } from '@/pages/TaxFaq';
 import { Privacy } from '@/pages/Privacy';
 import { AdminReports } from '@/pages/AdminReports';
 import { AdminUsers } from '@/pages/AdminUsers';
@@ -61,6 +62,7 @@ function App() {
           <Route path="/seller/:id" element={<SellerProfile />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/faq/tax" element={<TaxFaq />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/users" element={<AdminUsers />} />

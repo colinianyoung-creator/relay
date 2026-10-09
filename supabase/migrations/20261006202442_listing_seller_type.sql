@@ -1,0 +1,11 @@
+-- Captures whether a listing's seller is a private individual/non-profit
+-- club or a commercial trader — same loose-text-column, app-validated
+-- pattern as sport/condition (see 20260901222528_initial_schema.sql) rather
+-- than a check constraint, so this stays easy to extend later. Nullable
+-- because existing listings were never asked; the "mandatory" requirement
+-- for new listings is enforced in the create-listing form, not the DB.
+-- Relevant to HMRC's digital platform reporting rules (platforms must
+-- collect and report seller information) as well as to the /faq/tax page's
+-- own accuracy — this is plain seller-provided data, not a tax
+-- determination Relay makes on anyone's behalf.
+alter table public.listings add column seller_type text;
