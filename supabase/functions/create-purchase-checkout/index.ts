@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { listingId, deliveryMethod, successUrl, cancelUrl } = await req.json();
+    const { listingId, deliveryMethod, successUrl, cancelUrl, vatReliefDeclared } = await req.json();
     if (!listingId || !deliveryMethod || !successUrl || !cancelUrl) {
       return new Response(
         JSON.stringify({ error: 'Missing listingId, deliveryMethod, successUrl or cancelUrl' }),
@@ -65,7 +65,9 @@ Deno.serve(async (req) => {
 
     const { data: listing, error: listingError } = await supabase
       .from('listings')
-      .select('id, seller_id, title, price, currency, fee_status, sold_at, bundle_id, sellable_individually, delivery_methods')
+      .select(
+        'id, seller_id, title, price, currency, fee_status, sold_at, bundle_id, sellable_individually, delivery_methods, vat_relief_eligible',
+      )
       .eq('id', listingId)
       .single();
     if (listingError || !listing) {
@@ -137,6 +139,11 @@ Deno.serve(async (req) => {
       PLATFORM_FEE_CAP * 100,
     );
 
+    // Only ever true server-side when the listing itself is actually
+    // eligible — a client sending the flag on an ineligible listing just
+    // gets ignored, not trusted at face value.
+    const vatReliefDeclaredAndEligible = !!vatReliefDeclared && listing.vat_relief_eligible;
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -147,6 +154,8 @@ Deno.serve(async (req) => {
         currency: listing.currency,
         platform_fee_amount: platformFeePence / 100,
         status: 'pending',
+        vat_relief_declared: vatReliefDeclaredAndEligible,
+        vat_relief_declared_at: vatReliefDeclaredAndEligible ? new Date().toISOString() : null,
       })
       .select('id')
       .single();

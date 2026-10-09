@@ -30,6 +30,8 @@ interface ListingRow {
   bundle_id: string | null;
   sellable_individually: boolean;
   delivery_methods: ('collection' | 'courier' | 'freight')[] | null;
+  seller_type: 'individual' | 'commercial' | null;
+  vat_relief_eligible: boolean;
   profiles: {
     id: string;
     name: string;
@@ -73,6 +75,8 @@ function mapListing(row: ListingRow): Listing {
     bundleId: row.bundle_id,
     sellableIndividually: row.sellable_individually,
     deliveryMethods: row.delivery_methods?.length ? row.delivery_methods : ['courier'],
+    sellerType: row.seller_type ?? undefined,
+    vatReliefEligible: row.vat_relief_eligible,
     seller: {
       id: seller?.id ?? row.seller_id,
       name: seller?.name ?? 'Relay member',
@@ -141,6 +145,8 @@ export interface NewListingInput {
   currency: Currency;
   description: string;
   sellerType: SellerType;
+  /** Only meaningful when sellerType is 'commercial' — see 20261009123157_vat_relief.sql. */
+  vatReliefEligible?: boolean;
   measurements: { label: string; value: string }[];
   location: string;
   country: string;
@@ -214,6 +220,7 @@ export async function createListing(sellerId: string, input: NewListingInput): P
       photos: input.photos ?? [],
       fee_status: feeStatus,
       seller_type: input.sellerType,
+      vat_relief_eligible: input.sellerType === 'commercial' && !!input.vatReliefEligible,
     })
     .select('id')
     .single();
@@ -300,6 +307,7 @@ export async function updateListing(listingId: string, input: EditableListingFie
       max_user_weight_kg: input.maxUserWeightKg ?? null,
       photos: input.photos ?? [],
       seller_type: input.sellerType,
+      vat_relief_eligible: input.sellerType === 'commercial' && !!input.vatReliefEligible,
     })
     .eq('id', listingId)
     .is('sold_at', null);
@@ -472,9 +480,10 @@ export async function createPurchaseCheckout(
   deliveryMethod: 'collection' | 'courier' | 'freight',
   successUrl: string,
   cancelUrl: string,
+  vatReliefDeclared?: boolean,
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('create-purchase-checkout', {
-    body: { listingId, deliveryMethod, successUrl, cancelUrl },
+    body: { listingId, deliveryMethod, successUrl, cancelUrl, vatReliefDeclared: !!vatReliefDeclared },
   });
   if (error) {
     const context = (error as { context?: Response }).context;

@@ -26,7 +26,9 @@ interface CheckoutItem {
   sport: Sport | null;
   location: string | null;
   deliveryMethods: DeliveryMethod[];
-  pay: (method: DeliveryMethod) => Promise<string>;
+  /** Only ever true for a 'listing' checkout from a commercial seller — see 20261009123157_vat_relief.sql. */
+  vatReliefEligible?: boolean;
+  pay: (method: DeliveryMethod, vatReliefDeclared?: boolean) => Promise<string>;
 }
 
 /**
@@ -45,6 +47,7 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
   const [item, setItem] = useState<CheckoutItem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [method, setMethod] = useState<DeliveryMethod | null>(null);
+  const [vatReliefDeclared, setVatReliefDeclared] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,12 +73,14 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
           sport: listing.sport,
           location: listing.location,
           deliveryMethods: methods,
-          pay: (m: DeliveryMethod) =>
+          vatReliefEligible: listing.sellerType === 'commercial' && !!listing.vatReliefEligible,
+          pay: (m: DeliveryMethod, vatReliefDeclared?: boolean) =>
             createPurchaseCheckout(
               listing.id,
               m,
               `${origin}/purchase/confirm?listing_id=${listing.id}`,
               `${origin}/listing/${listing.id}`,
+              vatReliefDeclared,
             ),
         } satisfies CheckoutItem;
       }
@@ -117,7 +122,7 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
     setError(null);
     setSubmitting(true);
     try {
-      window.location.href = await item.pay(method);
+      window.location.href = await item.pay(method, vatReliefDeclared);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong starting checkout.');
       setSubmitting(false);
@@ -214,6 +219,29 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
               </p>
             )}
           </section>
+
+          {item.vatReliefEligible && (
+            <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-5">
+              <h2 className="mb-2 text-sm font-medium">VAT relief</h2>
+              <p className="text-xs text-[var(--color-ink-soft)]">
+                This item is designed solely for use by a disabled person. If you're chronically
+                sick or disabled and buying it for your own personal use, {firstName} can sell it
+                to you VAT-free under HMRC's disability relief rules.
+              </p>
+              <label className="mt-3 flex items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={vatReliefDeclared}
+                  onChange={(e) => setVatReliefDeclared(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-[var(--color-line)]"
+                />
+                <span>
+                  I'm chronically sick or disabled, and I'm buying this for my own personal use —
+                  not for someone else or for a business.
+                </span>
+              </label>
+            </section>
+          )}
 
           <section className="flex gap-3 rounded-2xl bg-[var(--color-paper)] p-5 text-sm text-[var(--color-ink-soft)]">
             <ShieldCheck size={20} className="mt-0.5 shrink-0 text-[var(--color-moss)]" />

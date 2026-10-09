@@ -66,6 +66,9 @@ export interface Listing extends StructuredSpec {
   sellableIndividually?: boolean;
   /** Defaults to ['courier'] if missing/empty — demo listings don't set it. */
   deliveryMethods?: ('collection' | 'courier' | 'freight')[];
+  sellerType?: 'individual' | 'commercial';
+  /** Set by a commercial seller — "designed solely for use by a disabled person" under VAT Notice 701/7. */
+  vatReliefEligible?: boolean;
 }
 
 export interface ClubGearBundle {

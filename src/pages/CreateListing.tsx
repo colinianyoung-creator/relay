@@ -57,6 +57,7 @@ export function CreateListing() {
   const [condition, setCondition] = useState<Condition>('good');
   const [sellerType, setSellerType] = useState<SellerType | ''>('');
   const [sellerTypeError, setSellerTypeError] = useState<string | null>(null);
+  const [vatReliefEligible, setVatReliefEligible] = useState(false);
   const [isFree, setIsFree] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
@@ -304,6 +305,7 @@ export function CreateListing() {
         category: CATEGORY_LABEL[sport],
         condition,
         sellerType: sellerType as SellerType,
+        vatReliefEligible,
         // Price stays in whatever free/paid category the listing already
         // has in edit mode — the toggle is hidden, so `isFree` here just
         // reflects that starting category, not a live user choice.
@@ -502,6 +504,24 @@ export function CreateListing() {
             </p>
             {sellerTypeError && (
               <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{sellerTypeError}</p>
+            )}
+            {sellerType === 'commercial' && (
+              <label className="mt-3 flex items-start gap-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-3.5 text-sm text-[var(--color-ink-soft)]">
+                <input
+                  type="checkbox"
+                  checked={vatReliefEligible}
+                  onChange={(e) => setVatReliefEligible(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-[var(--color-line)]"
+                />
+                <span>
+                  This item is designed solely for use by a disabled person — eligible buyers can
+                  buy it VAT-free. See the{' '}
+                  <Link to="/faq/tax" className="underline hover:text-[var(--color-ink)]">
+                    tax FAQ
+                  </Link>
+                  .
+                </span>
+              </label>
             )}
           </div>
 
