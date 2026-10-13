@@ -478,7 +478,7 @@ export function Account() {
           <p className="text-sm text-[var(--color-ink-soft)]">
             {profile?.club ? `${profile.club}` : user.email}
           </p>
-          {avatarError && <p className="mt-1 text-xs text-[var(--color-brand-dark)]">{avatarError}</p>}
+          {avatarError && <p role="alert" className="mt-1 text-xs text-[var(--color-brand-dark)]">{avatarError}</p>}
         </div>
       </div>
 
@@ -503,7 +503,7 @@ export function Account() {
               setTab('Orders');
               setExpandedId(pendingRefundOrders[0].id);
             }}
-            className="rounded-full bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+            className="rounded-full bg-[var(--color-brand-dark)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
           >
             Review now
           </button>
@@ -523,7 +523,7 @@ export function Account() {
           >
             {t}
             {t === 'Orders' && pendingRefundOrders.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="ml-1.5 rounded-full bg-[var(--color-brand-dark)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                 {pendingRefundOrders.length}
               </span>
             )}
@@ -567,7 +567,7 @@ export function Account() {
                   <Boxes size={13} /> List club gear
                 </Link>
               </div>
-              {archiveError && <p className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
+              {archiveError && <p role="alert" className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
               {(() => {
                 const visible = myListings.filter((l) => !archivedListingIds.has(l.id));
                 const archived = myListings.filter((l) => archivedListingIds.has(l.id));
@@ -656,7 +656,7 @@ export function Account() {
               ) : (
                 <>
                   {invoiceError && (
-                    <p className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                    <p role="alert" className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
                       {invoiceError}
                     </p>
                   )}
@@ -783,7 +783,7 @@ export function Account() {
               ) : (
                 <div className="space-y-3">
                   {offerError && (
-                    <p className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+                    <p role="alert" className="rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
                       {offerError}
                     </p>
                   )}
@@ -1054,7 +1054,7 @@ export function Account() {
               <div>
                 <RoleToggle value={viewRole} onChange={setViewRole} />
 
-                {archiveError && <p className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
+                {archiveError && <p role="alert" className="mb-3 text-sm text-[var(--color-brand-dark)]">{archiveError}</p>}
 
                 {orders === null ? (
                   <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />
@@ -1127,7 +1127,7 @@ export function Account() {
                                 )}
                               </p>
                               {inv.refundStatus === 'pending' && (
-                                <span className="mt-1 inline-block rounded-full bg-[var(--color-brand)] px-3 py-1 text-xs font-semibold text-white">
+                                <span className="mt-1 inline-block rounded-full bg-[var(--color-brand-dark)] px-3 py-1 text-xs font-semibold text-white">
                                   {viewRole === 'seller' ? 'Refund requested — respond' : 'Refund requested'}
                                 </span>
                               )}

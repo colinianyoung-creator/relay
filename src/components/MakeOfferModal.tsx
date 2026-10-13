@@ -4,6 +4,7 @@ import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { createOffer } from '@/lib/supabaseData';
 import { formatPrice } from '@/lib/format';
 import type { Currency } from '@/types';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 export function MakeOfferModal({
   listingId,
@@ -23,6 +24,7 @@ export function MakeOfferModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const containerRef = useModalA11y(onClose);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,10 +45,22 @@ export function MakeOfferModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="make-offer-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl">Make an offer</h2>
+          <h2 id="make-offer-title" className="text-xl">Make an offer</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -77,10 +91,11 @@ export function MakeOfferModal({
               pay — {sellerName.split(' ')[0]} can accept, decline, or counter.
             </p>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="offer-amount" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Your offer ({currency})
               </label>
               <input
+                id="offer-amount"
                 type="number"
                 min={0}
                 step="0.01"
@@ -91,10 +106,11 @@ export function MakeOfferModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="offer-message" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Message (optional)
               </label>
               <textarea
+                id="offer-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
@@ -103,7 +119,7 @@ export function MakeOfferModal({
               />
             </div>
 
-            {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+            {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
             <button
               type="submit"

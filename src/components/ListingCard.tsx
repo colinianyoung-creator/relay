@@ -25,7 +25,7 @@ export function ListingCard({
       <div className="relative">
         <ListingCover sport={listing.sport} photos={listing.photos} className="h-44 w-full" />
         {listing.feeStatus === 'pending' ? (
-          <span className="absolute left-3 top-3 rounded-full bg-[var(--color-brand)] px-2.5 py-1 text-xs font-medium text-white shadow-sm">
+          <span className="absolute left-3 top-3 rounded-full bg-[var(--color-brand-dark)] px-2.5 py-1 text-xs font-medium text-white shadow-sm">
             Payment pending
           </span>
         ) : listing.soldAt ? (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 function GoogleIcon() {
   return (
@@ -49,6 +50,7 @@ export function AuthModal({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const containerRef = useModalA11y(onClose);
 
   async function handleGoogle() {
     setError(null);
@@ -110,10 +112,22 @@ export function AuthModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl">
+          <h2 id="auth-modal-title" className="text-xl">
             {mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create an account' : 'Reset password'}
           </h2>
           <button
@@ -158,10 +172,11 @@ export function AuthModal({
               {mode === 'signup' && (
                 <>
                   <div>
-                    <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                    <label htmlFor="auth-name" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                       Your name
                     </label>
                     <input
+                      id="auth-name"
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -169,10 +184,11 @@ export function AuthModal({
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                    <label htmlFor="auth-club" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                       Club (optional)
                     </label>
                     <input
+                      id="auth-club"
                       value={club}
                       onChange={(e) => setClub(e.target.value)}
                       className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
@@ -181,8 +197,9 @@ export function AuthModal({
                 </>
               )}
               <div>
-                <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Email</label>
+                <label htmlFor="auth-email" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Email</label>
                 <input
+                  id="auth-email"
                   type="email"
                   required
                   value={email}
@@ -193,7 +210,7 @@ export function AuthModal({
               {mode !== 'forgot' && (
                 <div>
                   <div className="mb-1 flex items-center justify-between">
-                    <label className="text-xs text-[var(--color-ink-soft)]">Password</label>
+                    <label htmlFor="auth-password" className="text-xs text-[var(--color-ink-soft)]">Password</label>
                     {mode === 'signin' && (
                       <button
                         type="button"
@@ -209,6 +226,7 @@ export function AuthModal({
                   </div>
                   <div className="relative">
                     <input
+                      id="auth-password"
                       type={showPassword ? 'text' : 'password'}
                       required
                       minLength={6}
@@ -230,10 +248,11 @@ export function AuthModal({
 
               {mode === 'signup' && (
                 <div>
-                  <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                  <label htmlFor="auth-confirm-password" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                     Repeat password
                   </label>
                   <input
+                    id="auth-confirm-password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
@@ -244,7 +263,7 @@ export function AuthModal({
                 </div>
               )}
 
-              {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+              {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
               <button
                 type="submit"

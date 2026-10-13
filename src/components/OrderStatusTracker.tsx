@@ -42,7 +42,7 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
               <span
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-semibold ${
                   isError
-                    ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-dark)] text-white'
                     : isDone
                       ? 'border-[var(--color-moss)] bg-[var(--color-moss)] text-white'
                       : isCurrent

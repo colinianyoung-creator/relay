@@ -128,12 +128,12 @@ export function CreateClubGearBundle() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">
+          <p className="mb-2 block text-sm font-medium">
             Which listings are in this lot?
             <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
               — pick at least 2
             </span>
-          </label>
+          </p>
 
           {eligible === null ? (
             <Loader2 className="animate-spin text-[var(--color-ink-soft)]" />
@@ -158,7 +158,7 @@ export function CreateClubGearBundle() {
                   <div className="relative">
                     <ListingCover sport={l.sport} photos={l.photos} className="h-32 w-full" />
                     {selected.has(l.id) && (
-                      <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-brand)] text-white">
+                      <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-brand-dark)] text-white">
                         <CheckCircle2 size={14} />
                       </span>
                     )}
@@ -186,12 +186,12 @@ export function CreateClubGearBundle() {
           </p>
         )}
 
-        {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+        {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
         <button
           type="submit"
           disabled={submitting || selected.size < 2}
-          className="flex items-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-50"
+          className="flex items-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-50"
         >
           {submitting && <Loader2 size={15} className="animate-spin" />}
           Publish gear lot

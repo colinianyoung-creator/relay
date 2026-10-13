@@ -63,9 +63,10 @@ export function ResetPassword() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">New password</label>
+              <label htmlFor="reset-password" className="mb-1 block text-xs text-[var(--color-ink-soft)]">New password</label>
               <div className="relative">
                 <input
+                  id="reset-password"
                   type={showPassword ? 'text' : 'password'}
                   required
                   minLength={6}
@@ -84,8 +85,9 @@ export function ResetPassword() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Repeat new password</label>
+              <label htmlFor="reset-confirm-password" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Repeat new password</label>
               <input
+                id="reset-confirm-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
@@ -95,7 +97,7 @@ export function ResetPassword() {
               />
             </div>
 
-            {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+            {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
             <button
               type="submit"

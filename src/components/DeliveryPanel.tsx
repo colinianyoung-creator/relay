@@ -257,7 +257,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
         </div>
       )}
 
-      {error && <p className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
+      {error && <p role="alert" className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
 
       {!editing && (
         <>

@@ -129,7 +129,7 @@ export function PayoutsPanel({
           </p>
         )}
 
-        {error && <p className="mt-3 text-sm text-[var(--color-brand-dark)]">{error}</p>}
+        {error && <p role="alert" className="mt-3 text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
         {mode && connectInstance ? (
           <div className="mt-5">

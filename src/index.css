@@ -12,7 +12,11 @@
   --color-line: #e3e5ec;
 
   --color-brand: #ff4d2e;
-  --color-brand-dark: #e0391a;
+  /* Darkened from #e0391a — that shade only hit ~4.4:1 contrast with the
+     white button text it's paired with everywhere, just under WCAG AA's
+     4.5:1 for normal-size text. This clears it with room (~5.6:1). */
+  --color-brand-dark: #c23216;
+  --color-brand-darker: #9c2811;
   --color-brand-soft: #ffe3da;
 
   --color-moss: #16b364;
@@ -42,4 +46,15 @@
     background: var(--color-brand-soft);
     color: var(--color-brand-dark);
   }
+}
+
+/* Deliberately outside any @layer: Tailwind's `outline-none` utility (used
+   throughout the app's form fields, paired with only a subtle focus:border
+   color change) lives in the `utilities` layer, so a rule here in the
+   cascade's unlayered tier beats it regardless of source order — giving
+   every focusable control a real focus-visible ring without having to
+   touch 75+ individual className strings. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }

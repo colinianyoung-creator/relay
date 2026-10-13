@@ -4,6 +4,7 @@ import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { requestRefund } from '@/lib/supabaseData';
 import { formatPrice } from '@/lib/format';
 import type { Currency } from '@/types';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 const REASONS = [
   'Item not as described',
@@ -35,6 +36,7 @@ export function RequestRefundModal({
   const [submitted, setSubmitted] = useState(false);
   // Two steps: fill in the reason, then review and explicitly confirm.
   const [step, setStep] = useState<'details' | 'review'>('details');
+  const containerRef = useModalA11y(onClose);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,10 +58,22 @@ export function RequestRefundModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="request-refund-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl">Request a refund</h2>
+          <h2 id="request-refund-title" className="text-xl">Request a refund</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -103,8 +117,9 @@ export function RequestRefundModal({
             ) : (
             <>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Reason</label>
+              <label htmlFor="refund-reason" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Reason</label>
               <select
+                id="refund-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
@@ -117,10 +132,11 @@ export function RequestRefundModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="refund-details" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Details (optional)
               </label>
               <textarea
+                id="refund-details"
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 rows={3}
@@ -130,7 +146,7 @@ export function RequestRefundModal({
             </>
             )}
 
-            {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+            {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
             <button
               type="submit"

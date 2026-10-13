@@ -89,9 +89,10 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
       </p>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Buyer's email</label>
+        <label htmlFor="invoice-buyer-email" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Buyer's email</label>
         <div className="flex gap-2">
           <input
+            id="invoice-buyer-email"
             type="email"
             required
             value={buyerEmail}
@@ -110,7 +111,7 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
             {lookingUp ? <Loader2 size={14} className="animate-spin" /> : 'Find'}
           </button>
         </div>
-        {lookupError && <p className="mt-1 text-xs text-[var(--color-brand-dark)]">{lookupError}</p>}
+        {lookupError && <p role="alert" className="mt-1 text-xs text-[var(--color-brand-dark)]">{lookupError}</p>}
         {buyer && (
           <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-moss)]">
             <CheckCircle2 size={12} /> Found: {buyer.name}
@@ -119,7 +120,7 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Which items are included?</label>
+        <p className="mb-1 block text-xs text-[var(--color-ink-soft)]">Which items are included?</p>
         <div className="space-y-1.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-3">
           {bundle.listings.map((l) => (
             <label key={l.id} className="flex items-center gap-2 text-sm">
@@ -137,8 +138,9 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Agreed total ({currency})</label>
+        <label htmlFor="invoice-amount" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Agreed total ({currency})</label>
         <input
+          id="invoice-amount"
           type="number"
           min={0}
           step="0.01"
@@ -149,12 +151,12 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
         />
       </div>
 
-      {submitError && <p className="text-xs text-[var(--color-brand-dark)]">{submitError}</p>}
+      {submitError && <p role="alert" className="text-xs text-[var(--color-brand-dark)]">{submitError}</p>}
 
       <button
         type="submit"
         disabled={!buyer || selected.size === 0 || submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-50"
       >
         {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
         Send invoice
@@ -315,12 +317,12 @@ export function ClubGearDetail() {
                 rows={4}
                 className="w-full max-w-xl resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-[15px] outline-none focus:border-[var(--color-ink-soft)]"
               />
-              {bundleSaveError && <p className="text-sm text-[var(--color-brand-dark)]">{bundleSaveError}</p>}
+              {bundleSaveError && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{bundleSaveError}</p>}
               <div className="flex gap-2">
                 <button
                   onClick={saveBundleShared}
                   disabled={bundleSaving}
-                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand-dark)] px-4 py-2 text-xs font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
                 >
                   {bundleSaving && <Loader2 size={12} className="animate-spin" />}
                   Save
@@ -362,7 +364,7 @@ export function ClubGearDetail() {
                   </div>
                 )}
               </div>
-              {cancelError && <p className="mt-2 text-sm text-[var(--color-brand-dark)]">{cancelError}</p>}
+              {cancelError && <p role="alert" className="mt-2 text-sm text-[var(--color-brand-dark)]">{cancelError}</p>}
               <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-[var(--color-ink)]">
                 {bundle.description}
               </p>

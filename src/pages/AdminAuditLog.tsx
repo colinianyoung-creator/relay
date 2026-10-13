@@ -77,7 +77,7 @@ export function AdminAuditLog() {
         here.
       </p>
 
-      {error && <p className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
+      {error && <p role="alert" className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
       <div className="mt-6">
         {entries === null ? (

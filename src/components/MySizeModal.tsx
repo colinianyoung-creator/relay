@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Ruler } from 'lucide-react';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 export interface QuickFitValues {
   heightCm: number | null;
@@ -27,6 +28,7 @@ export function MySizeModal({
   const [values, setValues] = useState<QuickFitValues>(initial);
   const [save, setSave] = useState(canSave);
   const [submitting, setSubmitting] = useState(false);
+  const containerRef = useModalA11y(onClose);
 
   const hasAny = !!(values.heightCm || values.weightKg || values.seatWidthCm || values.seatDepthCm);
 
@@ -43,10 +45,22 @@ export function MySizeModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="my-size-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl">
+          <h2 id="my-size-title" className="flex items-center gap-2 text-xl">
             <Ruler size={18} /> Your size
           </h2>
           <button
@@ -65,8 +79,9 @@ export function MySizeModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Height (cm)</label>
+              <label htmlFor="fit-height" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Height (cm)</label>
               <input
+                id="fit-height"
                 type="number"
                 value={values.heightCm ?? ''}
                 onChange={(e) => setValues((v) => ({ ...v, heightCm: numOrNull(e.target.value) }))}
@@ -74,8 +89,9 @@ export function MySizeModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Weight (kg)</label>
+              <label htmlFor="fit-weight" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Weight (kg)</label>
               <input
+                id="fit-weight"
                 type="number"
                 value={values.weightKg ?? ''}
                 onChange={(e) => setValues((v) => ({ ...v, weightKg: numOrNull(e.target.value) }))}
@@ -83,10 +99,11 @@ export function MySizeModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="fit-seat-width" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Seat width (cm)
               </label>
               <input
+                id="fit-seat-width"
                 type="number"
                 value={values.seatWidthCm ?? ''}
                 onChange={(e) => setValues((v) => ({ ...v, seatWidthCm: numOrNull(e.target.value) }))}
@@ -94,10 +111,11 @@ export function MySizeModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="fit-seat-depth" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Seat depth (cm)
               </label>
               <input
+                id="fit-seat-depth"
                 type="number"
                 value={values.seatDepthCm ?? ''}
                 onChange={(e) => setValues((v) => ({ ...v, seatDepthCm: numOrNull(e.target.value) }))}
@@ -121,7 +139,7 @@ export function MySizeModal({
           <button
             type="submit"
             disabled={submitting || !hasAny}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
             Show what fits me

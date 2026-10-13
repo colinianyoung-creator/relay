@@ -123,8 +123,8 @@ export function AdminOrders() {
         Every in-app purchase and posting-fee payment, plus Stripe disputes as they land.
       </p>
 
-      {error && <p className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
-      {refundError && <p className="mt-4 text-sm text-[var(--color-brand-dark)]">{refundError}</p>}
+      {error && <p role="alert" className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
+      {refundError && <p role="alert" className="mt-4 text-sm text-[var(--color-brand-dark)]">{refundError}</p>}
 
       {stats && (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

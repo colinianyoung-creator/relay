@@ -59,8 +59,9 @@ export function FitProfileForm({ userId }: { userId: string }) {
       >
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Primary sport</label>
+            <label htmlFor="fit-primary-sport" className="mb-1.5 block text-sm font-medium">Primary sport</label>
             <select
+              id="fit-primary-sport"
               value={profile.primarySport ?? ''}
               onChange={(e) =>
                 setProfile((p) => ({ ...p, primarySport: (e.target.value || null) as Sport | null }))
@@ -76,8 +77,9 @@ export function FitProfileForm({ userId }: { userId: string }) {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Classification</label>
+            <label htmlFor="fit-classification" className="mb-1.5 block text-sm font-medium">Classification</label>
             <input
+              id="fit-classification"
               value={profile.classification}
               onChange={(e) => setProfile((p) => ({ ...p, classification: e.target.value }))}
               placeholder="e.g. T54, 3.5 point, BC2"
@@ -87,8 +89,9 @@ export function FitProfileForm({ userId }: { userId: string }) {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium">Impairment / access notes</label>
+          <label htmlFor="fit-disability-notes" className="mb-1.5 block text-sm font-medium">Impairment / access notes</label>
           <textarea
+            id="fit-disability-notes"
             value={profile.disabilityNotes}
             onChange={(e) => setProfile((p) => ({ ...p, disabilityNotes: e.target.value }))}
             rows={2}
@@ -99,10 +102,11 @@ export function FitProfileForm({ userId }: { userId: string }) {
 
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           <div>
-            <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
+            <label htmlFor="fit-height" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
               Height (cm)
             </label>
             <input
+              id="fit-height"
               type="number"
               value={profile.heightCm ?? ''}
               onChange={(e) => setProfile((p) => ({ ...p, heightCm: numOrNull(e.target.value) }))}
@@ -110,10 +114,11 @@ export function FitProfileForm({ userId }: { userId: string }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
+            <label htmlFor="fit-weight" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
               Weight (kg)
             </label>
             <input
+              id="fit-weight"
               type="number"
               value={profile.weightKg ?? ''}
               onChange={(e) => setProfile((p) => ({ ...p, weightKg: numOrNull(e.target.value) }))}
@@ -121,10 +126,11 @@ export function FitProfileForm({ userId }: { userId: string }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
+            <label htmlFor="fit-seat-width" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
               Seat width (cm)
             </label>
             <input
+              id="fit-seat-width"
               type="number"
               value={profile.seatWidthCm ?? ''}
               onChange={(e) =>
@@ -134,10 +140,11 @@ export function FitProfileForm({ userId }: { userId: string }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
+            <label htmlFor="fit-seat-depth" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">
               Seat depth (cm)
             </label>
             <input
+              id="fit-seat-depth"
               type="number"
               value={profile.seatDepthCm ?? ''}
               onChange={(e) =>
@@ -149,8 +156,9 @@ export function FitProfileForm({ userId }: { userId: string }) {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium">Anything else worth knowing</label>
+          <label htmlFor="fit-notes" className="mb-1.5 block text-sm font-medium">Anything else worth knowing</label>
           <textarea
+            id="fit-notes"
             value={profile.notes}
             onChange={(e) => setProfile((p) => ({ ...p, notes: e.target.value }))}
             rows={2}
@@ -163,7 +171,7 @@ export function FitProfileForm({ userId }: { userId: string }) {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+            className="flex items-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
           >
             {saving && <Loader2 size={15} className="animate-spin" />}
             Save fit profile

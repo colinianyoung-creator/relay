@@ -182,7 +182,7 @@ export function RefundPanel({
         {needsSellerAction ? `Action needed — refund requested (${refundable})` : 'Refund'}
       </p>
 
-      {error && <p className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
+      {error && <p role="alert" className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
 
       {!order.refundRequestId && (
         <button
@@ -377,7 +377,7 @@ export function RefundPanel({
                   <button
                     onClick={handleApprove}
                     disabled={busy}
-                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+                    className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand-dark)] px-3 py-1.5 text-xs font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
                   >
                     {busy && <Loader2 size={12} className="animate-spin" />}
                     Yes, refund {refundable}

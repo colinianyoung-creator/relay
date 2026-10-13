@@ -390,11 +390,11 @@ export function Browse() {
         </div>
 
         {loadError && (
-          <p className="mb-6 text-sm text-[var(--color-brand-dark)]">
+          <p role="alert" className="mb-6 text-sm text-[var(--color-brand-dark)]">
             Couldn't reach the live marketplace right now — showing demo listings only.
           </p>
         )}
-        {saveSearchError && <p className="mb-6 text-sm text-[var(--color-brand-dark)]">{saveSearchError}</p>}
+        {saveSearchError && <p role="alert" className="mb-6 text-sm text-[var(--color-brand-dark)]">{saveSearchError}</p>}
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">

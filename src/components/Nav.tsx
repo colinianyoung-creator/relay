@@ -38,7 +38,7 @@ export function Nav() {
     <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-paper)]/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         <Link to="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-brand)] font-display text-base text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-brand-dark)] font-display text-base text-white">
             R
           </span>
           <span className="font-display text-xl">Relay</span>
@@ -60,7 +60,7 @@ export function Nav() {
               {pendingRefunds > 0 && (
                 <span
                   title={`${pendingRefunds} refund request${pendingRefunds === 1 ? '' : 's'} waiting for you`}
-                  className="ml-1.5 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                  className="ml-1.5 rounded-full bg-[var(--color-brand-dark)] px-1.5 py-0.5 text-[10px] font-semibold text-white"
                 >
                   {pendingRefunds}
                 </span>
@@ -93,7 +93,7 @@ export function Nav() {
               <Link to="/account" aria-label="My activity" className="relative">
                 <Avatar name={profile?.name ?? user.email ?? '?'} avatarUrl={profile?.avatar_url} className="h-9 w-9 text-sm" />
                 {pendingRefunds > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-brand)] px-1 text-[10px] font-semibold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-brand-dark)] px-1 text-[10px] font-semibold text-white">
                     {pendingRefunds}
                   </span>
                 )}

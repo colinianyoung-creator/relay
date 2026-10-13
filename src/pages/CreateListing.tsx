@@ -220,7 +220,7 @@ export function CreateListing() {
         <div className="mt-6 flex justify-center gap-3">
           <Link
             to={`/listing/${submittedId}`}
-            className="inline-flex rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+            className="inline-flex rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
           >
             View your listing
           </Link>
@@ -245,7 +245,7 @@ export function CreateListing() {
         </p>
         <button
           onClick={() => setShowAuth(true)}
-          className="mt-6 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+          className="mt-6 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
         >
           Sign in or create an account
         </button>
@@ -398,12 +398,12 @@ export function CreateListing() {
           className="mt-8 space-y-8"
         >
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <p className="mb-2 block text-sm font-medium">
               Photos
               <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
                 — optional, but real photos get real interest
               </span>
-            </label>
+            </p>
             <div className="flex flex-wrap gap-3">
               {existingPhotoUrls.map((url) => (
                 <div key={url} className="group relative h-28 w-28 shrink-0">
@@ -461,10 +461,11 @@ export function CreateListing() {
                 addPhotoFiles(e.target.files);
                 e.target.value = '';
               }}
+              aria-label="Upload photos"
               className="hidden"
             />
             {photoError && (
-              <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{photoError}</p>
+              <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{photoError}</p>
             )}
             {photoPreviews.length === 0 && existingPhotoUrls.length === 0 && (
               <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
@@ -473,8 +474,8 @@ export function CreateListing() {
             )}
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">Who's this listing from?</label>
+          <fieldset className="m-0 border-0 p-0">
+            <legend className="mb-2 block text-sm font-medium">Who's this listing from?</legend>
             <div className="flex flex-wrap gap-4">
               {(
                 [
@@ -503,7 +504,7 @@ export function CreateListing() {
               .
             </p>
             {sellerTypeError && (
-              <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{sellerTypeError}</p>
+              <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{sellerTypeError}</p>
             )}
             {sellerType === 'commercial' && (
               <label className="mt-3 flex items-start gap-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-3.5 text-sm text-[var(--color-ink-soft)]">
@@ -523,7 +524,7 @@ export function CreateListing() {
                 </span>
               </label>
             )}
-          </div>
+          </fieldset>
 
           <div>
             <label htmlFor="title" className="mb-2 block text-sm font-medium">
@@ -580,24 +581,28 @@ export function CreateListing() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">
+            <p className="mb-2 block text-sm font-medium">
               Measurements &amp; specs
-            </label>
+            </p>
             <div className="grid grid-cols-2 gap-4 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4">
-              {MEASUREMENT_FIELDS[sport].map((field) => (
-                <div key={field}>
-                  <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
-                    {field}
-                  </label>
-                  <input
-                    value={measurementValues[field] ?? ''}
-                    onChange={(e) =>
-                      setMeasurementValues((prev) => ({ ...prev, [field]: e.target.value }))
-                    }
-                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-                  />
-                </div>
-              ))}
+              {MEASUREMENT_FIELDS[sport].map((field) => {
+                const fieldId = `measurement-${field.replace(/\s+/g, '-').toLowerCase()}`;
+                return (
+                  <div key={field}>
+                    <label htmlFor={fieldId} className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      {field}
+                    </label>
+                    <input
+                      id={fieldId}
+                      value={measurementValues[field] ?? ''}
+                      onChange={(e) =>
+                        setMeasurementValues((prev) => ({ ...prev, [field]: e.target.value }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -605,20 +610,21 @@ export function CreateListing() {
             SHOWS_WEIGHT_CAPACITY.includes(sport) ||
             SHOWS_USER_RANGE.includes(sport)) && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <p className="mb-2 block text-sm font-medium">
                 Fit &amp; sizing
                 <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
                   — used to match this listing against a buyer's fit profile
                 </span>
-              </label>
+              </p>
               <div className="grid grid-cols-2 gap-4 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4 sm:grid-cols-4">
                 {SHOWS_SEAT_FIELDS.includes(sport) && (
                   <>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="seat-width" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Seat width (cm)
                       </label>
                       <input
+                        id="seat-width"
                         type="number"
                         step="0.5"
                         value={seatWidthCm}
@@ -627,10 +633,11 @@ export function CreateListing() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="seat-depth" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Seat depth (cm)
                       </label>
                       <input
+                        id="seat-depth"
                         type="number"
                         step="0.5"
                         value={seatDepthCm}
@@ -642,10 +649,11 @@ export function CreateListing() {
                 )}
                 {SHOWS_WEIGHT_CAPACITY.includes(sport) && (
                   <div>
-                    <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                    <label htmlFor="weight-capacity" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                       Weight capacity (kg)
                     </label>
                     <input
+                      id="weight-capacity"
                       type="number"
                       step="1"
                       value={weightCapacityKg}
@@ -657,10 +665,11 @@ export function CreateListing() {
                 {SHOWS_USER_RANGE.includes(sport) && (
                   <>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="min-user-height" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Min. user height (cm)
                       </label>
                       <input
+                        id="min-user-height"
                         type="number"
                         step="1"
                         value={minUserHeightCm}
@@ -669,10 +678,11 @@ export function CreateListing() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="max-user-height" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Max. user height (cm)
                       </label>
                       <input
+                        id="max-user-height"
                         type="number"
                         step="1"
                         value={maxUserHeightCm}
@@ -681,10 +691,11 @@ export function CreateListing() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="min-user-weight" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Min. user weight (kg)
                       </label>
                       <input
+                        id="min-user-weight"
                         type="number"
                         step="1"
                         value={minUserWeightKg}
@@ -693,10 +704,11 @@ export function CreateListing() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+                      <label htmlFor="max-user-weight" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                         Max. user weight (kg)
                       </label>
                       <input
+                        id="max-user-weight"
                         type="number"
                         step="1"
                         value={maxUserWeightKg}
@@ -729,9 +741,10 @@ export function CreateListing() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Price</label>
+            <label htmlFor="price" className="mb-2 block text-sm font-medium">Price</label>
             <div className="flex items-center gap-3">
               <select
+                aria-label="Currency"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value as Currency)}
                 disabled={isFree}
@@ -744,6 +757,7 @@ export function CreateListing() {
                 ))}
               </select>
               <input
+                id="price"
                 type="number"
                 min={0}
                 required={!isFree}
@@ -809,7 +823,7 @@ export function CreateListing() {
                       Apply
                     </button>
                   </div>
-                  {promoError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{promoError}</p>}
+                  {promoError && <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{promoError}</p>}
                 </>
               )}
             </div>
@@ -848,10 +862,10 @@ export function CreateListing() {
             </div>
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium">
+          <fieldset className="m-0 border-0 p-0">
+            <legend className="mb-2 block text-sm font-medium">
               How can buyers get this from you?
-            </label>
+            </legend>
             <div className="flex flex-wrap gap-4">
               {(
                 [
@@ -872,9 +886,9 @@ export function CreateListing() {
               ))}
             </div>
             {deliveryMethodsError && (
-              <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
+              <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
             )}
-          </div>
+          </fieldset>
 
           <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
             <input
@@ -886,12 +900,12 @@ export function CreateListing() {
             I'm willing to ship this internationally (buyer usually covers freight)
           </label>
 
-          {submitError && <p className="text-sm text-[var(--color-brand-dark)]">{submitError}</p>}
+          {submitError && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{submitError}</p>}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60 sm:w-auto"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60 sm:w-auto"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
             {isEditMode

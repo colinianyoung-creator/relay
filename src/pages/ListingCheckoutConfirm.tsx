@@ -90,7 +90,7 @@ export function ListingCheckoutConfirm() {
       <div className="mt-6 flex justify-center gap-3">
         <Link
           to={`/listing/${listing.id}`}
-          className="inline-flex rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+          className="inline-flex rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
         >
           View your listing
         </Link>

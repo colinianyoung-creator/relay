@@ -28,7 +28,7 @@ export function ClubGearBoard() {
           </p>
           <Link
             to="/sell/club-gear/new"
-            className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+            className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
           >
             <Boxes size={16} /> List your gear
           </Link>

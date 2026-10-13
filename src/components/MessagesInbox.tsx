@@ -189,7 +189,7 @@ export function MessagesInbox({
             {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
           </button>
         </form>
-        {error && <p className="px-4 pb-3 text-xs text-[var(--color-brand-dark)]">{error}</p>}
+        {error && <p role="alert" className="px-4 pb-3 text-xs text-[var(--color-brand-dark)]">{error}</p>}
       </div>
     );
   }
@@ -219,7 +219,7 @@ export function MessagesInbox({
   return (
     <div>
       {archiveError && (
-        <p className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
+        <p role="alert" className="mb-3 rounded-xl bg-[var(--color-brand-soft)] px-4 py-2 text-sm text-[var(--color-brand-dark)]">
           {archiveError}
         </p>
       )}

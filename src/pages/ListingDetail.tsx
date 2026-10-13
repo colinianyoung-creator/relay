@@ -385,7 +385,7 @@ export function ListingDetail() {
                     Delete listing
                   </button>
                 )}
-                {deleteError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deleteError}</p>}
+                {deleteError && <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{deleteError}</p>}
 
               </div>
             ) : isSold ? (
@@ -398,7 +398,7 @@ export function ListingDetail() {
                   <>
                     <button
                       onClick={() => requireAuth(() => navigate(`/checkout/listing/${listing.id}`))}
-                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
                     >
                       <CreditCard size={16} />
                       Buy now — pay securely

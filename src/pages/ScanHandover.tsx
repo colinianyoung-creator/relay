@@ -215,7 +215,7 @@ export function ScanHandover() {
             Scanning this at the point of posting lets {lookup.returnRecipientName.split(' ')[0]} know it's
             on its way back to them.
           </p>
-          {returnError && <p className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
+          {returnError && <p role="alert" className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={handleMarkReturnShipped}
@@ -265,7 +265,7 @@ export function ScanHandover() {
             : "The buyer hasn't marked it as sent yet, but confirm here once it's physically arrived."}{' '}
           Confirming unlocks approving the refund — nothing is refunded automatically.
         </p>
-        {returnError && <p className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
+        {returnError && <p role="alert" className="mt-3 text-[var(--color-brand-dark)]">{returnError}</p>}
         <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={handleConfirmReturnReceived}
@@ -300,7 +300,7 @@ export function ScanHandover() {
             Scanning this at the point of posting marks the order as shipped and lets the buyer
             know it's on its way.
           </p>
-          {markError && <p className="mt-3 text-[var(--color-brand-dark)]">{markError}</p>}
+          {markError && <p role="alert" className="mt-3 text-[var(--color-brand-dark)]">{markError}</p>}
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={handleMarkShipped}
@@ -387,7 +387,7 @@ export function ScanHandover() {
         Confirming "{lookup.title}" releases payment to the seller straight away. Only do this once
         the item has actually arrived.
       </p>
-      {confirmError && <p className="mt-3 text-[var(--color-brand-dark)]">{confirmError}</p>}
+      {confirmError && <p role="alert" className="mt-3 text-[var(--color-brand-dark)]">{confirmError}</p>}
       <div className="mt-6 flex justify-center gap-3">
         <button
           onClick={handleConfirm}

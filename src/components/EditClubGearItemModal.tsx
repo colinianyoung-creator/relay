@@ -4,6 +4,7 @@ import { X, Loader2 } from 'lucide-react';
 import { CONDITIONS, type Condition, type Listing } from '@/types';
 import { updateClubGearItem } from '@/lib/supabaseData';
 import { SHOWS_SEAT_FIELDS } from '@/lib/listingFields';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 // Editing a single item within an already-posted club-gear lot — a smaller
 // surface than the full club-gear-creation wizard (see the plan this shipped
@@ -28,6 +29,7 @@ export function EditClubGearItemModal({
   const [error, setError] = useState<string | null>(null);
 
   const showsSeatFields = SHOWS_SEAT_FIELDS.includes(listing.sport);
+  const containerRef = useModalA11y(onClose);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,10 +58,22 @@ export function EditClubGearItemModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-club-gear-item-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl">Edit item</h2>
+          <h2 id="edit-club-gear-item-title" className="text-xl">Edit item</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -71,8 +85,9 @@ export function EditClubGearItemModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Title</label>
+            <label htmlFor="edit-item-title" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Title</label>
             <input
+              id="edit-item-title"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -82,8 +97,9 @@ export function EditClubGearItemModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Price</label>
+              <label htmlFor="edit-item-price" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Price</label>
               <input
+                id="edit-item-price"
                 type="number"
                 min={0.01}
                 step="0.01"
@@ -94,8 +110,9 @@ export function EditClubGearItemModal({
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Condition</label>
+              <label htmlFor="edit-item-condition" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Condition</label>
               <select
+                id="edit-item-condition"
                 value={condition}
                 onChange={(e) => setCondition(e.target.value as Condition)}
                 className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm"
@@ -112,8 +129,9 @@ export function EditClubGearItemModal({
           {showsSeatFields && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Seat width (cm)</label>
+                <label htmlFor="edit-item-seat-width" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Seat width (cm)</label>
                 <input
+                  id="edit-item-seat-width"
                   type="number"
                   step="0.5"
                   value={seatWidthCm}
@@ -122,8 +140,9 @@ export function EditClubGearItemModal({
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Seat depth (cm)</label>
+                <label htmlFor="edit-item-seat-depth" className="mb-1.5 block text-xs text-[var(--color-ink-soft)]">Seat depth (cm)</label>
                 <input
+                  id="edit-item-seat-depth"
                   type="number"
                   step="0.5"
                   value={seatDepthCm}
@@ -144,12 +163,12 @@ export function EditClubGearItemModal({
             Also sellable on its own, outside this lot
           </label>
 
-          {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+          {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
             Save changes

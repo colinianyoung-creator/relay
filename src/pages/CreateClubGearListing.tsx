@@ -104,7 +104,7 @@ export function CreateClubGearListing() {
         </p>
         <button
           onClick={() => setShowAuth(true)}
-          className="mt-6 rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)]"
+          className="mt-6 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
         >
           Sign in or create an account
         </button>
@@ -214,12 +214,12 @@ export function CreateClubGearListing() {
         className="mt-8 space-y-8"
       >
         <div>
-          <label className="mb-2 block text-sm font-medium">
+          <p className="mb-2 block text-sm font-medium">
             Photos
             <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
               — optional, shown across every item in this lot
             </span>
-          </label>
+          </p>
           <div className="flex flex-wrap gap-3">
             {photoPreviews.map((src, i) => (
               <div key={src} className="group relative h-28 w-28 shrink-0">
@@ -259,9 +259,10 @@ export function CreateClubGearListing() {
               addPhotoFiles(e.target.files);
               e.target.value = '';
             }}
+            aria-label="Upload photos"
             className="hidden"
           />
-          {photoError && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{photoError}</p>}
+          {photoError && <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{photoError}</p>}
         </div>
 
         <div>
@@ -363,10 +364,10 @@ export function CreateClubGearListing() {
           </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium">
+        <fieldset className="m-0 border-0 p-0">
+          <legend className="mb-2 block text-sm font-medium">
             How can buyers get these from you?
-          </label>
+          </legend>
           <div className="flex flex-wrap gap-4">
             {(
               [
@@ -387,9 +388,9 @@ export function CreateClubGearListing() {
             ))}
           </div>
           {deliveryMethodsError && (
-            <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
+            <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{deliveryMethodsError}</p>
           )}
-        </div>
+        </fieldset>
 
         <label className="flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
           <input
@@ -403,12 +404,12 @@ export function CreateClubGearListing() {
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="block text-sm font-medium">
+            <p className="block text-sm font-medium">
               Items in this lot
               <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">
                 — at least 2
               </span>
-            </label>
+            </p>
             <button
               type="button"
               onClick={() => setItems((prev) => [...prev, newItem()])}
@@ -508,12 +509,12 @@ export function CreateClubGearListing() {
           )}
         </div>
 
-        {submitError && <p className="text-sm text-[var(--color-brand-dark)]">{submitError}</p>}
+        {submitError && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{submitError}</p>}
 
         <button
           type="submit"
           disabled={submitting}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-5 py-3 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60 sm:w-auto"
         >
           {submitting && <Loader2 size={15} className="animate-spin" />}
           Publish gear lot

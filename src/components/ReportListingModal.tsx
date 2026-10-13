@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { fileListingReport } from '@/lib/supabaseData';
+import { useModalA11y } from '@/lib/useModalA11y';
 
 const REASONS = [
   "Doesn't match the description",
@@ -27,6 +28,7 @@ export function ReportListingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const containerRef = useModalA11y(onClose);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,10 +45,22 @@ export function ReportListingModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl">
+    <div
+      ref={containerRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-listing-title"
+        className="w-full max-w-sm rounded-2xl bg-[var(--color-paper-raised)] p-6 shadow-xl"
+      >
         <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-xl">Report this listing</h2>
+          <h2 id="report-listing-title" className="text-xl">Report this listing</h2>
           <button
             onClick={onClose}
             aria-label="Close"
@@ -72,8 +86,9 @@ export function ReportListingModal({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">Reason</label>
+              <label htmlFor="report-reason" className="mb-1 block text-xs text-[var(--color-ink-soft)]">Reason</label>
               <select
+                id="report-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] px-3.5 py-2 text-sm outline-none focus:border-[var(--color-ink-soft)]"
@@ -86,10 +101,11 @@ export function ReportListingModal({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-[var(--color-ink-soft)]">
+              <label htmlFor="report-details" className="mb-1 block text-xs text-[var(--color-ink-soft)]">
                 Details (optional)
               </label>
               <textarea
+                id="report-details"
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 rows={3}
@@ -97,7 +113,7 @@ export function ReportListingModal({
               />
             </div>
 
-            {error && <p className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
+            {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
             <button
               type="submit"

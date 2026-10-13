@@ -270,12 +270,12 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
             <span className="text-lg font-medium">{formatPrice(item.price, item.currency)}</span>
           </div>
 
-          {error && <p className="mt-3 text-sm text-[var(--color-brand-dark)]">{error}</p>}
+          {error && <p role="alert" className="mt-3 text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
           <button
             type="submit"
             disabled={submitting || !method}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-dark)] disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-brand-dark)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)] disabled:opacity-60"
           >
             {submitting && <Loader2 size={15} className="animate-spin" />}
             Continue to payment

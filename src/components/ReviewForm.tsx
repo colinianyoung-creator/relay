@@ -81,7 +81,7 @@ export function ReviewForm({
           compact ? 'mt-2 p-2.5 text-xs' : 'mt-4 p-3 text-sm'
         }`}
       />
-      {error && <p className="mt-2 text-xs text-[var(--color-brand-dark)]">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-xs text-[var(--color-brand-dark)]">{error}</p>}
       <button
         type="submit"
         disabled={rating === 0 || submitting}
