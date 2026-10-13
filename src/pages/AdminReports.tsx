@@ -77,6 +77,7 @@ export function AdminReports() {
           <button
             key={f}
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize ${
               filter === f
                 ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'

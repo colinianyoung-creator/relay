@@ -121,19 +121,31 @@ export function AdminUsers() {
                             <CircleCheck size={12} /> {u.verified ? 'Unverify' : 'Verify'}
                           </button>
                           <button
-                            onClick={() => act(u, u.isAdmin ? 'revokeAdmin' : 'grantAdmin')}
-                            disabled={busy || (isSelf && u.isAdmin)}
+                            onClick={() => {
+                              if (busy || (isSelf && u.isAdmin)) return;
+                              act(u, u.isAdmin ? 'revokeAdmin' : 'grantAdmin');
+                            }}
+                            aria-disabled={busy || (isSelf && u.isAdmin)}
+                            aria-label={
+                              isSelf && u.isAdmin
+                                ? "Revoke admin — disabled, you can't revoke your own admin access"
+                                : undefined
+                            }
                             title={isSelf && u.isAdmin ? "You can't revoke your own admin access." : undefined}
-                            className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-full border border-[var(--color-line)] px-2.5 py-1 text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
                           >
                             {u.isAdmin ? <ShieldMinus size={12} /> : <ShieldPlus size={12} />}
                             {u.isAdmin ? 'Revoke admin' : 'Make admin'}
                           </button>
                           <button
-                            onClick={() => act(u, isBanned ? 'unban' : 'ban')}
-                            disabled={busy || isSelf}
+                            onClick={() => {
+                              if (busy || isSelf) return;
+                              act(u, isBanned ? 'unban' : 'ban');
+                            }}
+                            aria-disabled={busy || isSelf}
+                            aria-label={isSelf ? "Ban — disabled, you can't ban your own account" : undefined}
                             title={isSelf ? "You can't ban your own account." : undefined}
-                            className="flex items-center gap-1 rounded-full border border-[var(--color-brand)] px-2.5 py-1 text-xs text-[var(--color-brand-dark)] hover:bg-[var(--color-brand-soft)] disabled:opacity-50"
+                            className="flex items-center gap-1 rounded-full border border-[var(--color-brand)] px-2.5 py-1 text-xs text-[var(--color-brand-dark)] hover:bg-[var(--color-brand-soft)] aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
                           >
                             <Ban size={12} /> {isBanned ? 'Unban' : 'Ban'}
                           </button>

@@ -169,6 +169,7 @@ export function AdminOrders() {
           <button
             key={f}
             onClick={() => setFilter(f)}
+            aria-pressed={filter === f}
             className={`rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize ${
               filter === f
                 ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
@@ -249,6 +250,7 @@ export function AdminOrders() {
                       >
                         Open in Stripe dashboard
                         {o.refundFailureReason ? ` — ${o.refundFailureReason}` : ''}
+                        <span className="sr-only"> (opens in a new tab)</span>
                       </a>
                     )}
                   </div>
