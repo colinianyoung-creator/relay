@@ -17,8 +17,8 @@ export function Footer() {
           <Link to="/terms" className="hover:text-[var(--color-ink)]">
             Terms
           </Link>
-          <Link to="/faq/tax" className="hover:text-[var(--color-ink)]">
-            Tax FAQ
+          <Link to="/faq" className="hover:text-[var(--color-ink)]">
+            FAQ
           </Link>
           <Link to="/privacy" className="hover:text-[var(--color-ink)]">
             Privacy

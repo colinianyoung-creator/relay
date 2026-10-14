@@ -498,7 +498,7 @@ export function CreateListing() {
             </div>
             <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
               Affects what Relay reports to HMRC, not your price or fees. See the{' '}
-              <Link to="/faq/tax" className="underline hover:text-[var(--color-ink)]">
+              <Link to="/faq#tax" className="underline hover:text-[var(--color-ink)]">
                 tax FAQ
               </Link>
               .
@@ -517,7 +517,7 @@ export function CreateListing() {
                 <span>
                   This item is designed solely for use by a disabled person — eligible buyers can
                   buy it VAT-free. See the{' '}
-                  <Link to="/faq/tax" className="underline hover:text-[var(--color-ink)]">
+                  <Link to="/faq#tax" className="underline hover:text-[var(--color-ink)]">
                     tax FAQ
                   </Link>
                   .
