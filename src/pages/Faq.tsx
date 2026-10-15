@@ -116,8 +116,10 @@ const SECTIONS: FaqSection[] = [
         question: 'Does a buyer pay anything on top of the listed price?',
         answer: (
           <p>
-            No. The buyer pays the listed (or agreed) price — Relay's commission comes out of the
-            seller's side, not added on top.
+            Yes — a service fee of <strong>2% of the price plus 20p</strong>, shown as its own
+            line at checkout before you pay (£20.20 on a £1,000 item). It covers payment
+            processing and holding your payment until you confirm the item has arrived. Relay's
+            commission is separate and comes out of the seller's side.
           </p>
         ),
       },
@@ -212,7 +214,7 @@ const SECTIONS: FaqSection[] = [
             <p>
               Open the order in your Orders tab and choose to request a refund, with a reason. The
               seller is emailed and can approve or decline it. Nothing is refunded until they
-              approve.
+              approve. A refund returns everything you paid, including the service fee.
             </p>
             <p className="mt-2">
               If they decline and you think that's wrong, you can escalate to Relay, who review it

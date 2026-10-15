@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { adminRefundOrder, dismissRefundEscalation, fetchAllOrders, type AdminOrder } from '@/lib/supabaseData';
 import { Badge } from '@/components/Badge';
 import { AdminTabs } from '@/components/AdminTabs';
-import { formatPrice, timeAgo } from '@/lib/format';
+import { formatPrice, formatPriceExact, timeAgo } from '@/lib/format';
 
 function transferTone(status: AdminOrder['transferStatus']): 'brand' | 'moss' | 'neutral' {
   if (status === 'released') return 'moss';
@@ -259,6 +259,7 @@ export function AdminOrders() {
                     <div className="font-display text-lg">{formatPrice(o.amount, o.currency)}</div>
                     <div className="text-xs text-[var(--color-ink-soft)]">
                       fee {formatPrice(o.platformFeeAmount, o.currency)}
+                      {o.buyerFeeAmount > 0 && ` + ${formatPriceExact(o.buyerFeeAmount, o.currency)} service`}
                     </div>
                     <div className="mt-1 text-xs text-[var(--color-ink-soft)]">{timeAgo(o.createdAt.slice(0, 10))}</div>
                     {o.status === 'paid' && (

@@ -1190,6 +1190,7 @@ export interface AdminOrder {
   amount: number;
   currency: Currency;
   platformFeeAmount: number;
+  buyerFeeAmount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   transferStatus: 'pending' | 'released' | 'refunded';
   shippedAt: string | null;
@@ -1213,6 +1214,7 @@ interface AdminOrderRow {
   amount: number;
   currency: string;
   platform_fee_amount: number;
+  buyer_fee_amount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   transfer_status: 'pending' | 'released' | 'refunded';
   created_at: string;
@@ -1233,7 +1235,7 @@ interface AdminOrderRow {
 // FKs to profiles (buyer_id, seller_id), same ambiguity as elsewhere in
 // this file.
 const ADMIN_ORDER_SELECT =
-  'id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(id, status, failure_reason), delivery:order_deliveries(shipped_at)';
+  'id, amount, currency, platform_fee_amount, buyer_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, stripe_payment_intent_id, disputed_at, dispute_status, bundle_listing_ids, listing:listings(id, title), bundle:listing_bundles(id, title), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), refund:refund_requests(id, status, failure_reason), delivery:order_deliveries(shipped_at)';
 
 export async function fetchAllOrders(): Promise<AdminOrder[]> {
   const { data, error } = await supabase
@@ -1246,6 +1248,7 @@ export async function fetchAllOrders(): Promise<AdminOrder[]> {
     amount: row.amount,
     currency: row.currency as Currency,
     platformFeeAmount: row.platform_fee_amount,
+    buyerFeeAmount: Number(row.buyer_fee_amount ?? 0),
     status: row.status,
     transferStatus: row.transfer_status,
     shippedAt: row.delivery?.shipped_at ?? null,
@@ -1531,6 +1534,8 @@ export interface MyOrder {
   amount: number;
   currency: Currency;
   platformFeeAmount: number;
+  /** What the buyer paid on top of `amount` — zero for orders placed before the service fee existed. */
+  buyerFeeAmount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   createdAt: string;
   hasStripeSession: boolean;
@@ -1587,6 +1592,7 @@ interface MyOrderRow {
   amount: number;
   currency: string;
   platform_fee_amount: number;
+  buyer_fee_amount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   transfer_status: 'pending' | 'released' | 'refunded';
   created_at: string;
@@ -1648,7 +1654,7 @@ interface MyOrderRow {
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note, created_at), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, buyer_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note, created_at), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1704,6 +1710,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       amount: row.amount,
       currency: row.currency as Currency,
       platformFeeAmount: row.platform_fee_amount,
+      buyerFeeAmount: Number(row.buyer_fee_amount ?? 0),
       status: row.status,
       transferStatus: row.transfer_status,
       createdAt: row.created_at,

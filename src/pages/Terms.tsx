@@ -71,9 +71,18 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
         </p>
         <p className="mt-3">
           If a seller has payouts enabled and a buyer pays through Relay's in-app checkout, Relay
-          takes a <strong>{PLATFORM_FEE_PERCENT}% commission</strong> on the sale price — the buyer
-          is never charged more than the listed price. Both fees are shown before you pay and are
-          non-refundable except where required by law or at Relay's discretion.
+          takes a <strong>{PLATFORM_FEE_PERCENT}% commission</strong> on the sale price (capped at
+          £150 per sale), deducted from the seller's payout.
+        </p>
+        <p className="mt-3">
+          Buyers who pay through Relay's checkout also pay a{' '}
+          <strong>service fee of 2% of the price plus 20p</strong>, shown as a separate line before
+          you pay. It covers payment processing and holding your payment until you confirm the item
+          has arrived, and is not part of the sale price or shared with the seller.
+        </p>
+        <p className="mt-3">
+          The listing fee is non-refundable except where required by law or at Relay's discretion.
+          If an order is refunded, the buyer is refunded in full, including the service fee.
         </p>
       </>
     ),

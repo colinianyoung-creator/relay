@@ -82,6 +82,7 @@ async function sendOrderEmails(
     amount: number;
     currency: string;
     platform_fee_amount: number;
+    buyer_fee_amount: number;
   },
   orderId: string,
 ) {
@@ -125,6 +126,14 @@ async function sendOrderEmails(
 
     const sellerLink = isMultiItem ? `${SITE_URL}/account?tab=invoices` : `${SITE_URL}/account`;
     const amountStr = formatMoney(order.amount, order.currency);
+    // What the buyer was actually charged — price plus the service fee — as
+    // opposed to amountStr, the sale price the seller's payout is based on.
+    const buyerFee = Number(order.buyer_fee_amount ?? 0);
+    const paidStr = formatMoney(Number(order.amount) + buyerFee, order.currency);
+    const paidBreakdown =
+      buyerFee > 0
+        ? ` (${amountStr} item + ${formatMoney(buyerFee, order.currency)} service fee)`
+        : '';
     const payoutStr = formatMoney(order.amount - order.platform_fee_amount, order.currency);
 
     if (buyerEmail) {
@@ -134,7 +143,7 @@ async function sendOrderEmails(
         html: wrapEmailBody({
           bodyHtml: `
             <p style="margin: 0 0 12px;">Hi ${buyerName},</p>
-            <p style="margin: 0 0 12px;">Your payment of <strong>${amountStr}</strong> for "<strong>${itemLabel}</strong>" from ${sellerName} is confirmed.</p>
+            <p style="margin: 0 0 12px;">Your payment of <strong>${paidStr}</strong>${paidBreakdown} for "<strong>${itemLabel}</strong>" from ${sellerName} is confirmed.</p>
             <p style="margin: 0;">Relay doesn't arrange shipping or collection — sort the details directly with ${sellerName} via Relay messages.</p>
           `,
           ctaLabel: 'View it on Relay',
@@ -188,7 +197,12 @@ Deno.serve(async (req) => {
     return new Response('Invalid signature', { status: 400 });
   }
 
-  if (event.type === 'checkout.session.completed') {
+  // Card payments arrive as `completed` with payment_status 'paid'. Delayed
+  // methods (bank transfer, Bacs, some pay-by-bank flows) fire `completed`
+  // with payment_status 'unpaid' — skipped by the guards below — and then
+  // `async_payment_succeeded` once the money actually lands, with the
+  // session now 'paid'. Both run the same idempotent completion path.
+  if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
     const session = event.data.object as Stripe.Checkout.Session;
     const listingId = session.metadata?.listing_id;
     const orderId = session.metadata?.order_id;
@@ -251,7 +265,9 @@ Deno.serve(async (req) => {
 
       const { data: order, error: orderFetchError } = await supabase
         .from('orders')
-        .select('listing_id, bundle_id, bundle_listing_ids, buyer_id, seller_id, amount, currency, platform_fee_amount')
+        .select(
+          'listing_id, bundle_id, bundle_listing_ids, buyer_id, seller_id, amount, currency, platform_fee_amount, buyer_fee_amount',
+        )
         .eq('id', orderId)
         .eq('stripe_checkout_session_id', session.id)
         .single();
@@ -388,6 +404,40 @@ Deno.serve(async (req) => {
         if (soldCount > 0) {
           await sendOrderEmails(supabase, order, orderId);
         }
+      }
+    }
+  }
+
+  // A delayed payment (bank transfer etc.) that was started but then failed.
+  // Nothing was ever marked paid or sold, so there's nothing to roll back —
+  // the order simply stays pending and the listing stays available. The only
+  // job here is telling the buyer, who'd otherwise wait on money that isn't
+  // coming. Only order sessions notify: listing-fee and club-gear fee sessions
+  // are paid by the seller in the same browser session and surface the failure
+  // on the cancelled-checkout redirect already.
+  if (event.type === 'checkout.session.async_payment_failed') {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const orderId = session.metadata?.order_id;
+    if (orderId) {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: order, error: orderFetchError } = await supabase
+        .from('orders')
+        .select('buyer_id, status')
+        .eq('id', orderId)
+        .eq('stripe_checkout_session_id', session.id)
+        .single();
+      if (orderFetchError || !order) {
+        console.error('Order not found for failed async payment', orderId, orderFetchError);
+      } else if (order.status === 'pending') {
+        await notifyUser(
+          supabase,
+          order.buyer_id,
+          "Your payment didn't go through",
+          `<p style="margin: 0;">Your bank payment for this order wasn't completed, so you haven't been charged and the item hasn't been reserved. You can try again from your account — pay by card instead, or retry the bank payment.</p>`,
+        );
       }
     }
   }

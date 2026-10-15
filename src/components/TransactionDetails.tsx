@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
-import { formatDateTime, formatPrice } from '@/lib/format';
+import { formatDateTime, formatPrice, formatPriceExact } from '@/lib/format';
 import type { MyOrder } from '@/lib/supabaseData';
 import { Badge } from './Badge';
 import { OrderStatusTracker, type TrackerStep } from './OrderStatusTracker';
@@ -16,6 +16,7 @@ export function TransactionDetails({
   statusLabel,
   statusTone = 'neutral',
   platformFeeAmount,
+  buyerFeeAmount,
   listingLink,
   /** When given, this leads the panel as a step tracker instead of a plain status badge — the "where is this right now" story at a glance, same as the delivery/return trackers below it. */
   steps,
@@ -31,6 +32,8 @@ export function TransactionDetails({
   /** 'brand' for something needing attention, 'moss' for a settled/good state. */
   statusTone?: 'neutral' | 'brand' | 'moss';
   platformFeeAmount?: number;
+  /** Buyer-paid service fee on top of `amount`, shown to the buyer as part of the total. */
+  buyerFeeAmount?: number;
   listingLink?: string | null;
   steps?: TrackerStep[];
   extra?: ReactNode;
@@ -70,7 +73,18 @@ export function TransactionDetails({
           </p>
         ) : (
           <p>
-            <span className="font-medium text-[var(--color-ink)]">Amount</span> {formatPrice(amount, currency)}
+            <span className="font-medium text-[var(--color-ink)]">
+              {role === 'buyer' && buyerFeeAmount ? 'Total paid' : 'Amount'}
+            </span>{' '}
+            {role === 'buyer' && buyerFeeAmount
+              ? formatPriceExact(amount + buyerFeeAmount, currency)
+              : formatPrice(amount, currency)}
+            {role === 'buyer' && buyerFeeAmount ? (
+              <span className="text-[var(--color-ink-soft)]/70">
+                {' '}
+                ({formatPrice(amount, currency)} + {formatPriceExact(buyerFeeAmount, currency)} service fee)
+              </span>
+            ) : null}
           </p>
         )}
         <p className="font-mono text-[var(--color-ink-soft)]/70">#{id.slice(0, 8)}</p>

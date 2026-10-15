@@ -20,7 +20,8 @@ import { AuthModal } from '@/components/AuthModal';
 import { ReportListingModal } from '@/components/ReportListingModal';
 import { MakeOfferModal } from '@/components/MakeOfferModal';
 import { DeliverySuggestion } from '@/components/DeliverySuggestion';
-import { formatPrice, timeAgo } from '@/lib/format';
+import { formatPrice, formatPriceExact, timeAgo } from '@/lib/format';
+import { buyerServiceFee } from '@/lib/fees';
 import type { Listing, FitProfile } from '@/types';
 
 const STRUCTURED_SPEC_LABELS: { key: keyof Listing; label: string; unit: string }[] = [
@@ -403,6 +404,12 @@ export function ListingDetail() {
                       <CreditCard size={16} />
                       Buy now — pay securely
                     </button>
+                    {listing.price !== null && (
+                      <p className="mt-2 text-center text-xs text-[var(--color-ink-soft)]">
+                        + {formatPriceExact(buyerServiceFee(listing.price), listing.currency)} service fee,
+                        shown at checkout
+                      </p>
+                    )}
                   </>
                 )}
                 {canOffer && (

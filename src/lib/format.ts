@@ -17,6 +17,18 @@ export function formatPrice(price: number | null, currency: Currency = 'GBP'): s
   }).format(price);
 }
 
+// formatPrice rounds to whole units, which is right for listing prices but
+// would misstate a service fee or a total that includes it (£1,020 shown,
+// £1,020.20 charged). Anything the buyer is charged exactly uses this.
+export function formatPriceExact(price: number, currency: Currency = 'GBP'): string {
+  return new Intl.NumberFormat(LOCALE_BY_CURRENCY[currency], {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
 const COUNTRY_CODE: Record<string, string> = {
   'United Kingdom': 'UK',
   'United States': 'US',

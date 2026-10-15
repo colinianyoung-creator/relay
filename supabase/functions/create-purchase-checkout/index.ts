@@ -10,6 +10,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { buyerFeeMinor } from '../_shared/buyerFee.ts';
 
 // Relay's cut of each sale. Easy to tune — kept as one constant rather than
 // scattered through the codebase.
@@ -139,6 +140,10 @@ Deno.serve(async (req) => {
       PLATFORM_FEE_CAP * 100,
     );
 
+    // Charged to the buyer on top of the price — covers Stripe's processing
+    // cost on the payment — and kept out of the seller's payout and commission.
+    const buyerFeePence = buyerFeeMinor(amountPence);
+
     // Only ever true server-side when the listing itself is actually
     // eligible — a client sending the flag on an ineligible listing just
     // gets ignored, not trusted at face value.
@@ -153,6 +158,7 @@ Deno.serve(async (req) => {
         amount: listing.price,
         currency: listing.currency,
         platform_fee_amount: platformFeePence / 100,
+        buyer_fee_amount: buyerFeePence / 100,
         status: 'pending',
         vat_relief_declared: vatReliefDeclaredAndEligible,
         vat_relief_declared_at: vatReliefDeclaredAndEligible ? new Date().toISOString() : null,
@@ -197,6 +203,14 @@ Deno.serve(async (req) => {
             currency: listing.currency.toLowerCase(),
             unit_amount: amountPence,
             product_data: { name: listing.title },
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: listing.currency.toLowerCase(),
+            unit_amount: buyerFeePence,
+            product_data: { name: 'Relay service fee' },
           },
           quantity: 1,
         },

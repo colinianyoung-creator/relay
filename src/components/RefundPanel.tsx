@@ -12,7 +12,7 @@ import {
   type ReturnAddress,
 } from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
-import { formatPrice } from '@/lib/format';
+import { formatPriceExact } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { OrderStatusTracker } from './OrderStatusTracker';
 import { Badge } from './Badge';
@@ -157,7 +157,12 @@ export function RefundPanel({
   }
 
   const needsSellerAction = viewRole === 'seller' && order.refundStatus === 'pending';
-  const refundable = formatPrice(order.amount, order.currency);
+  // A refund returns everything the buyer paid, service fee included, so
+  // the buyer is shown the total; the seller sees just the sale price.
+  const refundable = formatPriceExact(
+    viewRole === 'buyer' ? order.amount + order.buyerFeeAmount : order.amount,
+    order.currency,
+  );
   const paidOut = order.transferStatus === 'released';
   // A return is required before approving unless there was nothing to send
   // back in the first place — enforced again server-side in
@@ -570,7 +575,7 @@ export function RefundPanel({
         <RequestRefundModal
           orderId={order.id}
           title={order.title}
-          amount={order.amount}
+          amount={order.amount + order.buyerFeeAmount}
           currency={order.currency}
           onClose={() => setShowModal(false)}
           onSubmitted={onChanged}

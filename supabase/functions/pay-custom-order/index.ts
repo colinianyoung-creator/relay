@@ -6,6 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { buyerFeeMinor } from '../_shared/buyerFee.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -157,6 +158,9 @@ Deno.serve(async (req) => {
     if (deliveryError) console.error(deliveryError);
 
     const amountPence = Math.round(Number(order.amount) * 100);
+    // Added on top of the agreed total at the point of payment, not when
+    // the invoice was created — the invoice only fixes the price.
+    const buyerFeePence = buyerFeeMinor(amountPence);
     const itemNote = listings.length === 1 ? listings[0].title : `${listings.length} items`;
 
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
@@ -183,13 +187,24 @@ Deno.serve(async (req) => {
           },
           quantity: 1,
         },
+        {
+          price_data: {
+            currency: String(order.currency).toLowerCase(),
+            unit_amount: buyerFeePence,
+            product_data: { name: 'Relay service fee' },
+          },
+          quantity: 1,
+        },
       ],
       metadata: { order_id: order.id },
       success_url: successUrl,
       cancel_url: cancelUrl,
     });
 
-    await supabase.from('orders').update({ stripe_checkout_session_id: session.id }).eq('id', order.id);
+    await supabase
+      .from('orders')
+      .update({ stripe_checkout_session_id: session.id, buyer_fee_amount: buyerFeePence / 100 })
+      .eq('id', order.id);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

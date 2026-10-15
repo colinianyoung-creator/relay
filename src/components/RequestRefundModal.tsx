@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, CheckCircle2 } from 'lucide-react';
 import { requestRefund } from '@/lib/supabaseData';
-import { formatPrice } from '@/lib/format';
+import { formatPriceExact } from '@/lib/format';
 import type { Currency } from '@/types';
 import { useModalA11y } from '@/lib/useModalA11y';
 
@@ -104,7 +104,7 @@ export function RequestRefundModal({
                 <div className="rounded-xl bg-[var(--color-paper)] p-3.5">
                   <p className="font-medium">{title}</p>
                   <p className="mt-1 text-[var(--color-ink-soft)]">
-                    Full refund of <span className="font-medium text-[var(--color-ink)]">{formatPrice(amount, currency)}</span>
+                    Full refund of <span className="font-medium text-[var(--color-ink)]">{formatPriceExact(amount, currency)}</span>
                   </p>
                   <p className="mt-1 text-[var(--color-ink-soft)]">Reason: {reason}</p>
                   {details && <p className="mt-1 text-[var(--color-ink-soft)]">"{details}"</p>}

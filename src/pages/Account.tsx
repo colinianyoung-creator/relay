@@ -755,6 +755,7 @@ export function Account() {
                                   statusLabel={viewRole === 'buyer' ? 'Awaiting your payment' : 'Awaiting payment'}
                                   statusTone={viewRole === 'buyer' ? 'brand' : 'neutral'}
                                   platformFeeAmount={inv.platformFeeAmount}
+                                  buyerFeeAmount={inv.buyerFeeAmount}
                                   listingLink={link}
                                 />
                               )}
@@ -1167,6 +1168,7 @@ export function Account() {
                               statusLabel={inv.status === 'refunded' ? 'Refunded' : 'Paid'}
                               statusTone={inv.status === 'refunded' ? 'neutral' : 'moss'}
                               platformFeeAmount={inv.platformFeeAmount}
+                                  buyerFeeAmount={inv.buyerFeeAmount}
                               listingLink={link}
                               steps={getDeliveryTrackerSteps(inv)}
                               extra={

@@ -5,7 +5,8 @@ import { METHOD_LABEL } from '@/components/DeliveryPanel';
 import { ListingCover } from '@/components/ListingCover';
 import { AuthModal } from '@/components/AuthModal';
 import { useAuth } from '@/lib/auth';
-import { formatPrice } from '@/lib/format';
+import { formatPriceExact } from '@/lib/format';
+import { buyerServiceFee } from '@/lib/fees';
 import {
   createPurchaseCheckout,
   fetchListing,
@@ -26,6 +27,8 @@ interface CheckoutItem {
   sport: Sport | null;
   location: string | null;
   deliveryMethods: DeliveryMethod[];
+  /** Added on top of `price` at payment; the server computes the same figure. */
+  serviceFee: number;
   /** Only ever true for a 'listing' checkout from a commercial seller — see 20261009123157_vat_relief.sql. */
   vatReliefEligible?: boolean;
   pay: (method: DeliveryMethod, vatReliefDeclared?: boolean) => Promise<string>;
@@ -73,6 +76,7 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
           sport: listing.sport,
           location: listing.location,
           deliveryMethods: methods,
+          serviceFee: buyerServiceFee(listing.price),
           vatReliefEligible: listing.sellerType === 'commercial' && !!listing.vatReliefEligible,
           pay: (m: DeliveryMethod, vatReliefDeclared?: boolean) =>
             createPurchaseCheckout(
@@ -97,6 +101,7 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
         sport: order.sport,
         location: order.location,
         deliveryMethods: methods,
+        serviceFee: order.buyerFeeAmount > 0 ? order.buyerFeeAmount : buyerServiceFee(order.amount),
         pay: (m: DeliveryMethod) =>
           payCustomOrder(order.id, m, `${origin}/account?tab=orders`, `${origin}/account?tab=orders`),
       } satisfies CheckoutItem;
@@ -265,10 +270,26 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
               </p>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-[var(--color-line)] pt-4 text-sm">
-            <span>Total</span>
-            <span className="text-lg font-medium">{formatPrice(item.price, item.currency)}</span>
-          </div>
+          <dl className="mt-4 space-y-1.5 border-t border-[var(--color-line)] pt-4 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-[var(--color-ink-soft)]">Item</dt>
+              <dd>{formatPriceExact(item.price, item.currency)}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt className="text-[var(--color-ink-soft)]">Service fee</dt>
+              <dd>{formatPriceExact(item.serviceFee, item.currency)}</dd>
+            </div>
+            <div className="flex items-center justify-between border-t border-[var(--color-line)] pt-2">
+              <dt>Total</dt>
+              <dd className="text-lg font-medium">
+                {formatPriceExact(Math.round((item.price + item.serviceFee) * 100) / 100, item.currency)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+            The service fee covers payment processing and holding your payment until you confirm the
+            item has arrived.
+          </p>
 
           {error && <p role="alert" className="mt-3 text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
