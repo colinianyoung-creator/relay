@@ -178,6 +178,8 @@ export function Account() {
   // Clicking a listing reference in Orders/Offers expands the transaction's
   // own details in place, rather than leaving the tab for the listing page.
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Payouts manages its own open row, so a jump from the attention list is passed in separately.
+  const [payoutsFocusId, setPayoutsFocusId] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -421,6 +423,7 @@ export function Account() {
     if (!target) return;
     if (target.role) setViewRole(target.role);
     setTab(target.tab);
+    setPayoutsFocusId(target.tab === 'Payouts' ? (target.itemId ?? null) : null);
     if (target.itemId) {
       setExpandedId(target.itemId);
       // Make sure it isn't tucked away under "Show archived".
@@ -518,7 +521,10 @@ export function Account() {
         {TABS.map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              setPayoutsFocusId(null);
+            }}
             className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition sm:-mb-px sm:rounded-none sm:border-0 sm:border-b-2 sm:px-0 sm:pb-3 sm:pt-0 ${
               tab === t
                 ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white sm:bg-transparent sm:border-[var(--color-brand)] sm:text-[var(--color-ink)]'
@@ -1201,6 +1207,8 @@ export function Account() {
 
         {tab === 'Payouts' && (
           <PayoutsPanel
+            key={payoutsFocusId ?? 'none'}
+            initialExpandedId={payoutsFocusId}
             orders={orders}
             onOrdersChanged={refreshOrders}
             archivedOrderIds={archivedOrderIds}

@@ -29,20 +29,26 @@ export function PayoutsPanel({
   archivedOrderIds,
   onArchive,
   onUnarchive,
+  initialExpandedId = null,
 }: {
   orders: MyOrder[] | null;
   onOrdersChanged: () => void;
   archivedOrderIds: Set<string>;
   onArchive: (orderId: string) => void;
   onUnarchive: (orderId: string) => void;
+  /** Open this sale on arrival — e.g. coming from a "needs your attention" row. */
+  initialExpandedId?: string | null;
 }) {
   const { profile, refreshProfile } = useAuth();
   const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [mode, setMode] = useState<'onboarding' | 'payouts' | 'management' | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [showArchived, setShowArchived] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(initialExpandedId);
+  // If the sale being jumped to is archived, it'd be hidden — show archived too.
+  const [showArchived, setShowArchived] = useState(
+    initialExpandedId ? archivedOrderIds.has(initialExpandedId) : false,
+  );
 
   const chargesEnabled = !!profile?.stripe_connect_charges_enabled;
   // Sales only show up here once settled (paid out, or refunded) — until the
