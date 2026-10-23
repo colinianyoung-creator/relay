@@ -6,6 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('stripe_connect_account_id')
+      .select('stripe_connect_account_id, stripe_connect_charges_enabled')
       .eq('id', user.id)
       .single();
 
@@ -54,13 +55,16 @@ Deno.serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    const account = await stripe.accounts.retrieve(profile.stripe_connect_account_id);
-    const chargesEnabled = !!account.charges_enabled;
-
-    await supabase
-      .from('profiles')
-      .update({ stripe_connect_charges_enabled: chargesEnabled })
-      .eq('id', user.id);
+    // Also self-heals a dead account ID (e.g. left over from Stripe test
+    // mode): clears it, so the seller sees "set up payouts" and can start over.
+    const check = await checkConnectAccount(
+      supabase,
+      stripe,
+      user.id,
+      profile.stripe_connect_account_id,
+      profile.stripe_connect_charges_enabled,
+    );
+    const chargesEnabled = check.status === 'ok' && check.chargesEnabled;
 
     return new Response(JSON.stringify({ chargesEnabled }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

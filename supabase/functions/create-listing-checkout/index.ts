@@ -7,6 +7,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 
 const LISTING_FEE_PENCE = 900; // £9 flat, regardless of the listing's own currency
 
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
     // the seller still can't actually be paid.
     const { data: seller } = await supabase
       .from('profiles')
-      .select('stripe_connect_charges_enabled')
+      .select('stripe_connect_account_id, stripe_connect_charges_enabled')
       .eq('id', user.id)
       .single();
     if (!seller?.stripe_connect_charges_enabled) {
@@ -93,6 +94,22 @@ Deno.serve(async (req) => {
       apiVersion: '2024-12-18.acacia',
       httpClient: Stripe.createFetchHttpClient(),
     });
+
+    // The flag above is only a cache — confirm with Stripe the account still
+    // exists and can take payments before charging the posting fee.
+    const sellerAccount = await checkConnectAccount(
+      supabase,
+      stripe,
+      user.id,
+      seller.stripe_connect_account_id,
+      seller.stripe_connect_charges_enabled,
+    );
+    if (sellerAccount.status !== 'ok' || !sellerAccount.chargesEnabled) {
+      return new Response(
+        JSON.stringify({ error: 'Set up payouts with Stripe before publishing a paid listing.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

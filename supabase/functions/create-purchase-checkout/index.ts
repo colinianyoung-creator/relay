@@ -10,6 +10,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 import { buyerFeeMinor } from '../_shared/buyerFee.ts';
 
 // Relay's cut of each sale. Easy to tune — kept as one constant rather than
@@ -134,6 +135,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+      apiVersion: '2024-12-18.acacia',
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+
+    // The flag above is only a cache — confirm with Stripe that the seller can
+    // really be paid before taking the buyer's money.
+    const sellerAccount = await checkConnectAccount(
+      supabase,
+      stripe,
+      listing.seller_id,
+      seller.stripe_connect_account_id,
+      seller.stripe_connect_charges_enabled,
+    );
+    if (sellerAccount.status !== 'ok' || !sellerAccount.chargesEnabled) {
+      return new Response(
+        JSON.stringify({ error: "This seller hasn't set up payouts yet — message them instead." }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const amountPence = Math.round(listing.price * 100);
     const platformFeePence = Math.min(
       Math.round((amountPence * PLATFORM_FEE_PERCENT) / 100),
@@ -185,11 +207,6 @@ Deno.serve(async (req) => {
       { onConflict: 'order_id' },
     );
     if (deliveryError) console.error(deliveryError);
-
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
-      apiVersion: '2024-12-18.acacia',
-      httpClient: Stripe.createFetchHttpClient(),
-    });
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

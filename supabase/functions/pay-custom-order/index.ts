@@ -6,6 +6,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 import { buyerFeeMinor } from '../_shared/buyerFee.ts';
 
 Deno.serve(async (req) => {
@@ -144,6 +145,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+      apiVersion: '2024-12-18.acacia',
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+
+    // The flag above is only a cache — confirm with Stripe that the seller can
+    // really be paid before taking the buyer's money.
+    const sellerAccount = await checkConnectAccount(
+      supabase,
+      stripe,
+      order.seller_id,
+      seller.stripe_connect_account_id,
+      seller.stripe_connect_charges_enabled,
+    );
+    if (sellerAccount.status !== 'ok' || !sellerAccount.chargesEnabled) {
+      return new Response(
+        JSON.stringify({ error: "This seller's payouts aren't set up right now — message them instead." }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // Seed the chosen method now; the actual address (when this method
     // needs one) is collected by Stripe's own checkout page below and
     // written back here by stripe-webhook.ts once payment completes.
@@ -162,11 +184,6 @@ Deno.serve(async (req) => {
     // the invoice was created — the invoice only fixes the price.
     const buyerFeePence = buyerFeeMinor(amountPence);
     const itemNote = listings.length === 1 ? listings[0].title : `${listings.length} items`;
-
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
-      apiVersion: '2024-12-18.acacia',
-      httpClient: Stripe.createFetchHttpClient(),
-    });
 
     // One line item for the whole agreed total, not itemized per listing —
     // this is a negotiated figure, not necessarily the sum of the listings'

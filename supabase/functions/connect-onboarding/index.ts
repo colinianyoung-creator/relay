@@ -8,6 +8,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_connect_account_id')
+      .select('stripe_connect_account_id, stripe_connect_charges_enabled')
       .eq('id', user.id)
       .single();
     if (profileError || !profile) {
@@ -65,6 +66,18 @@ Deno.serve(async (req) => {
     });
 
     let accountId = profile.stripe_connect_account_id as string | null;
+    if (accountId) {
+      // A stored ID Stripe no longer recognises (e.g. from test mode, now on a
+      // live key) is cleared so a fresh account is created below.
+      const check = await checkConnectAccount(
+        supabase,
+        stripe,
+        user.id,
+        accountId,
+        profile.stripe_connect_charges_enabled,
+      );
+      if (check.status === 'stale') accountId = null;
+    }
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',

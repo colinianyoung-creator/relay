@@ -1847,7 +1847,14 @@ export async function confirmReceipt(orderId: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('confirm-receipt', {
     body: { orderId },
   });
-  if (error) throw error;
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context && typeof context.json === 'function') {
+      const body = await context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data?.error) throw new Error(data.error);
 }
 

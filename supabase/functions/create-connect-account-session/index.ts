@@ -7,6 +7,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17';
 import { corsHeaders } from '../_shared/cors.ts';
+import { checkConnectAccount } from '../_shared/connectAccount.ts';
 import { SITE_URL } from '../_shared/email.ts';
 
 // Stripe's "Sporting Goods Stores" MCC — every seller on Relay sells the
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_connect_account_id')
+      .select('stripe_connect_account_id, stripe_connect_charges_enabled')
       .eq('id', user.id)
       .single();
     if (profileError || !profile) {
@@ -76,6 +77,19 @@ Deno.serve(async (req) => {
     };
 
     let accountId = profile.stripe_connect_account_id as string | null;
+    if (accountId) {
+      // A stored ID that Stripe no longer recognises (e.g. created in test
+      // mode, now running on a live key) would make every call below throw —
+      // clear it and fall through to creating a fresh account instead.
+      const check = await checkConnectAccount(
+        supabase,
+        stripe,
+        user.id,
+        accountId,
+        profile.stripe_connect_charges_enabled,
+      );
+      if (check.status === 'stale') accountId = null;
+    }
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
