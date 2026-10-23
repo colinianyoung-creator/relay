@@ -1852,6 +1852,11 @@ export async function confirmReceipt(orderId: string): Promise<void> {
     if (context && typeof context.json === 'function') {
       const body = await context.json().catch(() => null);
       if (body?.error) throw new Error(body.error);
+      // Gateway/platform failures (bad token, boot error, timeout) don't use
+      // our { error } shape — still say what happened rather than "non-2xx".
+      throw new Error(
+        `Confirming receipt failed (HTTP ${context.status}${body?.message ? `: ${body.message}` : ''}).`,
+      );
     }
     throw error;
   }
