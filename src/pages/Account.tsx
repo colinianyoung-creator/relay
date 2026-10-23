@@ -13,7 +13,6 @@ import {
   Truck,
   Archive,
   ArchiveRestore,
-  CircleDollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -54,6 +53,9 @@ import { SavedSearches } from '@/components/SavedSearches';
 import { FitProfileForm } from '@/components/FitProfileForm';
 import { PayoutsPanel } from '@/components/PayoutsPanel';
 import { MessagesInbox } from '@/components/MessagesInbox';
+import { ActionRequiredPanel } from '@/components/ActionRequiredPanel';
+import { useActionItems } from '@/lib/actionItemsContext';
+import { actionCountsByTab, type ActionItem, type ActionTab } from '@/lib/actionItems';
 import { Avatar } from '@/components/Avatar';
 import { Badge } from '@/components/Badge';
 import { formatPrice, formatDateTime, timeAgo } from '@/lib/format';
@@ -385,6 +387,14 @@ export function Account() {
     fetchArchivedOfferIds(user.id).then(setArchivedOfferIds);
   }, [user]);
 
+  // The nav badge and the "needs your attention" list are derived from the
+  // same orders/offers/messages this page changes, so re-check whenever any of
+  // them is reloaded after the user acts (approve a refund, read a thread…).
+  const { items: actionItems, refresh: refreshActionItems } = useActionItems();
+  useEffect(() => {
+    if (orders && offers && messages) refreshActionItems();
+  }, [orders, offers, messages, refreshActionItems]);
+
   if (authLoading) {
     return (
       <div className="flex justify-center py-24">
@@ -402,8 +412,25 @@ export function Account() {
   // track here.
   const visibleOffers = offers?.filter((o) => !(o.status === 'accepted' && o.orderPaid)) ?? null;
   const roleOffers = visibleOffers?.filter((o) => o.role === viewRole) ?? [];
-  // Refund requests on the user's own sales that they still have to answer.
-  const pendingRefundOrders = (orders ?? []).filter((o) => o.role === 'seller' && o.refundStatus === 'pending');
+  const actionCounts = actionCountsByTab(actionItems);
+
+  // Jumps from a "needs your attention" row to the exact place it's dealt with:
+  // the right tab, buy/sell side, and the order or offer opened in place.
+  function handleActionSelect(item: ActionItem) {
+    const target = item.target;
+    if (!target) return;
+    if (target.role) setViewRole(target.role);
+    setTab(target.tab);
+    if (target.itemId) {
+      setExpandedId(target.itemId);
+      // Make sure it isn't tucked away under "Show archived".
+      if (archivedOrderIds.has(target.itemId)) setShowArchivedOrders(true);
+      if (archivedOfferIds.has(target.itemId)) setShowArchivedOffers(true);
+    }
+    requestAnimationFrame(() =>
+      document.getElementById('account-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }
   const activeRoleOffers = roleOffers.filter((o) => !archivedOfferIds.has(o.id));
   const archivedOfferCount = roleOffers.length - activeRoleOffers.length;
   const shownOffers = showArchivedOffers ? roleOffers : activeRoleOffers;
@@ -482,35 +509,12 @@ export function Account() {
         </div>
       </div>
 
-      {pendingRefundOrders.length > 0 && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--color-brand)] bg-[var(--color-brand-soft)] p-4">
-          <div className="flex items-start gap-3">
-            <CircleDollarSign className="mt-0.5 shrink-0 text-[var(--color-brand-dark)]" size={20} />
-            <div>
-              <p className="font-medium text-[var(--color-brand-dark)]">
-                {pendingRefundOrders.length === 1
-                  ? '1 refund request is waiting for your response'
-                  : `${pendingRefundOrders.length} refund requests are waiting for your response`}
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">
-                Buyers are waiting on you — approve or decline each one.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              setViewRole('seller');
-              setTab('Orders');
-              setExpandedId(pendingRefundOrders[0].id);
-            }}
-            className="rounded-full bg-[var(--color-brand-dark)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
-          >
-            Review now
-          </button>
-        </div>
-      )}
+      <ActionRequiredPanel items={actionItems} onSelect={handleActionSelect} />
 
-      <div className="mt-6 flex flex-wrap gap-2 sm:mt-8 sm:gap-x-6 sm:gap-y-0 sm:border-b sm:border-[var(--color-line)]">
+      <div
+        id="account-tabs"
+        className="mt-6 flex scroll-mt-20 flex-wrap gap-2 sm:mt-8 sm:gap-x-6 sm:gap-y-0 sm:border-b sm:border-[var(--color-line)]"
+      >
         {TABS.map((t) => (
           <button
             key={t}
@@ -522,14 +526,10 @@ export function Account() {
             }`}
           >
             {t}
-            {t === 'Orders' && pendingRefundOrders.length > 0 && (
+            {(actionCounts[t as ActionTab] ?? 0) > 0 && (
               <span className="ml-1.5 rounded-full bg-[var(--color-brand-dark)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                {pendingRefundOrders.length}
-              </span>
-            )}
-            {t === 'Messages' && messages && messages.some((m) => m.hasUnread) && (
-              <span className="ml-1.5 text-[var(--color-brand)]">
-                ({messages.filter((m) => m.hasUnread).length})
+                <span aria-hidden="true">{actionCounts[t as ActionTab]}</span>
+                <span className="sr-only"> need attention</span>
               </span>
             )}
           </button>

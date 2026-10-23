@@ -1540,6 +1540,8 @@ export interface MyOrder {
   createdAt: string;
   hasStripeSession: boolean;
   itemCount: number;
+  /** Created by accepting an offer or sending an invoice (so a pending one is a real payment due) — not a direct Buy now, whose pending orders are just abandoned checkouts. */
+  fromOfferOrInvoice: boolean;
   title: string;
   listingId: string | null;
   bundleId: string | null;
@@ -1719,6 +1721,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       createdAt: row.created_at,
       hasStripeSession: !!row.stripe_checkout_session_id,
       itemCount: isMulti ? row.bundle_listing_ids!.length : 1,
+      fromOfferOrInvoice: isMulti,
       title,
       listingId: row.listing?.id ?? singleFallback?.id ?? null,
       bundleId: row.bundle?.id ?? null,
@@ -1758,15 +1761,37 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
   });
 }
 
-/** Refund requests waiting on this seller's response — drives the nav badge. */
-export async function fetchPendingRefundCount(sellerId: string): Promise<number> {
+/** Messages sent to this user that they haven't opened yet. */
+export async function fetchUnreadMessageCount(userId: string): Promise<number> {
   const { count, error } = await supabase
-    .from('refund_requests')
+    .from('messages')
     .select('id', { count: 'exact', head: true })
-    .eq('seller_id', sellerId)
-    .eq('status', 'pending');
+    .eq('recipient_id', userId)
+    .is('read_at', null);
   if (error) throw error;
   return count ?? 0;
+}
+
+export interface AdminActionCounts {
+  openReports: number;
+  escalatedRefunds: number;
+  failedRefunds: number;
+}
+
+/** Admin-only (RLS returns nothing for anyone else): things waiting on a Relay admin. */
+export async function fetchAdminActionCounts(): Promise<AdminActionCounts> {
+  const head = { count: 'exact' as const, head: true };
+  const [reports, escalated, failed] = await Promise.all([
+    supabase.from('listing_reports').select('id', head).eq('status', 'open'),
+    supabase.from('refund_requests').select('id', head).eq('status', 'escalated'),
+    supabase.from('refund_requests').select('id', head).eq('status', 'failed'),
+  ]);
+  for (const r of [reports, escalated, failed]) if (r.error) throw r.error;
+  return {
+    openReports: reports.count ?? 0,
+    escalatedRefunds: escalated.count ?? 0,
+    failedRefunds: failed.count ?? 0,
+  };
 }
 
 // A non-2xx function response doesn't populate `data` — supabase-js puts the
