@@ -229,7 +229,7 @@ export function RefundPanel({
                   <button
                     onClick={handleConfirmReturnReceived}
                     disabled={returnBusy}
-                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                    className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss-dark)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
                   >
                     {returnBusy && <Loader2 size={12} className="animate-spin" />}
                     Confirm received
@@ -325,7 +325,7 @@ export function RefundPanel({
                   onClick={handleConfirmReturnReceived}
                   disabled={returnBusy}
                   title="You can confirm this if it's already arrived, even before the buyer marks it sent"
-                  className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                  className="mt-2 flex items-center gap-1.5 rounded-full bg-[var(--color-moss-dark)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
                 >
                   {returnBusy && <Loader2 size={12} className="animate-spin" />}
                   Confirm received

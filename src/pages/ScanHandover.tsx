@@ -270,7 +270,7 @@ export function ScanHandover() {
           <button
             onClick={handleConfirmReturnReceived}
             disabled={returning}
-            className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss-dark)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
           >
             {returning && <Loader2 size={14} className="animate-spin" />}
             Confirm received
@@ -392,7 +392,7 @@ export function ScanHandover() {
         <button
           onClick={handleConfirm}
           disabled={confirming}
-          className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss-dark)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
         >
           {confirming && <Loader2 size={14} className="animate-spin" />}
           Confirm & release payment

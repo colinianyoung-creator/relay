@@ -20,6 +20,9 @@
   --color-brand-soft: #ffe3da;
 
   --color-moss: #16b364;
+  /* White text on --color-moss is only ~2.7:1, well under WCAG AA's 4.5:1 —
+     this darker shade (~5.4:1) is for buttons/badges with white text on green. */
+  --color-moss-dark: #0b7a43;
   --color-moss-soft: #d9f7e8;
 }
 

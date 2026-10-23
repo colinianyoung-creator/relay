@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { FileText, Loader2, MapPin, Printer, QrCode, Truck, X } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, MapPin, Printer, QrCode, Truck, X } from 'lucide-react';
 import {
   confirmReceipt,
   deleteDeliveryEvidence,
@@ -286,6 +286,27 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
           )}
           {order.deliveryNotes && <p className="mt-1 text-[var(--color-ink-soft)]">{order.deliveryNotes}</p>}
 
+          {/* Always mounted so screen readers announce the message when it
+              appears — the Confirm receipt button disappears once it's
+              confirmed, so this is what shows the action took effect. */}
+          <div aria-live="polite">
+            {order.receivedConfirmedAt && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-[var(--color-moss-soft)] px-2.5 py-2 text-xs font-medium text-[var(--color-ink)]">
+                <CheckCircle2 size={14} aria-hidden="true" className="mt-px shrink-0 text-[var(--color-moss)]" />
+                <span>
+                  {order.role === 'buyer'
+                    ? `Receipt confirmed ${formatDateTime(order.receivedConfirmedAt)}`
+                    : `The buyer confirmed receipt ${formatDateTime(order.receivedConfirmedAt)}`}
+                  {order.transferStatus === 'released'
+                    ? order.role === 'buyer'
+                      ? ' — your payment has been released to the seller.'
+                      : ' — your payment has been released to your account.'
+                    : '.'}
+                </span>
+              </p>
+            )}
+          </div>
+
           {order.transferStatus === 'pending' && (
             <p className="mt-2 text-[10px] text-[var(--color-ink-soft)]">
               {order.trackingStatus === 'delivered' && !order.receivedConfirmedAt
@@ -334,7 +355,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
               <button
                 onClick={handleConfirmReceipt}
                 disabled={busy}
-                className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-full bg-[var(--color-moss-dark)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-60"
               >
                 {busy && <Loader2 size={12} className="animate-spin" />}
                 Confirm receipt

@@ -44,7 +44,7 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
                   isError
                     ? 'border-[var(--color-brand)] bg-[var(--color-brand-dark)] text-white'
                     : isDone
-                      ? 'border-[var(--color-moss)] bg-[var(--color-moss)] text-white'
+                      ? 'border-[var(--color-moss)] bg-[var(--color-moss-dark)] text-white'
                       : isCurrent
                         ? 'border-[var(--color-ink)] bg-[var(--color-paper)] text-[var(--color-ink)]'
                         : 'border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink-soft)]'
