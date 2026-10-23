@@ -11,7 +11,8 @@ import {
   uploadDeliveryEvidence,
   type MyOrder,
 } from '@/lib/supabaseData';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { refundWindowEnd } from '@/lib/refundWindow';
 import type { TrackerStep } from './OrderStatusTracker';
 
 export const METHOD_LABEL: Record<string, string> = {
@@ -216,6 +217,12 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
     }
   }
 
+  // Only worth telling the buyer while there's still time to act on it.
+  const windowEnd = refundWindowEnd(order);
+  const refundOpenUntil =
+    order.role === 'buyer' && order.status === 'paid' && !order.refundRequestId && windowEnd && windowEnd.getTime() > Date.now()
+      ? windowEnd
+      : null;
   const hasArranged = Boolean(order.deliveryMethod || order.trackingReference || order.trackingUrl);
   // Details are what got agreed *before* dispatch. The one thing still worth
   // filling in afterwards is the tracking reference — "Mark as delivered"
@@ -302,6 +309,11 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
                       ? ' — your payment has been released to the seller.'
                       : ' — your payment has been released to your account.'
                     : '.'}
+                  {refundOpenUntil && (
+                    <span className="mt-0.5 block font-normal text-[var(--color-ink-soft)]">
+                      Something wrong? You can still request a refund until {formatDate(refundOpenUntil)}.
+                    </span>
+                  )}
                 </span>
               </p>
             )}

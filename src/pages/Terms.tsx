@@ -132,6 +132,12 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           and cancellation rights.
         </p>
         <p className="mt-3">
+          A buyer can request a refund through Relay at any time while the payment is still being
+          held, and for 30 days after it has been released to the seller. A request needs the
+          seller's approval, and if declined can be escalated to Relay for review. Where the seller
+          has already withdrawn the funds, Relay may not be able to complete a refund.
+        </p>
+        <p className="mt-3">
           If an in-app payment is disputed (e.g. a Stripe chargeback), Relay will cooperate with
           Stripe's dispute process but is not itself an arbiter of the underlying disagreement
           between buyer and seller. We'd rather you never need this — message first, and be

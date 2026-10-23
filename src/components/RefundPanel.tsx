@@ -12,7 +12,8 @@ import {
   type ReturnAddress,
 } from '@/lib/supabaseData';
 import { RequestRefundModal } from './RequestRefundModal';
-import { formatPriceExact } from '@/lib/format';
+import { formatDate, formatPriceExact } from '@/lib/format';
+import { REFUND_WINDOW_DAYS, refundWindowEnd } from '@/lib/refundWindow';
 import { useAuth } from '@/lib/auth';
 import { OrderStatusTracker } from './OrderStatusTracker';
 import { Badge } from './Badge';
@@ -164,6 +165,10 @@ export function RefundPanel({
     order.currency,
   );
   const paidOut = order.transferStatus === 'released';
+  // Once paid out, a refund can only be requested for a limited time (see
+  // lib/refundWindow.ts); while the payment is still held there's no limit.
+  const windowEnd = refundWindowEnd(order);
+  const windowClosed = windowEnd !== null && windowEnd.getTime() < Date.now();
   // A return is required before approving unless there was nothing to send
   // back in the first place — enforced again server-side in
   // respond-refund-request, so this is a UI convenience, not the only guard.
@@ -189,13 +194,27 @@ export function RefundPanel({
 
       {error && <p role="alert" className="mb-2 text-[var(--color-brand-dark)]">{error}</p>}
 
-      {!order.refundRequestId && (
-        <button
-          onClick={() => setShowModal(true)}
-          className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-        >
-          Request a refund
-        </button>
+      {!order.refundRequestId && windowClosed && (
+        <p className="text-[var(--color-ink-soft)]">
+          The refund window closed on {formatDate(windowEnd!)} — {REFUND_WINDOW_DAYS} days after the
+          payment was released to the seller. If something's wrong, message them directly.
+        </p>
+      )}
+
+      {!order.refundRequestId && !windowClosed && (
+        <>
+          <button
+            onClick={() => setShowModal(true)}
+            className="rounded-full border border-[var(--color-line)] px-3 py-1.5 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+          >
+            Request a refund
+          </button>
+          {windowEnd && (
+            <p className="mt-1.5 text-[10px] text-[var(--color-ink-soft)]">
+              Open until {formatDate(windowEnd)}.
+            </p>
+          )}
+        </>
       )}
 
       {order.refundRequestId && order.refundStatus === 'pending' && (

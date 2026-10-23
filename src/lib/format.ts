@@ -52,6 +52,10 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+export function formatDate(date: Date): string {
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function timeAgo(iso: string): string {
   // Every caller of this feeds it date-level granularity — either an actual
   // `date` column (posted_at) or a timestamptz manually truncated with

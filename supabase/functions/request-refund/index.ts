@@ -8,6 +8,11 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { notifyUser } from '../_shared/notify.ts';
 import { formatMoney, SITE_URL } from '../_shared/email.ts';
 
+// A buyer can request a refund any time their payment is still held, and for
+// this many days after it's released to the seller. Must match
+// src/lib/refundWindow.ts, which hides the button once it's closed.
+const REFUND_WINDOW_DAYS = 30;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -48,7 +53,7 @@ Deno.serve(async (req) => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, amount, currency')
+      .select('id, buyer_id, seller_id, status, listing_id, bundle_listing_ids, amount, currency, transfer_status, transfer_released_at')
       .eq('id', orderId)
       .single();
     if (orderError || !order) {
@@ -68,6 +73,20 @@ Deno.serve(async (req) => {
         status: 409,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    if (order.transfer_status === 'released' && order.transfer_released_at) {
+      const windowEnd = new Date(order.transfer_released_at);
+      windowEnd.setDate(windowEnd.getDate() + REFUND_WINDOW_DAYS);
+      if (windowEnd.getTime() < Date.now()) {
+        const closedOn = windowEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        return new Response(
+          JSON.stringify({
+            error: `The ${REFUND_WINDOW_DAYS}-day refund window closed on ${closedOn}. Please message the seller directly.`,
+          }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
     const { data: refundRequest, error: insertError } = await supabase

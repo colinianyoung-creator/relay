@@ -195,9 +195,9 @@ const SECTIONS: FaqSection[] = [
         answer: (
           <p>
             Check it against the listing, then confirm receipt from the Orders tab of your account
-            — that releases the payment to the seller. If something's wrong, raise it{' '}
-            <em>before</em> you confirm: once the money has gone to the seller, getting it back is
-            harder.
+            — that releases the payment to the seller. If something's wrong, it's simplest to raise
+            it <em>before</em> you confirm, while the payment is still held. You can still request
+            a refund after confirming, for 30 days after the payment is released.
           </p>
         ),
       },
@@ -215,6 +215,12 @@ const SECTIONS: FaqSection[] = [
               Open the order in your Orders tab and choose to request a refund, with a reason. The
               seller is emailed and can approve or decline it. Nothing is refunded until they
               approve. A refund returns everything you paid, including the service fee.
+            </p>
+            <p className="mt-2">
+              While your payment is still being held you can ask at any time. Once it's been
+              released to the seller you have 30 days to request a refund — after that, message the
+              seller directly. After release a refund also depends on the seller still having the
+              money, so it's best to raise a problem early.
             </p>
             <p className="mt-2">
               If they decline and you think that's wrong, you can escalate to Relay, who review it

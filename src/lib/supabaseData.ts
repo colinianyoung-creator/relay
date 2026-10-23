@@ -1558,6 +1558,7 @@ export interface MyOrder {
   shippedAt: string | null;
   receivedConfirmedAt: string | null;
   transferStatus: 'pending' | 'released' | 'refunded';
+  transferReleasedAt: string | null;
   trackingStatus: 'pending' | 'in_transit' | 'delivered' | null;
   deliveredAt: string | null;
   handoverTokenExpiresAt: string | null;
@@ -1595,6 +1596,7 @@ interface MyOrderRow {
   buyer_fee_amount: number;
   status: 'pending' | 'paid' | 'cancelled' | 'refunded';
   transfer_status: 'pending' | 'released' | 'refunded';
+  transfer_released_at: string | null;
   created_at: string;
   stripe_checkout_session_id: string | null;
   bundle_listing_ids: string[] | null;
@@ -1654,7 +1656,7 @@ interface MyOrderRow {
 }
 
 const ORDER_SELECT =
-  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, buyer_fee_amount, status, transfer_status, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note, created_at), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
+  'id, buyer_id, seller_id, amount, currency, platform_fee_amount, buyer_fee_amount, status, transfer_status, transfer_released_at, created_at, stripe_checkout_session_id, bundle_listing_ids, listing:listings(id, title, photos, sport, location, country), bundle:listing_bundles(id, title, listings(photos, sport, location, country)), buyer:profiles!orders_buyer_id_fkey(name), seller:profiles!orders_seller_id_fkey(name), delivery:order_deliveries(method, quote_requested_at, tracking_reference, tracking_url, notes, evidence_paths, shipped_at, received_confirmed_at, tracking_status, delivered_at, handover_token_expires_at, shipping_address, shipping_recipient_name), review:reviews(id), refund:refund_requests(id, status, reason, details, seller_response, admin_note, created_at), return:order_returns(shipped_at, received_at, return_address, return_recipient_name)';
 
 /**
  * Every order this user is either side of, most recent first — both direct
@@ -1713,6 +1715,7 @@ export async function fetchMyOrders(userId: string): Promise<MyOrder[]> {
       buyerFeeAmount: Number(row.buyer_fee_amount ?? 0),
       status: row.status,
       transferStatus: row.transfer_status,
+      transferReleasedAt: row.transfer_released_at ?? null,
       createdAt: row.created_at,
       hasStripeSession: !!row.stripe_checkout_session_id,
       itemCount: isMulti ? row.bundle_listing_ids!.length : 1,
@@ -1766,11 +1769,23 @@ export async function fetchPendingRefundCount(sellerId: string): Promise<number>
   return count ?? 0;
 }
 
+// A non-2xx function response doesn't populate `data` — supabase-js puts the
+// raw Response on `error.context` — so the function's own message has to be
+// read from there, or the person just sees "non-2xx status code".
+async function throwFunctionError(error: unknown): Promise<never> {
+  const context = (error as { context?: Response }).context;
+  if (context && typeof context.json === 'function') {
+    const body = await context.json().catch(() => null);
+    if (body?.error) throw new Error(body.error);
+  }
+  throw error;
+}
+
 export async function requestRefund(orderId: string, reason: string, details?: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('request-refund', {
     body: { orderId, reason, details },
   });
-  if (error) throw error;
+  if (error) await throwFunctionError(error);
   if (data?.error) throw new Error(data.error);
 }
 
@@ -1779,7 +1794,7 @@ export async function escalateRefundRequest(requestId: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke('escalate-refund-request', {
     body: { requestId },
   });
-  if (error) throw error;
+  if (error) await throwFunctionError(error);
   if (data?.error) throw new Error(data.error);
 }
 
