@@ -177,7 +177,7 @@ export function FitProfileForm({ userId }: { userId: string }) {
             Save fit profile
           </button>
           {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-[var(--color-moss)]">
+            <span className="flex items-center gap-1.5 text-sm text-[var(--color-moss-dark)]">
               <CheckCircle2 size={15} /> Saved
             </span>
           )}

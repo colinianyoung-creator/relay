@@ -55,7 +55,7 @@ export function OrderStatusTracker({ steps }: { steps: TrackerStep[] }) {
               {!isLast && (
                 <span
                   className={`my-0.5 w-0.5 flex-1 sm:mx-2 sm:my-0 sm:h-0.5 sm:w-auto ${
-                    lineDone ? 'bg-[var(--color-moss)]' : 'bg-[var(--color-line)]'
+                    lineDone ? 'bg-[var(--color-moss-dark)]' : 'bg-[var(--color-line)]'
                   }`}
                 />
               )}

@@ -94,7 +94,7 @@ export function AdminUsers() {
                       <td className="p-4">
                         <div className="flex items-center gap-1.5 font-medium">
                           {u.name}
-                          {u.verified && <BadgeCheck size={14} className="text-[var(--color-moss)]" />}
+                          {u.verified && <BadgeCheck size={14} className="text-[var(--color-moss-dark)]" />}
                           {isSelf && <span className="text-xs text-[var(--color-ink-soft)]">(you)</span>}
                         </div>
                         <div className="text-xs text-[var(--color-ink-soft)]">{u.email}</div>

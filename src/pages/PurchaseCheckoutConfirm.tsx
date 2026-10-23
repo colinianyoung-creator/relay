@@ -14,7 +14,7 @@ function ReviewForm({ order, sellerName }: { order: CompletedOrder; sellerName: 
   const [submitted, setSubmitted] = useState(false);
 
   if (submitted) {
-    return <p className="mt-10 text-sm text-[var(--color-moss)]">Thanks for the review!</p>;
+    return <p className="mt-10 text-sm text-[var(--color-moss-dark)]">Thanks for the review!</p>;
   }
   if (!user) return null;
 
@@ -112,7 +112,7 @@ export function PurchaseCheckoutConfirm() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-      <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+      <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
       <h1 className="text-3xl">Payment received — it's yours</h1>
       <p className="mt-3 text-[var(--color-ink-soft)]">
         You've bought "{listing.title}" from {listing.seller.name}. They'll be in touch to sort

@@ -207,13 +207,13 @@ export function CreateListing() {
   if (submittedId) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-        <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+        <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
         <h1 className="text-3xl">Listing published</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           Your listing is now live on Relay. We'll email you when someone gets in touch.
         </p>
         {promoApplied && (
-          <p className="mt-2 text-sm font-medium text-[var(--color-moss)]">
+          <p className="mt-2 text-sm font-medium text-[var(--color-moss-dark)]">
             Posting fee waived — you're one of our first 100 sellers.
           </p>
         )}
@@ -797,7 +797,7 @@ export function CreateListing() {
                 <span className="ml-1.5 font-normal text-[var(--color-ink-soft)]">— optional</span>
               </label>
               {promoApplied ? (
-                <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-moss)]">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-moss-dark)]">
                   <CheckCircle2 size={15} /> RELAY100 applied — this listing's £{LISTING_FEE_GBP} fee is waived.
                 </p>
               ) : (

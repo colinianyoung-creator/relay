@@ -63,7 +63,7 @@ export function SellerProfile() {
         <div>
           <div className="flex items-center gap-1.5 text-2xl">
             {seller.name}
-            {seller.verified && <BadgeCheck size={18} className="text-[var(--color-moss)]" />}
+            {seller.verified && <BadgeCheck size={18} className="text-[var(--color-moss-dark)]" />}
           </div>
           <p className="text-sm text-[var(--color-ink-soft)]">
             {seller.club ? `${seller.club} · ` : ''}Member since {seller.memberSince}

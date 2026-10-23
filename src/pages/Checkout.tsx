@@ -249,7 +249,7 @@ export function Checkout({ kind }: { kind: 'listing' | 'order' }) {
           )}
 
           <section className="flex gap-3 rounded-2xl bg-[var(--color-paper)] p-5 text-sm text-[var(--color-ink-soft)]">
-            <ShieldCheck size={20} className="mt-0.5 shrink-0 text-[var(--color-moss)]" />
+            <ShieldCheck size={20} className="mt-0.5 shrink-0 text-[var(--color-moss-dark)]" />
             <p>
               Your payment is held securely and only released to the seller once you confirm the
               item has arrived.

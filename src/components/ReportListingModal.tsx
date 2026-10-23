@@ -72,7 +72,7 @@ export function ReportListingModal({
 
         {submitted ? (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <CheckCircle2 className="text-[var(--color-moss)]" size={32} />
+            <CheckCircle2 className="text-[var(--color-moss-dark)]" size={32} />
             <p className="text-sm text-[var(--color-ink-soft)]">
               Thanks — we'll review this listing.
             </p>

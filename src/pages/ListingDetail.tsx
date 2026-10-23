@@ -220,7 +220,7 @@ export function ListingDetail() {
             {listing.shipsInternationally && (
               <>
                 <span>·</span>
-                <span className="flex items-center gap-1 text-[var(--color-moss)]">
+                <span className="flex items-center gap-1 text-[var(--color-moss-dark)]">
                   <Globe2 size={14} /> Ships internationally
                 </span>
               </>
@@ -254,7 +254,7 @@ export function ListingDetail() {
                 <div
                   className={`mt-3 flex items-center gap-2 rounded-xl p-3 text-sm ${
                     fits
-                      ? 'bg-[var(--color-moss-soft)] text-[var(--color-moss)]'
+                      ? 'bg-[var(--color-moss-soft)] text-[var(--color-moss-dark)]'
                       : 'bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]'
                   }`}
                 >
@@ -326,7 +326,7 @@ export function ListingDetail() {
                 <div className="flex items-center gap-1 text-sm font-medium">
                   {listing.seller.name}
                   {listing.seller.verified && (
-                    <BadgeCheck size={14} className="text-[var(--color-moss)]" />
+                    <BadgeCheck size={14} className="text-[var(--color-moss-dark)]" />
                   )}
                 </div>
                 <div className="truncate text-xs text-[var(--color-ink-soft)]">
@@ -429,7 +429,7 @@ export function ListingDetail() {
                   </div>
                 )}
                 {messageSent ? (
-                  <div className="rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
+                  <div className="rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss-dark)]">
                     Message sent — {listing.seller.name.split(' ')[0]} typically replies within a
                     day. Once you're happy, pay through Relay's checkout.
                   </div>

@@ -50,7 +50,7 @@ export function HowItWorks() {
       </div>
 
       <div className="mt-14 flex items-start gap-4 rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-6">
-        <HeartHandshake size={28} className="shrink-0 text-[var(--color-moss)]" />
+        <HeartHandshake size={28} className="shrink-0 text-[var(--color-moss-dark)]" />
         <div>
           <h2 className="text-lg">Built with clubs, not just for them</h2>
           <p className="mt-1 text-[15px] text-[var(--color-ink-soft)]">

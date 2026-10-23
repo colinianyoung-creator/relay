@@ -65,7 +65,7 @@ export function TransactionDetails({
         {payout !== undefined && role === 'seller' ? (
           <p>
             <span className="font-medium text-[var(--color-ink)]">Payout</span>{' '}
-            <span className="font-medium text-[var(--color-moss)]">{formatPrice(payout, currency)}</span>
+            <span className="font-medium text-[var(--color-moss-dark)]">{formatPrice(payout, currency)}</span>
             <span className="text-[var(--color-ink-soft)]/70">
               {' '}
               ({formatPrice(amount, currency)} − {formatPrice(platformFeeAmount!, currency)} commission)

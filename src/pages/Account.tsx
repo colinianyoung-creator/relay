@@ -113,7 +113,7 @@ function OrderReviewSection({
 
   if (!order.listingId) return null;
   if (order.alreadyReviewed || submitted) {
-    return <p className="col-span-full border-t border-[var(--color-line)] pt-3 text-[var(--color-moss)]">Reviewed — thanks!</p>;
+    return <p className="col-span-full border-t border-[var(--color-line)] pt-3 text-[var(--color-moss-dark)]">Reviewed — thanks!</p>;
   }
 
   return (
@@ -473,7 +473,7 @@ export function Account() {
         <div>
           <div className="flex items-center gap-1.5 text-xl font-medium">
             {profile?.name ?? user.email}{' '}
-            {profile?.verified && <BadgeCheck size={16} className="text-[var(--color-moss)]" />}
+            {profile?.verified && <BadgeCheck size={16} className="text-[var(--color-moss-dark)]" />}
           </div>
           <p className="text-sm text-[var(--color-ink-soft)]">
             {profile?.club ? `${profile.club}` : user.email}
@@ -1102,7 +1102,7 @@ export function Account() {
                               {viewRole === 'seller' && (
                                 <p className="mt-1 text-xs text-[var(--color-ink-soft)]/80">
                                   −{formatPrice(inv.platformFeeAmount, inv.currency)} commission ={' '}
-                                  <span className="font-medium text-[var(--color-moss)]">
+                                  <span className="font-medium text-[var(--color-moss-dark)]">
                                     {formatPrice(payout, inv.currency)} payout
                                   </span>
                                 </p>

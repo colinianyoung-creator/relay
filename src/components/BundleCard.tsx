@@ -59,7 +59,7 @@ export function BundleCard({ bundle }: { bundle: ClubGearBundle }) {
         </div>
 
         <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-ink-soft)]">
-          {bundle.seller.verified && <BadgeCheck size={14} className="text-[var(--color-moss)]" />}
+          {bundle.seller.verified && <BadgeCheck size={14} className="text-[var(--color-moss-dark)]" />}
           {bundle.seller.name}
           {bundle.seller.club && (
             <span className="text-[var(--color-ink-soft)]/70">· {bundle.seller.club}</span>

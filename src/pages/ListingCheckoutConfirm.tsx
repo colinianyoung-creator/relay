@@ -82,7 +82,7 @@ export function ListingCheckoutConfirm() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-      <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+      <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
       <h1 className="text-3xl">Payment received — listing published</h1>
       <p className="mt-3 text-[var(--color-ink-soft)]">
         "{listing.title}" is now live on Relay. We'll email you when someone gets in touch.

@@ -76,7 +76,7 @@ export function ListingCard({
 
         <div className="flex items-center gap-1.5 text-xs font-medium text-[var(--color-ink-soft)]">
           {listing.seller.verified && (
-            <BadgeCheck size={14} className="text-[var(--color-moss)]" />
+            <BadgeCheck size={14} className="text-[var(--color-moss-dark)]" />
           )}
           {listing.seller.name}
           {listing.seller.club && (

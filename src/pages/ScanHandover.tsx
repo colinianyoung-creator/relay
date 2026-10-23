@@ -165,7 +165,7 @@ export function ScanHandover() {
       if (lookup.receivedAt) {
         return (
           <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-            <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+            <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
             <h1 className="text-2xl">Return received</h1>
             <p className="mt-3 text-[var(--color-ink-soft)]">
               {lookup.returnRecipientName.split(' ')[0]} has confirmed "{lookup.title}" arrived back with
@@ -240,7 +240,7 @@ export function ScanHandover() {
     if (lookup.receivedAt || justReturnReceived) {
       return (
         <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-          <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+          <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
           <h1 className="text-2xl">Return confirmed</h1>
           <p className="mt-3 text-[var(--color-ink-soft)]">
             You've confirmed "{lookup.title}" arrived back with you. Approve the refund from your Orders
@@ -346,7 +346,7 @@ export function ScanHandover() {
   if (justConfirmed || lookup.settled) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 sm:px-6 text-center">
-        <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss)]" size={40} />
+        <CheckCircle2 className="mx-auto mb-4 text-[var(--color-moss-dark)]" size={40} />
         <h1 className="text-3xl">Confirmed — thanks!</h1>
         <p className="mt-3 text-[var(--color-ink-soft)]">
           You've confirmed receipt of "{lookup.title}" and the seller has been paid out.

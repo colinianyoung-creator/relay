@@ -87,7 +87,7 @@ export function DeliverySuggestion({
   if (suggestion === 'same-town') {
     return (
       <div className={boxClass}>
-        <MapPin size={18} className="mt-0.5 shrink-0 text-[var(--color-moss)]" />
+        <MapPin size={18} className="mt-0.5 shrink-0 text-[var(--color-moss-dark)]" />
         <span>
           You're both in {listing.location} — local collection could save the shipping cost
           entirely. Message {sellerFirstName} to arrange a pickup.

@@ -73,7 +73,7 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
 
   if (sent) {
     return (
-      <div className="mt-5 flex items-start gap-2 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
+      <div className="mt-5 flex items-start gap-2 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss-dark)]">
         <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
         <span>Invoice sent to {buyer?.name} — they can pay it from their account whenever they're ready.</span>
       </div>
@@ -113,7 +113,7 @@ function InvoicePanel({ bundle }: { bundle: ClubGearBundle }) {
         </div>
         {lookupError && <p role="alert" className="mt-1 text-xs text-[var(--color-brand-dark)]">{lookupError}</p>}
         {buyer && (
-          <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-moss)]">
+          <p className="mt-1 flex items-center gap-1 text-xs text-[var(--color-moss-dark)]">
             <CheckCircle2 size={12} /> Found: {buyer.name}
           </p>
         )}
@@ -409,7 +409,7 @@ export function ClubGearDetail() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1 text-sm font-medium">
                   {bundle.seller.name}
-                  {bundle.seller.verified && <BadgeCheck size={14} className="text-[var(--color-moss)]" />}
+                  {bundle.seller.verified && <BadgeCheck size={14} className="text-[var(--color-moss-dark)]" />}
                 </div>
                 <div className="truncate text-xs text-[var(--color-ink-soft)]">
                   {bundle.seller.club ?? `Member since ${bundle.seller.memberSince}`}
@@ -442,7 +442,7 @@ export function ClubGearDetail() {
                 This lot has sold.
               </div>
             ) : messageSent ? (
-              <div className="mt-5 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss)]">
+              <div className="mt-5 rounded-xl bg-[var(--color-moss-soft)] p-4 text-sm text-[var(--color-moss-dark)]">
                 Message sent — {bundle.seller.name.split(' ')[0]} typically replies within a day.
               </div>
             ) : (

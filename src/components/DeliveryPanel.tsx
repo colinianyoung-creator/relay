@@ -292,7 +292,7 @@ export function DeliveryPanel({ order, onChanged }: { order: MyOrder; onChanged:
           <div aria-live="polite">
             {order.receivedConfirmedAt && (
               <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-[var(--color-moss-soft)] px-2.5 py-2 text-xs font-medium text-[var(--color-ink)]">
-                <CheckCircle2 size={14} aria-hidden="true" className="mt-px shrink-0 text-[var(--color-moss)]" />
+                <CheckCircle2 size={14} aria-hidden="true" className="mt-px shrink-0 text-[var(--color-moss-dark)]" />
                 <span>
                   {order.role === 'buyer'
                     ? `Receipt confirmed ${formatDateTime(order.receivedConfirmedAt)}`

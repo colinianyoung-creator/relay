@@ -96,7 +96,7 @@ export function PayoutsPanel({
           <div className="flex items-center gap-3">
             <div
               className={`flex h-11 w-11 items-center justify-center rounded-full ${
-                chargesEnabled ? 'bg-[var(--color-moss-soft)] text-[var(--color-moss)]' : 'bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]'
+                chargesEnabled ? 'bg-[var(--color-moss-soft)] text-[var(--color-moss-dark)]' : 'bg-[var(--color-brand-soft)] text-[var(--color-brand-dark)]'
               }`}
             >
               {chargesEnabled ? <BadgeCheck size={20} /> : <CircleDollarSign size={20} />}
@@ -210,7 +210,7 @@ export function PayoutsPanel({
                           </p>
                         </div>
                         <div className="w-full shrink-0 pl-7 sm:w-auto sm:pl-0 sm:text-right">
-                          <p className="text-base font-medium text-[var(--color-moss)]">
+                          <p className="text-base font-medium text-[var(--color-moss-dark)]">
                             {o.status === 'refunded' ? formatPrice(0, o.currency) : formatPrice(payout, o.currency)}
                           </p>
                           <div className="mt-1">

@@ -53,7 +53,7 @@ export function ResetPassword() {
             <Loader2 size={15} className="animate-spin" /> Checking your link…
           </div>
         ) : done ? (
-          <p className="flex items-center gap-2 text-sm text-[var(--color-moss)]">
+          <p className="flex items-center gap-2 text-sm text-[var(--color-moss-dark)]">
             <CheckCircle2 size={16} /> Password updated — taking you to your account…
           </p>
         ) : !user ? (

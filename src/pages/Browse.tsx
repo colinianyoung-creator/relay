@@ -328,7 +328,7 @@ export function Browse() {
             onClick={() => setFreeOnly((v) => !v)}
             className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
               freeOnly
-                ? 'border-[var(--color-moss)] bg-[var(--color-moss-soft)] text-[var(--color-moss)]'
+                ? 'border-[var(--color-moss)] bg-[var(--color-moss-soft)] text-[var(--color-moss-dark)]'
                 : 'border-[var(--color-line)] bg-[var(--color-paper-raised)] text-[var(--color-ink-soft)]'
             }`}
           >
@@ -358,7 +358,7 @@ export function Browse() {
               disabled={savingSearch || searchSaved}
               className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition disabled:opacity-70 ${
                 searchSaved
-                  ? 'border-[var(--color-moss)] bg-[var(--color-moss-soft)] text-[var(--color-moss)]'
+                  ? 'border-[var(--color-moss)] bg-[var(--color-moss-soft)] text-[var(--color-moss-dark)]'
                   : 'border-[var(--color-line)] bg-[var(--color-paper-raised)] text-[var(--color-ink-soft)]'
               }`}
             >
