@@ -23,7 +23,6 @@ export function Footer() {
           <Link to="/privacy" className="hover:text-[var(--color-ink)]">
             Privacy
           </Link>
-          <span className="basis-full text-center sm:basis-auto">Prototype — demo data only</span>
         </div>
       </div>
     </footer>

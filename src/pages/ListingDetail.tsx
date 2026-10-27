@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, MapPin, Star, MessageCircle, Heart, Flag, Globe2, Loader2, Ruler, CheckCircle2, CreditCard, Copy, Pencil, Trash2 } from 'lucide-react';
-import { listings as demoListings } from '@/data/listings';
 import {
   fetchListing,
   isSaved,
@@ -89,11 +88,6 @@ export function ListingDetail() {
 
   useEffect(() => {
     if (!id) return;
-    const demo = demoListings.find((l) => l.id === id);
-    if (demo) {
-      setListing(demo);
-      return;
-    }
     fetchListing(id)
       .then((l) => setListing(l))
       .catch(() => setListing(null));
@@ -102,10 +96,6 @@ export function ListingDetail() {
   useEffect(() => {
     if (!id || !user) return;
     fetchFitProfile(user.id).then(setFitProfile);
-    // Demo listings aren't backed by real rows — saved/messaged state for them
-    // is purely client-side (see the isDemo branches below), so a real fetch
-    // here would always resolve false and clobber that fake state.
-    if (demoListings.some((l) => l.id === id)) return;
     isSaved(user.id, id).then(setSaved);
     hasMessaged(id, user.id).then(setMessageSent);
   }, [id, user]);
@@ -132,7 +122,6 @@ export function ListingDetail() {
     );
   }
 
-  const isDemo = demoListings.some((l) => l.id === listing.id);
   const structuredSpecs = STRUCTURED_SPEC_LABELS.filter(
     ({ key }) => typeof listing[key] === 'number',
   );
@@ -142,7 +131,6 @@ export function ListingDetail() {
   const isSold = !!listing.soldAt;
   const isClubGearOnly = listing.sellableIndividually === false && !!listing.bundleId;
   const canBuyInApp =
-    !isDemo &&
     !isSold &&
     !isClubGearOnly &&
     listing.price !== null &&
@@ -151,7 +139,7 @@ export function ListingDetail() {
   // Doesn't need the seller's payouts set up yet — only accepting and
   // paying an offer does (same reasoning as the custom-invoice flow).
   const canOffer =
-    !isDemo && !isSold && !isClubGearOnly && listing.price !== null && user?.id !== listing.seller.id;
+    !isSold && !isClubGearOnly && listing.price !== null && user?.id !== listing.seller.id;
 
   function requireAuth(action: () => void) {
     if (!user) {
@@ -301,10 +289,6 @@ export function ListingDetail() {
               <button
                 onClick={() =>
                   requireAuth(async () => {
-                    if (isDemo) {
-                      setSaved((v) => !v);
-                      return;
-                    }
                     if (!userRef.current) return;
                     const next = await toggleSaved(userRef.current.id, listing.id);
                     setSaved(next);
@@ -358,7 +342,7 @@ export function ListingDetail() {
                   </p>
                 )}
 
-                {!isDemo && !isSold && !listing.bundleId && listing.feeStatus !== 'pending' && (
+                {!isSold && !listing.bundleId && listing.feeStatus !== 'pending' && (
                   <Link
                     to={`/sell?edit=${listing.id}`}
                     className="mt-3 flex items-center justify-center gap-1.5 rounded-full bg-[var(--color-ink)] px-4 py-2 text-xs font-medium text-white hover:bg-black"
@@ -367,16 +351,14 @@ export function ListingDetail() {
                   </Link>
                 )}
 
-                {!isDemo && (
-                  <Link
-                    to={`/sell?duplicate=${listing.id}`}
-                    className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
-                  >
-                    <Copy size={12} /> Duplicate this listing
-                  </Link>
-                )}
+                <Link
+                  to={`/sell?duplicate=${listing.id}`}
+                  className="mt-2 flex items-center justify-center gap-1.5 rounded-full border border-[var(--color-line)] px-4 py-2 text-xs font-medium text-[var(--color-ink-soft)] hover:border-[var(--color-ink)] hover:text-[var(--color-ink)]"
+                >
+                  <Copy size={12} /> Duplicate this listing
+                </Link>
 
-                {!isDemo && !isSold && !listing.bundleId && (
+                {!isSold && !listing.bundleId && (
                   <button
                     onClick={handleDelete}
                     disabled={deleting}
@@ -445,10 +427,6 @@ export function ListingDetail() {
                     <button
                       onClick={() =>
                         requireAuth(async () => {
-                          if (isDemo) {
-                            setMessageSent(true);
-                            return;
-                          }
                           if (!userRef.current) return;
                           await sendMessage(listing.id, listing.seller.id, message);
                           setMessageSent(true);
@@ -461,12 +439,6 @@ export function ListingDetail() {
                   </>
                 )}
               </div>
-            )}
-
-            {isDemo && (
-              <p className="mt-3 text-center text-xs text-[var(--color-ink-soft)]/70">
-                Demo listing — saves and messages here aren't stored.
-              </p>
             )}
 
             {!isSold && user?.id !== listing.seller.id && (
@@ -492,9 +464,7 @@ export function ListingDetail() {
 
           <button
             onClick={() => requireAuth(() => setShowReport(true))}
-            disabled={isDemo}
-            title={isDemo ? "Demo listing — there's nothing real to report here." : undefined}
-            className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 flex items-center gap-1.5 text-xs text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
           >
             <Flag size={12} /> Report this listing
           </button>

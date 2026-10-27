@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Star, Loader2, MessageSquareText } from 'lucide-react';
-import { listings as demoListings } from '@/data/listings';
 import { fetchListingsBySeller, fetchReviewsForSeller, type Review } from '@/lib/supabaseData';
 import { ListingCard } from '@/components/ListingCard';
 import { Avatar } from '@/components/Avatar';
 import { timeAgo } from '@/lib/format';
 import type { Listing } from '@/types';
-
-const isDemoSellerId = (id: string) => /^s\d+$/.test(id);
 
 export function SellerProfile() {
   const { id } = useParams();
@@ -17,11 +14,6 @@ export function SellerProfile() {
 
   useEffect(() => {
     if (!id) return;
-    if (isDemoSellerId(id)) {
-      setSellerListings(demoListings.filter((l) => l.seller.id === id));
-      setReviews([]);
-      return;
-    }
     fetchListingsBySeller(id).then(setSellerListings);
     fetchReviewsForSeller(id).then(setReviews);
   }, [id]);

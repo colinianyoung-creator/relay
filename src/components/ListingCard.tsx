@@ -9,11 +9,9 @@ import { isLikelyFit, hasFitSignal } from '@/lib/fitMatch';
 export function ListingCard({
   listing,
   fitProfile,
-  isDemo,
 }: {
   listing: Listing;
   fitProfile?: FitProfile | null;
-  isDemo?: boolean;
 }) {
   const showsFitBadge = fitProfile && hasFitSignal(listing, fitProfile) && isLikelyFit(listing, fitProfile);
 
@@ -52,7 +50,6 @@ export function ListingCard({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {isDemo && <Badge tone="neutral">Sample listing</Badge>}
           <Badge>{listing.category}</Badge>
           <Badge tone="moss">{listing.condition}</Badge>
           {showsFitBadge && (

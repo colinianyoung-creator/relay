@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, SlidersHorizontal, Loader2, Ruler, BellPlus, Check } from 'lucide-react';
-import { listings as demoListings } from '@/data/listings';
+import { Link } from 'react-router-dom';
+import { Search, SlidersHorizontal, Loader2, Ruler, BellPlus, Check, PackagePlus } from 'lucide-react';
 import {
   fetchListings,
   fetchActiveBundles,
@@ -58,8 +58,6 @@ export function Browse() {
       .then(setRealListings)
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-    // Club gear lots aren't tied to the demo-listing fallback below — they're
-    // real or they don't show, regardless of whether individual listings do.
     fetchActiveBundles()
       .then(setBundles)
       .catch(() => {});
@@ -73,16 +71,7 @@ export function Browse() {
     fetchFitProfile(user.id).then(setFitProfile);
   }, [user]);
 
-  // Demo listings top up the grid to a full row while real supply is still
-  // thin, tapering off as real listings arrive — an instant all-or-nothing
-  // swap would go from a full demo grid to a couple of lonely real cards.
-  // "newest" sort naturally puts real listings first (their postedAt is
-  // always more recent than the demo array's fixed dates).
-  const DEMO_FILL_TARGET = 9;
-  const listings = useMemo(() => {
-    if (realListings.length >= DEMO_FILL_TARGET) return realListings;
-    return [...realListings, ...demoListings.slice(0, DEMO_FILL_TARGET - realListings.length)];
-  }, [realListings]);
+  const listings = realListings;
   const entries = useMemo<BrowseEntry[]>(
     () => [
       ...listings.map((listing): BrowseEntry => ({ kind: 'listing', date: listing.postedAt, listing })),
@@ -391,12 +380,31 @@ export function Browse() {
 
         {loadError && (
           <p role="alert" className="mb-6 text-sm text-[var(--color-brand-dark)]">
-            Couldn't reach the live marketplace right now — showing demo listings only.
+            Couldn't load listings right now — please try again in a moment.
           </p>
         )}
         {saveSearchError && <p role="alert" className="mb-6 text-sm text-[var(--color-brand-dark)]">{saveSearchError}</p>}
 
-        {filtered.length === 0 ? (
+        {loading && entries.length === 0 ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="animate-spin text-[var(--color-ink-soft)]" />
+          </div>
+        ) : filtered.length === 0 && entries.length === 0 && !loadError ? (
+          <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-6 py-16 text-center">
+            <PackagePlus size={28} aria-hidden="true" className="mx-auto text-[var(--color-ink-soft)]" />
+            <h2 className="mt-3 text-xl">No equipment listed yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-ink-soft)]">
+              Relay is new. If you have a sports chair, handcycle, blade or other adaptive kit to pass on,
+              be the first to list it — it's free to list a donation, and a flat fee otherwise.
+            </p>
+            <Link
+              to="/sell"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
+            >
+              <PackagePlus size={15} aria-hidden="true" /> List your equipment
+            </Link>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
             Nothing matches those filters yet — try widening your search.
           </div>
@@ -418,7 +426,6 @@ export function Browse() {
                   key={entry.listing.id}
                   listing={entry.listing}
                   fitProfile={activeFitProfile}
-                  isDemo={demoListings.some((l) => l.id === entry.listing.id)}
                 />
               ),
             )}
