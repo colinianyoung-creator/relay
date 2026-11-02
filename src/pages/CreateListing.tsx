@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PlaceInput } from '@/components/PlaceInput';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ImagePlus, CheckCircle2, Loader2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition, type Currency } from '@/types';
@@ -834,14 +835,16 @@ export function CreateListing() {
               <label htmlFor="location" className="mb-2 block text-sm font-medium">
                 Town or city
               </label>
-              <input
+              <PlaceInput
                 id="location"
-                required
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Exact address is never shown publicly"
-                className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
+                onChange={setLocation}
+                onPlacePicked={(place) => setCountry(place.country)}
+                placeholder="Start typing a town or city"
               />
+              <p className="mt-1.5 text-xs text-[var(--color-ink-soft)]">
+                Your exact address is never shown publicly.
+              </p>
             </div>
             <div>
               <label htmlFor="country" className="mb-2 block text-sm font-medium">

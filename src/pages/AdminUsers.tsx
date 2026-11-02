@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Loader2, Users, BadgeCheck, ShieldPlus, ShieldMinus, Ban, CircleCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
@@ -6,11 +6,14 @@ import { fetchAllUsers, updateUserAdminAction, type AdminUser, type AdminUserAct
 import { Badge } from '@/components/Badge';
 import { AdminTabs } from '@/components/AdminTabs';
 import { timeAgo } from '@/lib/format';
+import { SearchBox } from '@/components/SearchBox';
+import { matches, rankSuggestions } from '@/lib/search';
 
 export function AdminUsers() {
   const { user, profile, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,6 +59,25 @@ export function AdminUsers() {
     }
   }
 
+  const visibleUsers = useMemo(
+    () => users?.filter((u) => matches(query, u.name, u.email, u.club)) ?? null,
+    [users, query],
+  );
+  const userSuggestions = useMemo(
+    () =>
+      query.trim() && users
+        ? rankSuggestions(
+            query,
+            users.flatMap((u) => [
+              { label: u.name, hint: u.email },
+              { label: u.email, hint: u.name },
+              ...(u.club ? [{ label: u.club, hint: 'Club' }] : []),
+            ]),
+          )
+        : [],
+    [users, query],
+  );
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <AdminTabs />
@@ -64,8 +86,19 @@ export function AdminUsers() {
         <h1 className="text-2xl">Users</h1>
       </div>
       <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-        {users ? `${users.length} account${users.length === 1 ? '' : 's'}` : 'Visible only to admins.'}
+        {users ? `${query.trim() && visibleUsers ? `${visibleUsers.length} of ` : ''}${users.length} account${users.length === 1 ? '' : 's'}` : 'Visible only to admins.'}
       </p>
+
+      {users && users.length > 0 && (
+        <SearchBox
+          value={query}
+          onChange={setQuery}
+          suggestions={userSuggestions}
+          label="Search members"
+          placeholder="Search by name, email or club…"
+          className="mt-4 max-w-md"
+        />
+      )}
 
       {error && <p role="alert" className="mt-4 text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
@@ -85,7 +118,7 @@ export function AdminUsers() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--color-line)]">
-                {users.map((u) => {
+                {visibleUsers?.map((u) => {
                   const isSelf = u.id === user.id;
                   const isBanned = !!u.bannedUntil && new Date(u.bannedUntil) > new Date();
                   const busy = busyId === u.id;

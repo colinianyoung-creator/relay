@@ -1,12 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Boxes } from 'lucide-react';
 import { fetchActiveBundles } from '@/lib/supabaseData';
 import { BundleCard } from '@/components/BundleCard';
+import { SearchBox } from '@/components/SearchBox';
+import { matches, rankSuggestions, type Suggestion } from '@/lib/search';
 import type { ClubGearBundle } from '@/types';
 
 export function ClubGearBoard() {
   const [bundles, setBundles] = useState<ClubGearBundle[] | null>(null);
+  const [query, setQuery] = useState('');
+
+  const shown = useMemo(
+    () =>
+      bundles?.filter((b) =>
+        matches(
+          query,
+          b.title,
+          b.description,
+          b.seller.name,
+          ...b.listings.flatMap((l) => [l.title, l.category, l.location]),
+        ),
+      ) ?? null,
+    [bundles, query],
+  );
+
+  const suggestions = useMemo(() => {
+    if (!query.trim() || !bundles) return [];
+    const candidates: Suggestion[] = bundles.flatMap((b) => [
+      { label: b.title, hint: 'Club lot' },
+      ...b.listings.map((l) => ({ label: l.title, hint: 'In a lot' })),
+    ]);
+    return rankSuggestions(query, candidates);
+  }, [bundles, query]);
 
   useEffect(() => {
     fetchActiveBundles().then(setBundles);
@@ -36,20 +62,37 @@ export function ClubGearBoard() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="mb-8 flex items-center">
-          <span className="flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5 text-sm text-[var(--color-ink-soft)]" role="status">
             {bundles === null && <Loader2 size={13} className="animate-spin" />}
-            {bundles !== null && `${bundles.length} active bundle${bundles.length === 1 ? '' : 's'}`}
+            {shown !== null &&
+              (query.trim()
+                ? `${shown.length} of ${bundles?.length} bundle${bundles?.length === 1 ? '' : 's'}`
+                : `${shown.length} active bundle${shown.length === 1 ? '' : 's'}`)}
           </span>
+          {bundles !== null && bundles.length > 0 && (
+            <SearchBox
+              value={query}
+              onChange={setQuery}
+              suggestions={suggestions}
+              label="Search club gear"
+              placeholder="Search lots and items…"
+              className="w-full sm:max-w-sm"
+            />
+          )}
         </div>
 
-        {bundles !== null && bundles.length === 0 ? (
+        {shown !== null && shown.length === 0 && query.trim() && bundles && bundles.length > 0 ? (
+          <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
+            No club gear matches “{query.trim()}”.
+          </div>
+        ) : bundles !== null && bundles.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
             No club gear listed yet — equipment being sold by clubs will show up here.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {bundles?.map((bundle) => (
+            {shown?.map((bundle) => (
               <BundleCard key={bundle.id} bundle={bundle} />
             ))}
           </div>

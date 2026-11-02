@@ -83,6 +83,12 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             <strong>Supabase</strong> — hosts our database, authentication, and file storage as
             our data processor.
           </li>
+          <li>
+            <strong>Open-Meteo</strong> — a place-name lookup that suggests towns and cities as you
+            type in a "Town or city" field when listing equipment. Your browser sends it the text
+            you have typed in that field, and, as with any web request, your IP address. We send
+            nothing else, and nothing about your account or listing.
+          </li>
           <li>Other Relay members — only what you choose to put in a public listing, your public
             profile, or a message you send them.
           </li>

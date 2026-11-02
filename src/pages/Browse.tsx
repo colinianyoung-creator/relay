@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, Loader2, Ruler, BellPlus, Check, PackagePlus } from 'lucide-react';
+import { SlidersHorizontal, Loader2, Ruler, BellPlus, Check, PackagePlus } from 'lucide-react';
 import {
   fetchListings,
   fetchActiveBundles,
@@ -25,6 +25,8 @@ import { BundleCard } from '@/components/BundleCard';
 import { HeroArt } from '@/components/HeroArt';
 import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
 import { AuthModal } from '@/components/AuthModal';
+import { SearchBox } from '@/components/SearchBox';
+import { matches, rankSuggestions, type Suggestion } from '@/lib/search';
 
 type BrowseEntry =
   | { kind: 'listing'; date: string; listing: Listing }
@@ -83,6 +85,7 @@ export function Browse() {
   const [sport, setSport] = useState<Sport | 'all'>('all');
   const [condition, setCondition] = useState<Condition | 'all'>('all');
   const [country, setCountry] = useState<string | 'all'>('all');
+  const [place, setPlace] = useState('');
   const [freeOnly, setFreeOnly] = useState(false);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -111,7 +114,7 @@ export function Browse() {
   }
 
   const hasActiveFilters =
-    sport !== 'all' || condition !== 'all' || country !== 'all' || freeOnly || !!minPrice || !!maxPrice;
+    sport !== 'all' || condition !== 'all' || country !== 'all' || !!place.trim() || freeOnly || !!minPrice || !!maxPrice;
 
   async function handleSaveSearch() {
     requireAuth(async () => {
@@ -147,6 +150,38 @@ export function Browse() {
       : null;
   const activeProfileUsable = hasAnyProfileData(activeFitProfile);
 
+  const suggestions = useMemo(() => {
+    if (!query.trim()) return [];
+    const candidates: Suggestion[] = [
+      ...SPORTS.map((s) => ({ label: s.label, hint: 'Sport' })),
+      ...entries.flatMap((entry): Suggestion[] =>
+        entry.kind === 'bundle'
+          ? [
+              { label: entry.bundle.title, hint: 'Club lot' },
+              ...entry.bundle.listings.map((l) => ({ label: l.title, hint: 'In a club lot' })),
+            ]
+          : [
+              { label: entry.listing.title, hint: entry.listing.category },
+              { label: entry.listing.category, hint: 'Category' },
+            ],
+      ),
+    ];
+    return rankSuggestions(query, candidates);
+  }, [entries, query]);
+
+  const placeSuggestions = useMemo(() => {
+    if (!place.trim()) return [];
+    return rankSuggestions(
+      place,
+      entries.flatMap((entry) =>
+        (entry.kind === 'bundle' ? entry.bundle.listings : [entry.listing]).map((l) => ({
+          label: l.location,
+          hint: l.country,
+        })),
+      ),
+    );
+  }, [entries, place]);
+
   const filtered = useMemo(() => {
     const min = minPrice.trim() ? Number(minPrice) : null;
     const max = maxPrice.trim() ? Number(maxPrice) : null;
@@ -169,6 +204,7 @@ export function Browse() {
       ) {
         return false;
       }
+      if (place.trim() && !items.some((l) => matches(place, l.location, l.country))) return false;
       // A club gear lot is always a paid sale, never a free/donation listing.
       if (freeOnly && (entry.kind === 'bundle' || entry.listing.price !== null)) return false;
       // Raw numeric comparison, not currency-converted — mixed-currency
@@ -179,12 +215,22 @@ export function Browse() {
         return false;
       }
       if (query.trim()) {
-        const q = query.toLowerCase();
         const title = entry.kind === 'bundle' ? entry.bundle.title : entry.listing.title;
-        const haystack = [title, ...items.map((l) => l.title), ...items.map((l) => l.category)]
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(q)) return false;
+        if (
+          !matches(
+            query,
+            title,
+            ...items.flatMap((l) => [
+              l.title,
+              l.category,
+              SPORTS.find((s) => s.id === l.sport)?.label,
+              l.location,
+              l.description,
+            ]),
+          )
+        ) {
+          return false;
+        }
       }
       return true;
     });
@@ -206,6 +252,7 @@ export function Browse() {
     sport,
     condition,
     country,
+    place,
     freeOnly,
     minPrice,
     maxPrice,
@@ -231,15 +278,15 @@ export function Browse() {
               and classification.
             </p>
 
-            <div className="mt-8 flex max-w-xl items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-4 py-2.5 shadow-sm">
-              <Search size={18} className="shrink-0 text-[var(--color-ink-soft)]" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search “racing chair”, “boccia ramp”, “handcycle”…"
-                className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--color-ink-soft)]/70"
-              />
-            </div>
+            <SearchBox
+              value={query}
+              onChange={setQuery}
+              suggestions={suggestions}
+              label="Search equipment"
+              recentKey="relay.recentSearches.browse"
+              placeholder="Search “racing chair”, “boccia ramp”, “handcycle”…"
+              className="mt-8 max-w-xl"
+            />
           </div>
 
           <HeroArt className="mx-auto hidden w-full max-w-sm sm:block" />
@@ -290,6 +337,17 @@ export function Browse() {
               </option>
             ))}
           </select>
+
+          <SearchBox
+            variant="chip"
+            icon="place"
+            label="Town or city"
+            placeholder="Town or city"
+            value={place}
+            onChange={setPlace}
+            suggestions={placeSuggestions}
+            className="w-44 text-sm"
+          />
 
           <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-3.5 py-1.5 text-sm">
             <input

@@ -1,8 +1,10 @@
-import { useEffect, useId, useState } from 'react';
+import { Children, isValidElement, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { LegalDraftNotice } from '@/components/LegalDraftNotice';
 import { LISTING_FEE_GBP } from '@/lib/supabaseData';
+import { SearchBox } from '@/components/SearchBox';
+import { matchScore, matches, rankSuggestions } from '@/lib/search';
 
 // Kept in sync by hand with the edge functions (create-purchase-checkout,
 // accept-offer, create-custom-order) — update both if these change.
@@ -370,15 +372,28 @@ const SECTIONS: FaqSection[] = [
   },
 ];
 
-function FaqItem({ entry }: { entry: FaqEntry }) {
-  const [open, setOpen] = useState(false);
+// The answers are JSX, so pull their visible text out for searching.
+function nodeText(node: React.ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join(' ');
+  if (isValidElement<{ children?: React.ReactNode }>(node)) {
+    return Children.toArray(node.props.children).map(nodeText).join(' ');
+  }
+  return '';
+}
+
+function FaqItem({ entry, forceOpen = false }: { entry: FaqEntry; forceOpen?: boolean }) {
+  // null = follow the search (auto-open on a few hits); a click overrides it.
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? forceOpen;
   const panelId = useId();
   return (
     <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)]">
       <h3 className="text-base">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => setOverride(!open)}
           aria-expanded={open}
           aria-controls={panelId}
           className="flex w-full items-center justify-between gap-4 rounded-2xl p-5 text-left font-medium"
@@ -404,6 +419,51 @@ function FaqItem({ entry }: { entry: FaqEntry }) {
 
 export function Faq() {
   const { hash } = useLocation();
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
+
+  const indexed = useMemo(
+    () =>
+      SECTIONS.map((section) => ({
+        section,
+        entries: section.entries.map((entry) => ({ entry, answerText: nodeText(entry.answer) })),
+      })),
+    [],
+  );
+
+  const visible = useMemo(
+    () =>
+      indexed
+        .map(({ section, entries }) => ({
+          section,
+          entries: entries
+            .filter(
+              ({ entry, answerText }) =>
+                !searching || matches(query, entry.question, section.title, answerText),
+            )
+            // Questions that match in the title itself come first.
+            .sort(
+              (a, b) =>
+                (searching ? matchScore(query, b.entry.question) - matchScore(query, a.entry.question) : 0),
+            )
+            .map((e) => e.entry),
+        }))
+        .filter(({ entries }) => entries.length > 0),
+    [indexed, query, searching],
+  );
+  const resultCount = visible.reduce((n, v) => n + v.entries.length, 0);
+
+  const suggestions = useMemo(
+    () =>
+      searching
+        ? rankSuggestions(
+            query,
+            SECTIONS.flatMap((s) => s.entries.map((e) => ({ label: e.question, hint: s.title }))),
+            6,
+          )
+        : [],
+    [query, searching],
+  );
 
   // React Router doesn't scroll to #anchors on its own, and /faq/tax now
   // redirects to /faq#tax.
@@ -430,6 +490,18 @@ export function Faq() {
         .
       </p>
 
+      <SearchBox
+        value={query}
+        onChange={setQuery}
+        suggestions={suggestions}
+        label="Search the FAQ"
+        placeholder="Search, e.g. “refund”, “postage”, “fees”…"
+        className="mt-6"
+      />
+      <p className="sr-only" role="status">
+        {searching ? `${resultCount} question${resultCount === 1 ? '' : 's'} found` : ''}
+      </p>
+
       <nav aria-label="FAQ sections" className="mt-6 flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
           <a
@@ -442,16 +514,23 @@ export function Faq() {
         ))}
       </nav>
 
+      {searching && resultCount === 0 && (
+        <p className="mt-10 text-sm text-[var(--color-ink-soft)]">
+          No questions match “{query.trim()}”. Try a simpler word, or email us — the address is in
+          the footer.
+        </p>
+      )}
+
       <div className="mt-10 space-y-10">
-        {SECTIONS.map((section) => (
+        {visible.map(({ section, entries }) => (
           <section key={section.id} id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-6">
             <h2 id={`${section.id}-heading`} className="mb-3 text-xl">
               {section.title}
             </h2>
             {section.id === 'tax' && <LegalDraftNotice />}
             <div className="space-y-3">
-              {section.entries.map((entry) => (
-                <FaqItem key={entry.question} entry={entry} />
+              {entries.map((entry) => (
+                <FaqItem key={entry.question} entry={entry} forceOpen={searching && resultCount <= 3} />
               ))}
             </div>
           </section>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { PlaceInput } from '@/components/PlaceInput';
 import { Link, useNavigate } from 'react-router-dom';
 import { Boxes, ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
 import { SPORTS, CONDITIONS, COUNTRIES, type Sport, type Condition } from '@/types';
@@ -336,14 +337,16 @@ export function CreateClubGearListing() {
             <label htmlFor="clubgear-location" className="mb-2 block text-sm font-medium">
               Town or city
             </label>
-            <input
-              id="clubgear-location"
-              required
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Exact address is never shown publicly"
-              className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
-            />
+            <PlaceInput
+                id="clubgear-location"
+                value={location}
+                onChange={setLocation}
+                onPlacePicked={(place) => setCountry(place.country)}
+                placeholder="Start typing a town or city"
+              />
+              <p className="mt-1.5 text-xs text-[var(--color-ink-soft)]">
+                Your exact address is never shown publicly.
+              </p>
           </div>
           <div>
             <label htmlFor="clubgear-country" className="mb-2 block text-sm font-medium">
