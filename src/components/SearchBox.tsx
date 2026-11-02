@@ -177,7 +177,7 @@ export function SearchBox({
         role="listbox"
         aria-label={showingRecent ? 'Recent searches' : 'Suggestions'}
         hidden={!expanded}
-        className="absolute left-0 right-0 top-full z-30 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] py-1.5 shadow-[0_16px_40px_-16px_rgba(27,26,23,0.3)]"
+        className="absolute left-0 right-0 top-full z-30 mt-2 min-w-[18rem] max-h-80 overflow-y-auto rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] py-1.5 shadow-[0_16px_40px_-16px_rgba(27,26,23,0.3)]"
       >
         {expanded &&
           options.map((o, i) => (

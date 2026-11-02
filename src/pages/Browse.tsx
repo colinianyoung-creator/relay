@@ -26,6 +26,7 @@ import { HeroArt } from '@/components/HeroArt';
 import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
 import { AuthModal } from '@/components/AuthModal';
 import { SearchBox } from '@/components/SearchBox';
+import { PlaceInput } from '@/components/PlaceInput';
 import { matches, rankSuggestions, type Suggestion } from '@/lib/search';
 
 type BrowseEntry =
@@ -113,8 +114,9 @@ export function Browse() {
     action();
   }
 
+  // `place` is deliberately absent: saved searches don't store a location yet.
   const hasActiveFilters =
-    sport !== 'all' || condition !== 'all' || country !== 'all' || !!place.trim() || freeOnly || !!minPrice || !!maxPrice;
+    sport !== 'all' || condition !== 'all' || country !== 'all' || freeOnly || !!minPrice || !!maxPrice;
 
   async function handleSaveSearch() {
     requireAuth(async () => {
@@ -189,6 +191,7 @@ export function Browse() {
     // A club gear lot has no single sport/condition/price of its own — it's
     // matched against each filter by "does any item in the lot qualify",
     // same as how a buyer would actually judge whether it's worth opening.
+    const placeTown = place.split(',')[0].trim();
     const result = entries.filter((entry) => {
       const items = entry.kind === 'bundle' ? entry.bundle.listings : [entry.listing];
       const price =
@@ -204,7 +207,7 @@ export function Browse() {
       ) {
         return false;
       }
-      if (place.trim() && !items.some((l) => matches(place, l.location, l.country))) return false;
+      if (placeTown && !items.some((l) => matches(placeTown, l.location))) return false;
       // A club gear lot is always a paid sale, never a free/donation listing.
       if (freeOnly && (entry.kind === 'bundle' || entry.listing.price !== null)) return false;
       // Raw numeric comparison, not currency-converted — mixed-currency
@@ -338,15 +341,15 @@ export function Browse() {
             ))}
           </select>
 
-          <SearchBox
+          <PlaceInput
+            id="browse-place"
             variant="chip"
-            icon="place"
-            label="Town or city"
+            required={false}
             placeholder="Town or city"
             value={place}
             onChange={setPlace}
-            suggestions={placeSuggestions}
-            className="w-44 text-sm"
+            extraSuggestions={placeSuggestions}
+            className="w-48 text-sm"
           />
 
           <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-3.5 py-1.5 text-sm">

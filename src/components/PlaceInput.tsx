@@ -9,10 +9,25 @@ interface PlaceInputProps {
   /** Called when a suggested place is picked, so the country can follow it. */
   onPlacePicked?: (place: Place) => void;
   placeholder?: string;
+  variant?: 'chip' | 'field';
+  required?: boolean;
+  className?: string;
+  /** Ranked suggestions to show ahead of the looked-up places (e.g. where listings are). */
+  extraSuggestions?: { label: string; hint?: string }[];
 }
 
 /** "Town or city" field: suggests real places as you type; free text still works. */
-export function PlaceInput({ id, value, onChange, onPlacePicked, placeholder }: PlaceInputProps) {
+export function PlaceInput({
+  id,
+  value,
+  onChange,
+  onPlacePicked,
+  placeholder,
+  variant = 'field',
+  required = true,
+  className,
+  extraSuggestions = [],
+}: PlaceInputProps) {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
   const picked = useRef<string | null>(null);
@@ -43,14 +58,20 @@ export function PlaceInput({ id, value, onChange, onPlacePicked, placeholder }: 
   return (
     <SearchBox
       id={id}
-      required
-      variant="field"
+      required={required}
+      variant={variant}
+      className={className}
       icon="place"
       label="Town or city"
       value={value}
       loading={loading}
       placeholder={placeholder ?? 'Town or city'}
-      suggestions={places.map((p) => ({ label: p.label, hint: p.country }))}
+      suggestions={[
+        ...extraSuggestions,
+        ...places
+          .filter((p) => !extraSuggestions.some((e) => e.label === p.label))
+          .map((p) => ({ label: p.label, hint: p.country })),
+      ].slice(0, 8)}
       onChange={(next) => {
         const place = places.find((p) => p.label === next);
         if (place) {
