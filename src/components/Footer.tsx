@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useFeedback } from '@/lib/feedbackContext';
 
 export function Footer() {
+  const { openFeedback } = useFeedback();
   return (
     <footer className="border-t border-[var(--color-line)] py-8 sm:py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 text-center text-sm text-[var(--color-ink-soft)] sm:flex-row sm:justify-between sm:text-left">
@@ -23,6 +25,9 @@ export function Footer() {
           <Link to="/privacy" className="hover:text-[var(--color-ink)]">
             Privacy
           </Link>
+          <button type="button" onClick={openFeedback} className="hover:text-[var(--color-ink)]">
+            Send feedback
+          </button>
         </div>
       </div>
     </footer>

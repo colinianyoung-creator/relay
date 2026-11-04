@@ -1773,6 +1773,7 @@ export async function fetchUnreadMessageCount(userId: string): Promise<number> {
 }
 
 export interface AdminActionCounts {
+  newFeedback: number;
   openReports: number;
   escalatedRefunds: number;
   failedRefunds: number;
@@ -1781,13 +1782,15 @@ export interface AdminActionCounts {
 /** Admin-only (RLS returns nothing for anyone else): things waiting on a Relay admin. */
 export async function fetchAdminActionCounts(): Promise<AdminActionCounts> {
   const head = { count: 'exact' as const, head: true };
-  const [reports, escalated, failed] = await Promise.all([
+  const [reports, escalated, failed, feedback] = await Promise.all([
     supabase.from('listing_reports').select('id', head).eq('status', 'open'),
     supabase.from('refund_requests').select('id', head).eq('status', 'escalated'),
     supabase.from('refund_requests').select('id', head).eq('status', 'failed'),
+    supabase.from('feedback_submissions').select('id', head).eq('status', 'new'),
   ]);
-  for (const r of [reports, escalated, failed]) if (r.error) throw r.error;
+  for (const r of [reports, escalated, failed, feedback]) if (r.error) throw r.error;
   return {
+    newFeedback: feedback.count ?? 0,
     openReports: reports.count ?? 0,
     escalatedRefunds: escalated.count ?? 0,
     failedRefunds: failed.count ?? 0,
@@ -2215,4 +2218,68 @@ export async function fetchMyOffers(userId: string): Promise<Offer[]> {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
+}
+
+
+export async function submitFeedback(input: {
+  message: string;
+  email: string;
+  /** Honeypot: real people never see this field, so it stays empty. */
+  website: string;
+}): Promise<void> {
+  const { error } = await supabase.functions.invoke('submit-feedback', {
+    body: {
+      message: input.message,
+      email: input.email,
+      website: input.website,
+      pagePath: window.location.pathname,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+    },
+  });
+  if (error) await throwFunctionError(error);
+}
+
+export interface AdminFeedback {
+  id: string;
+  message: string;
+  contactEmail: string | null;
+  pagePath: string | null;
+  viewport: string | null;
+  status: 'new' | 'resolved';
+  createdAt: string;
+  senderName: string | null;
+}
+
+interface AdminFeedbackRow {
+  id: string;
+  message: string;
+  contact_email: string | null;
+  page_path: string | null;
+  viewport: string | null;
+  status: 'new' | 'resolved';
+  created_at: string;
+  sender: { name: string } | null;
+}
+
+export async function fetchAllFeedback(): Promise<AdminFeedback[]> {
+  const { data, error } = await supabase
+    .from('feedback_submissions')
+    .select('id, message, contact_email, page_path, viewport, status, created_at, sender:profiles(name)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data as unknown as AdminFeedbackRow[]).map((row) => ({
+    id: row.id,
+    message: row.message,
+    contactEmail: row.contact_email,
+    pagePath: row.page_path,
+    viewport: row.viewport,
+    status: row.status,
+    createdAt: row.created_at,
+    senderName: row.sender?.name ?? null,
+  }));
+}
+
+export async function updateFeedbackStatus(id: string, status: 'new' | 'resolved'): Promise<void> {
+  const { error } = await supabase.from('feedback_submissions').update({ status }).eq('id', id);
+  if (error) throw error;
 }

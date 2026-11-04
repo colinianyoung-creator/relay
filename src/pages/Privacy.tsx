@@ -36,6 +36,12 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             currency, and payment status — not full card numbers, which Stripe holds directly.
           </li>
           <li>
+            <strong>Feedback:</strong> if you use the Feedback button (signed in or not), the
+            message you write, the email address if you give one, the page you were on and your
+            screen size. Anonymous senders are rate-limited using a one-way hash of their
+            internet address, not the address itself.
+          </li>
+          <li>
             <strong>Technical data:</strong> basic device/browser information and, if you install
             Relay as an app, offline cache data stored on your own device.
           </li>
@@ -64,6 +70,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           <li>Account, listings, messages, payments: necessary to perform our contract with you.</li>
           <li>Fit profile: your explicit consent, given by choosing to complete it.</li>
           <li>Fraud prevention and enforcing our Terms: our legitimate interest.</li>
+          <li>Feedback: our legitimate interest in improving Relay, and in replying if you ask us to.</li>
           <li>Tax/accounting records: legal obligation.</li>
         </ul>
       </>

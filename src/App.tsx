@@ -1,3 +1,4 @@
+import { AdminFeedbackPage } from '@/pages/AdminFeedback';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Nav } from '@/components/Nav';
 import { PromoBanner } from '@/components/PromoBanner';
@@ -74,6 +75,7 @@ function App() {
           <Route path="/admin/reports" element={<AdminReports />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
+          <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
           <Route path="/admin/log" element={<AdminAuditLog />} />
         </Routes>
       </main>

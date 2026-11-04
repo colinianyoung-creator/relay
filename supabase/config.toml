@@ -428,3 +428,9 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Open to signed-out visitors: the Supabase client still sends the project's
+# anon key as a JWT, so verification stays on and only blocks keyless callers.
+# Spam limits and sender identification happen inside the function.
+[functions.submit-feedback]
+verify_jwt = true

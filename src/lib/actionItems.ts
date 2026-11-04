@@ -157,6 +157,15 @@ export function deriveActionItems(input: {
 
   const admin = input.admin;
   if (admin) {
+    if (admin.newFeedback > 0) {
+      items.push({
+        id: 'admin-feedback',
+        title: plural(admin.newFeedback, 'new feedback message'),
+        detail: 'Sent from the Feedback button',
+        to: '/admin/feedback',
+        count: admin.newFeedback,
+      });
+    }
     if (admin.openReports > 0) {
       items.push({
         id: 'admin-reports',

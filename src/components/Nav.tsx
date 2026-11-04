@@ -31,6 +31,9 @@ export function Nav() {
             R
           </span>
           <span className="font-display text-xl">Relay</span>
+          <span className="rounded-full border border-[var(--color-ink-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-[var(--color-ink-soft)]">
+            Beta
+          </span>
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-[var(--color-ink-soft)] sm:flex">

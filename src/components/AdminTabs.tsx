@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { ShieldAlert, Users, Receipt, History } from 'lucide-react';
+import { ShieldAlert, Users, Receipt, History, MessageSquareText } from 'lucide-react';
 
 const TABS = [
   { to: '/admin/reports', label: 'Reports', icon: ShieldAlert },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/orders', label: 'Orders', icon: Receipt },
+  { to: '/admin/feedback', label: 'Feedback', icon: MessageSquareText },
   { to: '/admin/log', label: 'Activity', icon: History },
 ];
 
