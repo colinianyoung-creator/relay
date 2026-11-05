@@ -116,9 +116,21 @@ Deno.serve(async (req) => {
       return json({ error: "Couldn't send that. Please try again in a moment." }, 500);
     }
 
-    // Tell the admins. Awaited so the runtime doesn't cut it off, but
-    // sendEmail never throws, so a mail problem can't fail the submission.
-    const { data: admins } = await supabase.from('profiles').select('id').eq('is_admin', true);
+    // FEEDBACK_NOTIFY_EMAIL (a shared inbox) wins; without it, fall back to
+    // each admin account's own login email.
+    const notifyEmail = Deno.env.get('FEEDBACK_NOTIFY_EMAIL')?.trim();
+    let recipients: string[] = notifyEmail ? [notifyEmail] : [];
+    if (recipients.length === 0) {
+      const { data: admins } = await supabase.from('profiles').select('id').eq('is_admin', true);
+      const found = await Promise.all(
+        (admins ?? []).map(async (a: { id: string }) => {
+          const res = await supabase.auth.admin.getUserById(a.id);
+          return res.data.user?.email ?? null;
+        }),
+      );
+      recipients = found.filter((e): e is string => !!e);
+    }
+
     let senderName = 'A visitor (not signed in)';
     if (userId) {
       const { data: p } = await supabase.from('profiles').select('name').eq('id', userId).single();
@@ -132,12 +144,11 @@ Deno.serve(async (req) => {
       <p style="margin: 0; font-size: 13px; color: #5b5e6b;">Page: ${escapeHtml(pagePath ?? 'unknown')}${
         viewport ? ` · Screen: ${escapeHtml(viewport)}` : ''
       }</p>`;
+    // Awaited so the runtime doesn't cut it off; sendEmail never throws, so a
+    // mail problem can't fail the submission.
     await Promise.all(
-      (admins ?? []).map(async (a: { id: string }) => {
-        const res = await supabase.auth.admin.getUserById(a.id);
-        const to = res.data.user?.email;
-        if (!to) return;
-        await sendEmail({
+      recipients.map((to) =>
+        sendEmail({
           to,
           subject: 'New feedback on Relay',
           html: wrapEmailBody({
@@ -145,8 +156,8 @@ Deno.serve(async (req) => {
             ctaLabel: 'Open the feedback inbox',
             ctaUrl: `${SITE_URL}/admin/feedback`,
           }),
-        });
-      }),
+        }),
+      ),
     );
 
     return json({ ok: true });
