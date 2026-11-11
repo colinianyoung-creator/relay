@@ -3,13 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { LegalDraftNotice } from '@/components/LegalDraftNotice';
 import { LISTING_FEE_GBP } from '@/lib/supabaseData';
+import { PLATFORM_FEE_CAP_GBP, PLATFORM_FEE_PERCENT } from '@/lib/fees';
 import { SearchBox } from '@/components/SearchBox';
 import { matchScore, matches, rankSuggestions } from '@/lib/search';
 
-// Kept in sync by hand with the edge functions (create-purchase-checkout,
-// accept-offer, create-custom-order) — update both if these change.
-const PLATFORM_FEE_PERCENT = 5;
-const PLATFORM_FEE_CAP_GBP = 150;
 
 interface FaqEntry {
   question: string;

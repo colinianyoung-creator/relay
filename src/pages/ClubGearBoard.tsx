@@ -5,6 +5,7 @@ import { fetchActiveBundles } from '@/lib/supabaseData';
 import { BundleCard } from '@/components/BundleCard';
 import { SearchBox } from '@/components/SearchBox';
 import { matches, rankSuggestions, type Suggestion } from '@/lib/search';
+import { PLATFORM_FEE_CAP_GBP, PLATFORM_FEE_PERCENT } from '@/lib/fees';
 import type { ClubGearBundle } from '@/types';
 
 export function ClubGearBoard() {
@@ -51,6 +52,14 @@ export function ClubGearBoard() {
           <p className="mt-4 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
             Clubs replacing their equipment every few years group the outgoing stock into one
             lot — buy bundles into a single checkout instead of sourcing kit one at a time.
+          </p>
+          <p className="mt-3 max-w-xl text-[15px] text-[var(--color-ink-soft)]">
+            <strong className="font-medium text-[var(--color-ink)]">Free for clubs to list.</strong>{' '}
+            Relay takes {PLATFORM_FEE_PERCENT}% only when a lot sells (capped at £{PLATFORM_FEE_CAP_GBP}), and
+            the buyer's payment is held until they confirm the gear has arrived.{' '}
+            <Link to="/faq#payments" className="underline hover:text-[var(--color-ink)]">
+              How fees work
+            </Link>
           </p>
           <Link
             to="/sell/club-gear/new"

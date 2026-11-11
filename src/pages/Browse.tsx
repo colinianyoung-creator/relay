@@ -287,7 +287,7 @@ export function Browse() {
               suggestions={suggestions}
               label="Search equipment"
               recentKey="relay.recentSearches.browse"
-              placeholder="Search “racing chair”, “boccia ramp”, “handcycle”…"
+              placeholder="Search “racing chair”, “handcycle”…"
               className="mt-8 max-w-xl"
             />
           </div>

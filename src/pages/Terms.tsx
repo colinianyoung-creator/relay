@@ -124,18 +124,18 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     body: (
       <>
         <p>
-          Most sales on Relay are private sales between individuals and are final — statutory
-          rights to cancel or return within a set period generally apply only where a seller is
-          acting in the course of a business, not as a private individual selling their own
-          equipment. Sellers acting in the course of business must comply with applicable
-          consumer law in their and the buyer's jurisdiction, including pre-contract information
-          and cancellation rights.
-        </p>
-        <p className="mt-3">
           A buyer can request a refund through Relay at any time while the payment is still being
           held, and for 30 days after it has been released to the seller. A request needs the
           seller's approval, and if declined can be escalated to Relay for review. Where the seller
           has already withdrawn the funds, Relay may not be able to complete a refund.
+        </p>
+        <p className="mt-3">
+          Separately from that, many sales on Relay are private sales between individuals.
+          Statutory rights to cancel or return within a set period generally apply only where a
+          seller is acting in the course of a business, not as a private individual selling their
+          own equipment. Sellers acting in the course of business must comply with applicable
+          consumer law in their and the buyer's jurisdiction, including pre-contract information
+          and cancellation rights.
         </p>
         <p className="mt-3">
           If an in-app payment is disputed (e.g. a Stripe chargeback), Relay will cooperate with

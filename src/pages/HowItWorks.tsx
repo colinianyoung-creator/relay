@@ -10,12 +10,12 @@ const steps = [
   {
     icon: MessageCircle,
     title: 'Message the seller, or make an offer',
-    body: "Ask questions and arrange a viewing directly, or send a structured offer the seller can accept, decline or counter — no middleman either way.",
+    body: "Ask questions and arrange a viewing directly, or send a structured offer the seller can accept, decline or counter.",
   },
   {
     icon: Handshake,
     title: 'Pay securely, all in one place',
-    body: "Once a price is agreed — asking price, an accepted offer, or a seller-sent invoice — you pay in-app via Stripe. Relay never sees your card details; Stripe holds the payment in Relay's own account until you confirm receipt, releasing it to the seller automatically after 14 days if you don't respond. Every seller of a priced item has set up payouts first, so every sale is protected.",
+    body: "Once a price is agreed — asking price, an accepted offer, or a seller-sent invoice — you pay in-app via Stripe. Relay never sees your card details; Stripe holds the payment in Relay's own account until you confirm receipt (or, if you don't respond, until 14 days after the seller marks it shipped), then releases it to the seller. Every seller of a priced item has set up payouts first, so every sale is protected.",
   },
 ];
 
@@ -29,7 +29,7 @@ export function HowItWorks() {
       <p className="mt-4 text-[15px] text-[var(--color-ink-soft)]">
         Sports wheelchairs, handcycles and running blades are expensive, sized to the athlete,
         and traded today mostly through Facebook groups and word of mouth. Relay is a
-        dedicated, searchable home for that — free to list, free to browse.
+        dedicated, searchable home for that — free to browse, and free to list if you're donating.
       </p>
 
       <div className="mt-12 space-y-8">

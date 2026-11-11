@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { fetchPromoRedemptionCount, LAUNCH_PROMO_CODE, LAUNCH_PROMO_CAP } from '@/lib/supabaseData';
 
 const DISMISS_KEY = 'relay-promo-banner-dismissed';
+// A count of "99 of 100 left" just advertises that almost nobody has joined, so it only appears once the promo has real take-up.
+const SHOW_COUNT_FROM = 10;
 
 /** Site-wide launch-promo banner: "first 100 sellers list free". Hides itself once the promo is fully claimed or the viewer's dismissed it. */
 export function PromoBanner() {
@@ -42,10 +44,13 @@ export function PromoBanner() {
           <span className="rounded bg-white/15 px-1.5 py-0.5 font-mono text-xs tracking-wide">
             {LAUNCH_PROMO_CODE}
           </span>{' '}
-          at posting.{' '}
-          <span className="text-white/70">
-            {remaining} of {LAUNCH_PROMO_CAP} left.
-          </span>
+          at posting.
+          {claimed >= SHOW_COUNT_FROM && (
+            <span className="text-white/70">
+              {' '}
+              {remaining} of {LAUNCH_PROMO_CAP} left.
+            </span>
+          )}
         </p>
         <Link
           to="/sell"
