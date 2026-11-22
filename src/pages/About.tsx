@@ -43,7 +43,7 @@ export function About() {
           alt="Colin, the founder of Relay, smiling"
           width={800}
           height={1000}
-          className="mx-auto w-48 rounded-2xl object-cover sm:order-2 sm:w-full"
+          className="order-first mx-auto w-40 rounded-2xl object-cover sm:order-2 sm:w-full"
         />
       </div>
 
