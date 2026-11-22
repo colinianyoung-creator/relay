@@ -46,6 +46,9 @@ export function Nav() {
           <NavLink to="/how-it-works" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
             How it works
           </NavLink>
+          <NavLink to="/about" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
+            About
+          </NavLink>
           {user && (
             <NavLink to="/account" className={({ isActive }) => (isActive ? 'text-[var(--color-ink)]' : 'hover:text-[var(--color-ink)]')}>
               My activity
@@ -135,6 +138,7 @@ export function Nav() {
             { to: '/', label: 'Browse', end: true },
             { to: '/club-gear', label: 'Club Gear' },
             { to: '/how-it-works', label: 'How it works' },
+            { to: '/about', label: 'About' },
             ...(user ? [{ to: '/account', label: actionCount > 0 ? `My activity (${actionCount} to do)` : 'My activity' }] : []),
             ...(profile?.is_admin ? [{ to: '/admin/reports', label: 'Admin' }] : []),
           ].map((item) => (

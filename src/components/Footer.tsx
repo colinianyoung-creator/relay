@@ -16,6 +16,9 @@ export function Footer() {
           <Link to="/how-it-works" className="hover:text-[var(--color-ink)]">
             How it works
           </Link>
+          <Link to="/about" className="hover:text-[var(--color-ink)]">
+            About
+          </Link>
           <Link to="/terms" className="hover:text-[var(--color-ink)]">
             Terms
           </Link>

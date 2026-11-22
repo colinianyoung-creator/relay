@@ -1,3 +1,4 @@
+import { About } from '@/pages/About';
 import { AdminFeedbackPage } from '@/pages/AdminFeedback';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Nav } from '@/components/Nav';
@@ -68,6 +69,7 @@ function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/seller/:id" element={<SellerProfile />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/about" element={<About />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/faq/tax" element={<Navigate to="/faq#tax" replace />} />
