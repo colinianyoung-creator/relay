@@ -1,10 +1,11 @@
 import { LegalDraftNotice } from '@/components/LegalDraftNotice';
 
 // Structured against the ICO's list of required privacy information
-// (ico.org.uk "What privacy information should we provide?"). The
-// [bracketed] items are facts only the owner can supply — fill them in, and
-// have a solicitor check the transfers and legitimate-interests wording,
-// before this page stops being a draft.
+// (ico.org.uk "What privacy information should we provide?"). Still to do
+// before this stops being a draft: add the registered business details and
+// ICO registration number to section 1, confirm each provider's transfer
+// mechanism, and have a solicitor check the transfers and legitimate-interests
+// wording.
 const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
     title: '1. Who we are',
@@ -15,9 +16,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           covers everyone who creates an account, browses, or transacts on Relay.
         </p>
         <p className="mt-3">
-          Relay is run by [legal name of the company or trader, and its registered or trading
-          address — to be added before launch]. ICO registration number: [to be added]. You can
-          contact us at help@relayadaptive.com.
+          Relay is currently run by its founder, Colin Young, based in Scotland. We'll add our
+          registered business details here once they're in place. You can contact us at
+          help@relayadaptive.com.
         </p>
       </>
     ),
@@ -227,9 +228,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           Our database and file storage are hosted in Ireland (the EU), which the UK recognises as
           providing adequate protection. Some of our other providers, such as Stripe, Vercel and
           Resend, may process data in the United States or other countries outside the UK/EEA.
-          Where they do, the transfer relies on safeguards approved for UK data, such as the UK–US
-          data bridge or the UK addendum to standard contractual clauses. [To be confirmed per
-          provider.]
+          We choose providers that rely on safeguards recognised under UK law for those
+          transfers, such as the UK–US data bridge or standard contractual clauses with the UK
+          addendum.
         </p>
         <p className="mt-3">
           You can email us for details of the safeguards that apply to a given provider and for a
@@ -259,12 +260,12 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
           </li>
           <li>
             <strong>Feedback:</strong> until we've dealt with it, then reviewed regularly and
-            deleted when no longer useful — we aim for within 12 months. [To be confirmed.]
+            deleted when no longer useful — we aim to do that within 12 months.
           </li>
           <li>
             <strong>Photos sent for checking:</strong> we don't keep a separate copy for the check,
             and a rejected photo is never stored by us. How long Sightengine keeps images it
-            receives is set out in its own privacy policy. [To be confirmed.]
+            receives is set out in its own privacy policy.
           </li>
           <li>
             <strong>Support emails:</strong> as long as needed to deal with your request and any
@@ -338,7 +339,7 @@ export function Privacy() {
         Legal
       </p>
       <h1 className="text-4xl">Privacy Policy</h1>
-      <p className="mt-3 text-sm text-[var(--color-ink-soft)]">Last updated: draft, unpublished.</p>
+      <p className="mt-3 text-sm text-[var(--color-ink-soft)]">Last updated: 22 November 2026.</p>
 
       <div className="mt-8">
         <LegalDraftNotice />
