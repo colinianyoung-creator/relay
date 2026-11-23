@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import type { User } from '@supabase/supabase-js';
 import { SlidersHorizontal, Loader2, Ruler, BellPlus, Check, PackagePlus } from 'lucide-react';
 import {
   fetchListings,
@@ -27,6 +28,7 @@ import { MySizeModal, type QuickFitValues } from '@/components/MySizeModal';
 import { AuthModal } from '@/components/AuthModal';
 import { SearchBox } from '@/components/SearchBox';
 import { PlaceInput } from '@/components/PlaceInput';
+import { NotifyMe } from '@/components/NotifyMe';
 import { matches, rankSuggestions, type Suggestion } from '@/lib/search';
 
 type BrowseEntry =
@@ -93,38 +95,41 @@ export function Browse() {
   const [sort, setSort] = useState<'newest' | 'price-asc' | 'price-desc'>('newest');
 
   const [showAuth, setShowAuth] = useState(false);
-  const pendingActionRef = useRef<(() => void) | null>(null);
+  const pendingActionRef = useRef<((signedInUser: User) => void) | null>(null);
   const [savingSearch, setSavingSearch] = useState(false);
   const [searchSaved, setSearchSaved] = useState(false);
   const [saveSearchError, setSaveSearchError] = useState<string | null>(null);
+  // Set once a "notify me" from an empty state succeeds; cleared when the filters change.
+  const [notifyDone, setNotifyDone] = useState(false);
 
   useEffect(() => {
     if (!user || !pendingActionRef.current) return;
     const action = pendingActionRef.current;
     pendingActionRef.current = null;
-    action();
+    action(user);
   }, [user]);
 
-  function requireAuth(action: () => void) {
+  // The action gets the signed-in user as an argument. One that closed over `user`
+  // would still see null after signing in, and silently do nothing.
+  function requireAuth(action: (signedInUser: User) => void) {
     if (!user) {
       pendingActionRef.current = action;
       setShowAuth(true);
       return;
     }
-    action();
+    action(user);
   }
 
   // `place` is deliberately absent: saved searches don't store a location yet.
   const hasActiveFilters =
     sport !== 'all' || condition !== 'all' || country !== 'all' || freeOnly || !!minPrice || !!maxPrice;
 
-  async function handleSaveSearch() {
-    requireAuth(async () => {
-      if (!user) return;
+  async function handleSaveSearch(onSaved?: () => void) {
+    requireAuth(async (signedInUser) => {
       setSaveSearchError(null);
       setSavingSearch(true);
       try {
-        await createSavedSearch(user.id, {
+        await createSavedSearch(signedInUser.id, {
           sport: sport === 'all' ? null : sport,
           condition: condition === 'all' ? null : condition,
           country: country === 'all' ? null : country,
@@ -134,6 +139,7 @@ export function Browse() {
         });
         setSearchSaved(true);
         setTimeout(() => setSearchSaved(false), 3000);
+        onSaved?.();
       } catch (err) {
         setSaveSearchError(err instanceof Error ? err.message : 'Could not save that search.');
       } finally {
@@ -141,6 +147,10 @@ export function Browse() {
       }
     });
   }
+
+  useEffect(() => {
+    setNotifyDone(false);
+  }, [sport, condition, country, freeOnly, minPrice, maxPrice]);
 
   const profileIsUsable = hasAnyProfileData(fitProfile);
   // Saved account profile wins if it has anything usable; otherwise fall back to
@@ -404,7 +414,7 @@ export function Browse() {
 
           {hasActiveFilters && (
             <button
-              onClick={handleSaveSearch}
+              onClick={() => handleSaveSearch()}
               disabled={savingSearch || searchSaved}
               className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition disabled:opacity-70 ${
                 searchSaved
@@ -458,16 +468,42 @@ export function Browse() {
               Relay is new. If you have a sports chair, handcycle, blade or other adaptive kit to pass on,
               be the first to list it — it's free to list a donation, and a flat fee otherwise.
             </p>
-            <Link
-              to="/sell"
-              className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-brand-dark)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-brand-darker)]"
-            >
-              <PackagePlus size={15} aria-hidden="true" /> List your equipment
-            </Link>
+            <NotifyMe
+              heading="Looking for kit? We'll tell you when it's listed."
+              showSport
+              sport={sport}
+              onSportChange={setSport}
+              onNotify={() => handleSaveSearch(() => setNotifyDone(true))}
+              saving={savingSearch}
+              done={notifyDone}
+              signedIn={!!user}
+            />
+            <div className="mx-auto mt-8 max-w-md border-t border-[var(--color-line)] pt-6">
+              <p className="text-sm font-medium">Have kit to pass on?</p>
+              <Link
+                to="/sell"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[var(--color-line)] px-5 py-2.5 text-sm font-medium hover:border-[var(--color-ink)]"
+              >
+                <PackagePlus size={15} aria-hidden="true" /> List your equipment
+              </Link>
+            </div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[var(--color-line)] py-20 text-center text-[var(--color-ink-soft)]">
+          <div className="rounded-2xl border border-dashed border-[var(--color-line)] px-6 py-16 text-center text-[var(--color-ink-soft)]">
             Nothing matches those filters yet — try widening your search.
+            {/* Only when saved-search filters are set: text and place filters aren't saved. */}
+            {hasActiveFilters && (
+              <NotifyMe
+                heading="Or we can email you when something matches."
+                showSport={false}
+                sport={sport}
+                onSportChange={setSport}
+                onNotify={() => handleSaveSearch(() => setNotifyDone(true))}
+                saving={savingSearch}
+                done={notifyDone}
+                signedIn={!!user}
+              />
+            )}
           </div>
         ) : (
           <div
