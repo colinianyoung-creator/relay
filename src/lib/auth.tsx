@@ -27,8 +27,7 @@ interface AuthContextValue {
     club: string,
   ) => Promise<{ error: string | null; signedIn: boolean }>;
   signIn: (email: string, password: string) => Promise<string | null>;
-  /** `termsSource` says how the person agreed to the Terms: 'signup_google' (ticked the box) or 'google_continue' (notice shown). */
-  signInWithGoogle: (termsSource: 'signup_google' | 'google_continue') => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -102,8 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   }
 
-  async function signInWithGoogle(termsSource: 'signup_google' | 'google_continue') {
-    stashPendingTerms(termsSource);
+  async function signInWithGoogle() {
+    // Agreement to the Terms is by the notice under the button.
+    stashPendingTerms('google_continue');
     // Full-page redirect flow, not a popup — the browser leaves the app and
     // comes back to `redirectTo` with the session already established, so
     // there's no local state to update here beyond surfacing an error if
