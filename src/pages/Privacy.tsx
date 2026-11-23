@@ -1,4 +1,6 @@
 import { LegalDraftNotice } from '@/components/LegalDraftNotice';
+import { PRIVACY_VERSION } from '@/lib/consent';
+import { formatDate } from '@/lib/format';
 
 // Structured against the ICO's list of required privacy information
 // (ico.org.uk "What privacy information should we provide?"). Still to do
@@ -56,6 +58,11 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             when a matching listing appears.
           </li>
           <li>
+            <strong>Consent records:</strong> when you agreed to our Terms, and when you
+            consented to us storing health-related fit profile details, with the version of this
+            policy you saw.
+          </li>
+          <li>
             <strong>Feedback:</strong> if you use the Feedback button (signed in or not), the
             message you write, the email address if you give one, the page you were on and your
             screen size. Anonymous senders are rate-limited using a one-way hash of their
@@ -90,12 +97,14 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: '3. Your fit profile is special category data',
     body: (
       <p>
-        Your fit profile's classification and disability-notes fields can reveal information
-        about your health or disability. Under UK GDPR this is "special category data" and gets
-        extra protection. We only ask for it because you choose to fill in a fit profile, we
-        only use it to compare against listing measurements, we don't use it for advertising or
-        share it with anyone outside Relay, and you can clear it at any time from your account.
-        Filling in a fit profile is entirely optional — Relay works without one.
+        Your fit profile's classification and free-text notes can reveal information about your
+        health or disability. Under UK GDPR this is "special category data" and gets extra
+        protection. We only store these details if you tick a consent box when you save them. We
+        record when you agreed and which version of this policy you saw. We only use them to
+        compare against listing measurements, we don't use them for advertising or share them
+        with anyone outside Relay, and you can withdraw your consent at any time from your fit
+        profile, which removes the details. Height, weight and seat measurements don't need this
+        consent. Filling in a fit profile is entirely optional, and Relay works without one.
       </p>
     ),
   },
@@ -118,8 +127,9 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             with you.
           </li>
           <li>
-            <strong>Checking whether kit is likely to fit you:</strong> your explicit consent,
-            given by choosing to complete a fit profile.
+            <strong>Checking whether kit is likely to fit you,</strong> using the health-related
+            details in your fit profile: your explicit consent, given by ticking the consent box
+            when you save them.
           </li>
           <li>
             <strong>Checking uploaded photos</strong> (listing photos and profile pictures)
@@ -256,6 +266,10 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
             them.
           </li>
           <li>
+            <strong>Consent records:</strong> for as long as your account exists, so we can show
+            what you agreed to. They're deleted with your account.
+          </li>
+          <li>
             <strong>Fit profile:</strong> until you clear it yourself or ask us to delete your account.
           </li>
           <li>
@@ -296,7 +310,8 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <>
         <p>
           Subject to applicable law, you can ask to access, correct, delete, or export your data,
-          restrict how we use it, and withdraw consent for your fit profile at any time (this
+          restrict how we use it, and withdraw consent for your fit profile's health-related
+          details at any time using the "Withdraw consent" button in your fit profile (this
           doesn't affect processing before you withdrew it). Email help@relayadaptive.com to
           exercise any of these; we'll reply within one month.
         </p>
@@ -339,7 +354,7 @@ export function Privacy() {
         Legal
       </p>
       <h1 className="text-4xl">Privacy Policy</h1>
-      <p className="mt-3 text-sm text-[var(--color-ink-soft)]">Last updated: 22 November 2026.</p>
+      <p className="mt-3 text-sm text-[var(--color-ink-soft)]">Last updated: {formatDate(new Date(PRIVACY_VERSION))}.</p>
 
       <div className="mt-8">
         <LegalDraftNotice />

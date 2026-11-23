@@ -30,7 +30,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     body: (
       <p>
         You must be at least 18 years old and able to form a binding contract to buy or sell on
-        Relay. You're responsible for the accuracy of your account and listing information and
+        Relay. By creating an account you confirm you meet this and accept these terms. You're responsible for the accuracy of your account and listing information and
         for keeping your login credentials secure. One account per person — accounts are not
         transferable.
       </p>

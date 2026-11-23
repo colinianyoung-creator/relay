@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Loader2, Ruler } from 'lucide-react';
 import { SPORTS, type Sport, type FitProfile } from '@/types';
 import { fetchFitProfile, saveFitProfile } from '@/lib/supabaseData';
+import {
+  PRIVACY_VERSION,
+  fetchActiveConsentDate,
+  hasSensitiveFitData,
+  recordConsent,
+  withdrawConsent,
+} from '@/lib/consent';
+import { formatDate } from '@/lib/format';
 
 const EMPTY: FitProfile = {
   primarySport: null,
@@ -24,12 +32,44 @@ export function FitProfileForm({ userId }: { userId: string }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<FitProfile>(EMPTY);
+  // When the person gave explicit consent for the health-related fields, if they have.
+  const [consentDate, setConsentDate] = useState<string | null>(null);
+  const [consentTicked, setConsentTicked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFitProfile(userId)
-      .then(setProfile)
+    Promise.all([
+      fetchFitProfile(userId),
+      fetchActiveConsentDate(userId, 'fit_profile').catch(() => null),
+    ])
+      .then(([p, date]) => {
+        setProfile(p);
+        setConsentDate(date);
+        setConsentTicked(!!date);
+      })
       .finally(() => setLoading(false));
   }, [userId]);
+
+  const sensitive = hasSensitiveFitData(profile);
+
+  async function withdraw() {
+    setError(null);
+    setSaving(true);
+    setSaved(false);
+    try {
+      // Remove the data first, so a failure can't leave details stored without consent.
+      const cleared = { ...profile, classification: '', disabilityNotes: '', notes: '' };
+      await saveFitProfile(userId, cleared);
+      await withdrawConsent('fit_profile');
+      setProfile(cleared);
+      setConsentDate(null);
+      setConsentTicked(false);
+    } catch {
+      setError("Couldn't withdraw your consent just now. Please try again in a moment.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) {
     return <Loader2 className="mx-auto animate-spin text-[var(--color-ink-soft)]" />;
@@ -49,11 +89,32 @@ export function FitProfileForm({ userId }: { userId: string }) {
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          setError(null);
+          if (sensitive && !consentTicked) {
+            setError('Please tick the consent box to save these details, or clear them.');
+            return;
+          }
           setSaving(true);
           setSaved(false);
-          await saveFitProfile(userId, profile);
-          setSaving(false);
-          setSaved(true);
+          try {
+            // Consent is recorded before the details are stored.
+            if (sensitive) {
+              await recordConsent('fit_profile', PRIVACY_VERSION, 'fit_profile_form');
+              setConsentDate(await fetchActiveConsentDate(userId, 'fit_profile'));
+            }
+            await saveFitProfile(userId, profile);
+            // Nothing health-related left stored, so any earlier consent has run its course.
+            if (!sensitive && consentDate) {
+              await withdrawConsent('fit_profile');
+              setConsentDate(null);
+              setConsentTicked(false);
+            }
+            setSaved(true);
+          } catch {
+            setError("Couldn't save your fit profile just now. Please try again in a moment.");
+          } finally {
+            setSaving(false);
+          }
         }}
         className="space-y-6"
       >
@@ -166,6 +227,49 @@ export function FitProfileForm({ userId }: { userId: string }) {
             className="w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-ink-soft)]"
           />
         </div>
+
+        {(sensitive || consentDate) && (
+          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-raised)] p-4">
+            <p className="text-sm font-medium">Consent for health-related details</p>
+            <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
+              Classification and the two free-text notes can reveal information about your health or
+              disability, which gets extra protection under UK GDPR. We only use them to compare
+              against listing measurements. They're never shown publicly or shared outside Relay.
+              See our{' '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-ink)]">
+                Privacy Policy<span className="sr-only"> (opens in a new tab)</span>
+              </a>
+              .
+            </p>
+            <label className="mt-3 flex items-start gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={consentTicked}
+                onChange={(e) => setConsentTicked(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand-dark)]"
+              />
+              <span>
+                I consent to Relay storing and using these details for that purpose. I can withdraw
+                this at any time.
+              </span>
+            </label>
+            {consentDate && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[var(--color-ink-soft)]">
+                <span>You agreed on {formatDate(new Date(consentDate))}.</span>
+                <button
+                  type="button"
+                  onClick={withdraw}
+                  disabled={saving}
+                  className="font-medium underline hover:text-[var(--color-ink)] disabled:opacity-60"
+                >
+                  Withdraw consent and remove these details
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && <p role="alert" className="text-sm text-[var(--color-brand-dark)]">{error}</p>}
 
         <div className="flex items-center gap-3">
           <button

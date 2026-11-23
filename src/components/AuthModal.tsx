@@ -50,12 +50,17 @@ export function AuthModal({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const containerRef = useModalA11y(onClose);
 
   async function handleGoogle() {
     setError(null);
+    if (mode === 'signup' && !acceptedTerms) {
+      setError('Please tick the box to agree to the Terms first.');
+      return;
+    }
     setGoogleLoading(true);
-    const errorMessage = await signInWithGoogle();
+    const errorMessage = await signInWithGoogle(mode === 'signup' ? 'signup_google' : 'google_continue');
     if (errorMessage) {
       setError(errorMessage);
       setGoogleLoading(false);
@@ -94,6 +99,10 @@ export function AuthModal({
 
     if (password !== confirmPassword) {
       setError('Passwords don’t match.');
+      return;
+    }
+    if (!acceptedTerms) {
+      setError('Please tick the box to agree to the Terms first.');
       return;
     }
 
@@ -149,6 +158,28 @@ export function AuthModal({
           </p>
         ) : (
           <>
+            {mode === 'signup' && (
+              <label className="mb-4 flex items-start gap-2.5 text-xs text-[var(--color-ink-soft)]">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand-dark)]"
+                />
+                <span>
+                  I'm 18 or over, and I agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-ink)]">
+                    Terms<span className="sr-only"> (opens in a new tab)</span>
+                  </a>{' '}
+                  and have read the{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-ink)]">
+                    Privacy Policy<span className="sr-only"> (opens in a new tab)</span>
+                  </a>
+                  .
+                </span>
+              </label>
+            )}
+
             {mode !== 'forgot' && (
               <>
                 <button
@@ -160,6 +191,19 @@ export function AuthModal({
                   {googleLoading ? <Loader2 size={16} className="animate-spin" /> : <GoogleIcon />}
                   Continue with Google
                 </button>
+                {mode === 'signin' && (
+                  <p className="mt-2 text-center text-xs text-[var(--color-ink-soft)]">
+                    By continuing with Google you agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-ink)]">
+                      Terms<span className="sr-only"> (opens in a new tab)</span>
+                    </a>{' '}
+                    and{' '}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--color-ink)]">
+                      Privacy Policy<span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                    .
+                  </p>
+                )}
 
                 <div className="my-4 flex items-center gap-3 text-xs text-[var(--color-ink-soft)]">
                   <span className="h-px flex-1 bg-[var(--color-line)]" /> or

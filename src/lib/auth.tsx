@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { TERMS_VERSION, recordTermsForUser, stashPendingTerms, takePendingTerms } from '@/lib/consent';
 
 export interface Profile {
   id: string;
@@ -26,7 +27,8 @@ interface AuthContextValue {
     club: string,
   ) => Promise<{ error: string | null; signedIn: boolean }>;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signInWithGoogle: () => Promise<string | null>;
+  /** `termsSource` says how the person agreed to the Terms: 'signup_google' (ticked the box) or 'google_continue' (notice shown). */
+  signInWithGoogle: (termsSource: 'signup_google' | 'google_continue') => Promise<string | null>;
   resetPassword: (email: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -72,19 +74,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, club: club || null } },
+      // The Terms acceptance rides along as metadata and is recorded properly
+      // once there is a session (see recordTermsForUser).
+      options: {
+        data: {
+          name,
+          club: club || null,
+          terms_version: TERMS_VERSION,
+          terms_accepted_at: new Date().toISOString(),
+        },
+      },
     });
     // With email confirmation off, signUp returns an active session immediately;
     // with it on, session is null until the confirmation link is clicked.
     return { error: error?.message ?? null, signedIn: !!data.session };
   }
 
+  // Record the Terms acceptance as soon as the person has a session.
+  const userId = user?.id;
+  useEffect(() => {
+    if (user) void recordTermsForUser(user);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return error?.message ?? null;
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(termsSource: 'signup_google' | 'google_continue') {
+    stashPendingTerms(termsSource);
     // Full-page redirect flow, not a popup — the browser leaves the app and
     // comes back to `redirectTo` with the session already established, so
     // there's no local state to update here beyond surfacing an error if
@@ -93,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: { redirectTo: window.location.href },
     });
+    // The redirect never happened, so don't leave the stash for a later sign-in.
+    if (error) takePendingTerms();
     return error?.message ?? null;
   }
 
